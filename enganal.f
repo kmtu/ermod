@@ -1020,6 +1020,7 @@ c
      #                    cltype,screen,splodr,charge,
      #                    ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
      #                    specatm,sitepos,invcl,volume
+      use spline
       integer i,j,ptrnk,slvmax,tagpt(slvmax)
       integer svi,svj,uvi,uvj,ati,sid,stmax,m,k
       integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3
@@ -1069,7 +1070,7 @@ c
           rc1min=0 ; rc1max=ms1max-1
           rc2min=0 ; rc2max=ms2max-1
           rc3min=0 ; rc3max=ms3max-1
-          factor=spline(0.0e0,'init')
+          call spline_init(splodr)
           allocate( splslv(0:splodr-1,3,ptrnk),grdslv(3,ptrnk) )
           allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
         endif
@@ -1104,7 +1105,7 @@ c
                 if(rci.gt.rcimax/2) inm(m)=real(rci-rcimax)
                 rcpi=(0.0e0,0.0e0)
                 do 3215 spi=0,splodr-2
-                  chr=spline(real(spi+1),'calc')
+                  chr=spline_value(real(spi+1))
                   rtp2=2.0e0*pi*real(spi*rci)/real(rcimax)
                   cosk=chr*cos(rtp2)
                   sink=chr*sin(rtp2)
@@ -1197,7 +1198,7 @@ c
               rci=int(factor)
               do 5206 spi=0,splodr-1
                 rtp2=factor-real(rci-spi)
-                splval(spi,m,sid)=spline(rtp2,'calc')
+                splval(spi,m,sid)=spline_value(rtp2)
 5206          continue
               grdval(m,sid)=rci
 5205        continue
@@ -1314,45 +1315,6 @@ c
 c
       return
       end subroutine
-c
-c
-      real function spline(rst,scheme)
-      use engmain, only:  splodr
-      character*4 scheme
-      integer i,k
-      real rst,factor
-      real, dimension(:), allocatable, save :: splcoef
-      if(scheme.eq.'init') then
-        allocate( splcoef(0:splodr) )
-        do 3771 i=0,splodr
-          factor=1.0e0
-          if(i.gt.1) then
-            do 3781 k=1,i
-              factor=factor*real(k)
-3781        continue
-          endif
-          if(i.lt.splodr) then
-            do 3782 k=1,splodr-i
-              factor=factor*real(k)
-3782        continue
-          endif
-          factor=real(splodr)/factor
-          if(mod(i,2).eq.1) factor=-factor
-          splcoef(i)=factor
-3771    continue
-      endif
-      if(scheme.eq.'calc') then
-        factor=0.0e0
-        if((rst.gt.0.0e0).and.(rst.lt.real(splodr))) then
-          k=int(rst)
-          do 3791 i=0,k
-            factor=factor+splcoef(i)*((rst-real(i))**(splodr-1))
-3791      continue
-        endif
-        spline=factor
-      endif
-      return
-      end function
 c
 c
 #ifdef MKL

@@ -1,8 +1,8 @@
 #!/bin/sh
 
-F90FLAGS="-O3 -xP -mcmodel=large -autodouble -extend-source -shared-intel -fomit-frame-pointer"
-mpiifort -static -g -o energromacs enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS -DMKL /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib
-mpiifort -static -g -o enernamd enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD -DMKL /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib
+F90FLAGS="-g -traceback -O3 -xP -mcmodel=large -autodouble -extend-source -shared-intel -fomit-frame-pointer"
+mpiifort -static -o energromacs spline.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS -DMKL /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib
+mpiifort -static -o enernamd spline.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD -DMKL /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib
 #mpiifort -g -o enganal.o -c enganal.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o insertion.o -c insertion.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o setconf.o -c setconf.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
