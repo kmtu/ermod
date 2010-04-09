@@ -491,12 +491,10 @@ c
       allocate( tplst(nummol) )
       slvmax=0
       do 3001 i=1+ptinit,nummol,ptskip
-        q=1
-        if(slttype.eq.1) q=0
-        if((slttype.ge.2).and.(sluvid(i).eq.0)) q=0
-        if(q.eq.0) then
-          slvmax=slvmax+1
-          tplst(slvmax)=i
+         if((slttype.eq.1) .or. 
+     #      ((slttype.ge.2).and.(sluvid(i).eq.0))) then
+            slvmax=slvmax+1
+            tplst(slvmax)=i
         endif
 3001  continue
       allocate( insdst(ermax),engdst(ermax),tagpt(slvmax) )
