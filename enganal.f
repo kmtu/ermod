@@ -146,10 +146,10 @@ c
 c
       implicit none
 c
-      integer numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
-      integer slttype,sltpick,refpick,wgtslf,wgtins
-      integer estype,boxshp,inscnd,inscfg,hostspec,ljformat,iseed
-      real inptemp,temp
+      integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
+      integer :: slttype,sltpick,refpick,wgtslf,wgtins
+      integer :: estype,boxshp,inscnd,inscfg,hostspec,ljformat,iseed
+      real :: inptemp,temp
       integer, parameter :: io6=6             ! standard output
 c
       integer, dimension(:),   allocatable, save :: moltype,numsite
@@ -1018,7 +1018,7 @@ c
      #                    cltype,screen,splodr,charge,
      #                    ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
      #                    specatm,sitepos,invcl,volume
-      use spline
+      use spline, only: spline_init, spline_value
       integer i,j,ptrnk,slvmax,tagpt(slvmax)
       integer svi,svj,uvi,uvj,ati,sid,stmax,m,k
       integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3
@@ -1034,9 +1034,11 @@ c
       real, dimension(:,:,:),      allocatable, save :: splslv
       integer, dimension(:,:),     allocatable, save :: grdslv
       complex, dimension(:,:,:),   allocatable, save :: cnvslt
+      real, dimension(:),          allocatable, save :: splint
 c
       real, dimension(:,:,:),      allocatable :: splval
       integer, dimension(:,:),     allocatable :: grdval
+      integer :: si
 c
       if(cltype.eq.0) then                                   ! bare Coulomb
         pairep=0.0e0
@@ -1071,6 +1073,10 @@ c
           call spline_init(splodr)
           allocate( splslv(0:splodr-1,3,ptrnk),grdslv(3,ptrnk) )
           allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+          allocate(splint(1:(splodr-1)))
+          do si = 1, splodr - 1
+             splint(si) = spline_value(dble(si))
+          enddo
         endif
         allocate( engfac(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
         allocate( rcpslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
@@ -1103,7 +1109,7 @@ c
                 if(rci.gt.rcimax/2) inm(m)=real(rci-rcimax)
                 rcpi=(0.0e0,0.0e0)
                 do 3215 spi=0,splodr-2
-                  chr=spline_value(real(spi+1))
+                  chr=splint(spi+1)
                   rtp2=2.0e0*pi*real(spi*rci)/real(rcimax)
                   cosk=chr*cos(rtp2)
                   sink=chr*sin(rtp2)
