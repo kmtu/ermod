@@ -24,6 +24,7 @@ contains
     end do
   end subroutine spline_init
 
+  ! FIXME: speed it up
   real(8) function spline_value(rst)
     real(8), intent(in) :: rst
     integer :: i, k
