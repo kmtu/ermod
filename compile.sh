@@ -2,10 +2,14 @@
 
 F90FLAGS_noOPT="-g -traceback -xP -mcmodel=large -autodouble -extend-source -shared-intel -fomit-frame-pointer"
 F90FLAGS="$F90FLAGS_noOPT -O3"
-mpiifort -warn all -static -o energromacs spline.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS -DMKL /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib
-mpiifort -warn all -o energromacs_p spline.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS -DMKL /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib -lprofiler
-mpiifort -warn all -o energromacs_noMPI spline.f90 enganal.f $F90FLAGS_noOPT -cpp -O0 -Dtrjctry -DGROMACS -DMKL -DnoMPI /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib -lprofiler
-mpiifort -warn all -static -o enernamd spline.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD -DMKL /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib
+FFTFLAGS="-DMKL"
+FFTLIBS="/opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide"
+#FFTFLAGS="-DMKL"
+#FFTLIBS="/opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide"
+mpiifort -warn all -static -o energromacs spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${FFTLIBS} || exit 1
+mpiifort -warn all -o energromacs_p spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${FFTLIBS} -L$HOME/lib -lprofiler || exit 1
+mpiifort -warn all -o energromacs_noMPI spline.f90 fft_iface.f90 enganal.f $F90FLAGS_noOPT -cpp -O0 -Dtrjctry -DGROMACS -DMKL -DnoMPI /opt/intel/mkl/10.0.011/include/mkl_dfti.f90 -lmkl_em64t -lguide -L$HOME/lib -lprofiler || exit 1
+mpiifort -warn all -static -o enernamd spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD ${FFTFLAGS} ${FFTLIBS} || exit 1
 #mpiifort -g -o enganal.o -c enganal.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o insertion.o -c insertion.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o setconf.o -c setconf.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 

@@ -1019,6 +1019,9 @@ c
      #                    ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
      #                    specatm,sitepos,invcl,volume
       use spline, only: spline_init, spline_value
+      use fft_iface, only: fft_init_ctc, fft_init_inplace, 
+     #                     fft_ctc, fft_inplace,
+     #                     fft_set_size
       integer i,j,ptrnk,slvmax,tagpt(slvmax)
       integer svi,svj,uvi,uvj,ati,sid,stmax,m,k
       integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3
@@ -1038,7 +1041,8 @@ c
 c
       real, dimension(:,:,:),      allocatable :: splval
       integer, dimension(:,:),     allocatable :: grdval
-      integer :: si
+      integer :: si, gridsize(3)
+      complex, allocatable :: fft_buf(:, :, :)
 c
       if(cltype.eq.0) then                                   ! bare Coulomb
         pairep=0.0e0
@@ -1077,9 +1081,20 @@ c
           do si = 1, splodr - 1
              splint(si) = spline_value(dble(si))
           enddo
+          ! allocate fft-buffers
+          allocate( fft_buf(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+          gridsize(1) = ms1max
+          gridsize(2) = ms2max
+          gridsize(3) = ms3max
+          call fft_set_size(gridsize)
         endif
         allocate( engfac(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
         allocate( rcpslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+        if(cltype .eq. 2) then
+          ! init fft
+          call fft_init_inplace(rcpslt)
+          call fft_init_ctc(fft_buf, cnvslt)
+        endif
       endif
 c
       if(scheme.eq.'preeng') then
@@ -1219,13 +1234,7 @@ c
 5211        continue
           endif
           if(uvi.gt.0) then
-            do 5221 rc3=rc3min,rc3max
-             do 5222 rc2=rc2min,rc2max
-              do 5223 rc1=rc1min,rc1max
-                rcpslt(rc1,rc2,rc3)=(0.0e0,0.0e0)
-5223          continue
-5222         continue
-5221        continue
+            rcpslt(:, :, :)=(0.0e0,0.0e0)
             do 5251 sid=1,stmax
               ati=specatm(sid,i)
               chr=charge(ati)
@@ -1243,16 +1252,17 @@ c
 5232           continue
 5231          continue
 5251        continue
-            call fastFT(rcpslt)                              ! 3D-FFT
+            ! FIXME: rewrite to real-to-complex transform
+            call fft_inplace(rcpslt)                         ! 3D-FFT
             do 5241 rc3=rc3min,rc3max
              do 5242 rc2=rc2min,rc2max
               do 5243 rc1=rc1min,rc1max
                 rcpi=cmplx(engfac(rc1,rc2,rc3),0.0e0)
-                cnvslt(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
+                fft_buf(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
 5243          continue
 5242         continue
 5241        continue
-            call fastFT(cnvslt)                              ! 3D-FFT
+            call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
           endif
           deallocate( splval,grdval )
         endif
@@ -1319,29 +1329,6 @@ c
 c
       return
       end subroutine
-c
-c
-#ifdef MKL
-      subroutine fastFT(rcpchr)
-      use engmain, only:  ms1max,ms2max,ms3max
-      use MKL_DFTI                                                ! MKL
-      type(Dfti_Descriptor), pointer :: desc_handle               ! MKL
-      integer :: fftstat,fftsize(3)                               ! MKL
-      complex, dimension(:),   allocatable :: fftrcp              ! MKL
-      complex, dimension(0:ms1max-1,0:ms2max-1,0:ms3max-1) :: rcpchr
-      allocate( fftrcp(0:ms1max*ms2max*ms3max-1) )                ! MKL
-      fftrcp=reshape(rcpchr,(/ms1max*ms2max*ms3max/))             ! MKL
-      fftsize(1)=ms1max ; fftsize(2)=ms2max ; fftsize(3)=ms3max   ! MKL
-      fftstat=DftiCreateDescriptor(desc_handle,DFTI_DOUBLE,       ! MKL
-     #                             DFTI_COMPLEX,3,fftsize)        ! MKL
-      fftstat=DftiCommitDescriptor(desc_handle)                   ! MKL
-      fftstat=DftiComputeForward(desc_handle,fftrcp)              ! MKL
-      fftstat=DftiFreeDescriptor(desc_handle)                     ! MKL
-      rcpchr=reshape(fftrcp,(/ms1max,ms2max,ms3max/))             ! MKL
-      deallocate( fftrcp )                                        ! MKL
-      return
-      end subroutine
-#endif
 c
 c
       subroutine getiduv(pti,factor,iduv)
