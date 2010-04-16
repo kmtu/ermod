@@ -1,22 +1,22 @@
 module spline
   implicit none
-  real(8), allocatable :: coeff(:)
+  real, allocatable :: coeff(:)
   integer :: order
 contains
 
   subroutine spline_init(spline_order)
     integer, intent(in) :: spline_order
     integer :: i, k
-    real(8) :: factor
+    real :: factor
     order = spline_order
     allocate( coeff(0:order) )
     do i = 0,order
        factor=1.0e0
        do k = 1, i ! pass thru when i == 0
-          factor = factor * dble(k)
+          factor = factor * real(k)
        end do
        do k = 1, order - i ! pass thru when i == order
-          factor = factor * dble(k)
+          factor = factor * real(k)
        end do
        factor = order / factor
        if(mod(i,2) == 1) factor = -factor
@@ -25,10 +25,10 @@ contains
   end subroutine spline_init
 
   ! FIXME: speed it up
-  real(8) function spline_value(rst)
-    real(8), intent(in) :: rst
+  real function spline_value(rst)
+    real, intent(in) :: rst
     integer :: i, k
-    real(8) :: f
+    real :: f
     f = 0.0e0
     if((rst > 0.0) .and. (rst < order)) then
        k = int(rst)
