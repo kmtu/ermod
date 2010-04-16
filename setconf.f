@@ -60,12 +60,13 @@ c
       use Enum_Type                                             ! PrestoX
 #endif
 #ifdef Toray
-      use MDcondition_M, only: mstep,oEnsemble,nflxyz,temp0     ! Toray
-      use System_M, only: nmoltype,nlstmol,natmmol,latm_sort,   ! Toray
-     #                    atomas,pcharg,r,h                     ! Toray
+      use MDcondition_M, only: oEnsemble,nflxyz,temp0           ! Toray
+      use System_M, only: atomas,pcharg,r,h                     ! Toray
       use NonbondList_M, only: rnboff                           ! Toray
       use CoulombEnergy_M, only: nfelec,alpha,mszrec            ! Toray
       use VDWEnergy_M, only: nfvdw,parvdw                       ! Toray
+      use EnergyRep_M, only: nmoltype,nlstmol,natmmol,          ! Toray
+     #                       latm_sort,mstepEnergyRep           ! Toray
 #endif
 #ifdef DLPOLY
       use site_module, only: nummols,numsit                     ! DL_POLY
@@ -170,7 +171,7 @@ c
       OUTntype=Object%MolInfo%TotalNum                          ! PrestoX
 #endif
 #ifdef Toray
-      OUTnrun=mstep(0)                                          ! Toray
+      OUTnrun=mstepEnergyRep                                    ! Toray
       OUTntype=nmoltype                                         ! Toray
 #endif
 #ifdef DLPOLY
