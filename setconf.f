@@ -821,8 +821,8 @@ c
       integer, parameter :: sltio=71                 ! IO for sltfile
       integer, parameter :: molio=72                 ! IO for molfile
 c
-      call iniparam                  ! initialization of parameters
       call OUTinitial                ! initialization of OUTname module
+      call iniparam                  ! initialization of parameters
       call OUTrename                 ! matching with outside variables
       maxcnf=OUTnrun                                     ! from outside
       if(slttype.eq.1) numtype=OUTntype                  ! from outside
