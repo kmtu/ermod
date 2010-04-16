@@ -1042,7 +1042,7 @@ c
       real, dimension(:,:,:),      allocatable :: splval
       integer, dimension(:,:),     allocatable :: grdval
       integer :: si, gridsize(3)
-      complex, allocatable :: fft_buf(:, :, :)
+      complex, allocatable, save :: fft_buf(:, :, :)
 c
       if(cltype.eq.0) then                                   ! bare Coulomb
         pairep=0.0e0
