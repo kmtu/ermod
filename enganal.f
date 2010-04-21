@@ -187,7 +187,7 @@ c
 c
       module mpiproc                                                   ! MPI
 #ifndef noMPI
-      include 'mpif.h'                                                 ! MPI
+      include "mpif.h"                                                 ! MPI
 #endif
       integer ierror,myrank,nprocs                                     ! MPI
       contains
@@ -211,8 +211,8 @@ c
       end module                                                       ! MPI
 c
 c
-#     include 'setconf.f'
-#     include 'insertion.f'
+#     include "setconf.f"
+#     include "insertion.f"
 c
 c
       module engproc
@@ -290,7 +290,7 @@ c
       peread=0
       ermax=0
       do 3001 pti=0,numslv
-#       include 'param_eng'
+#       include "param_eng"
         if(peread.eq.1) then   ! read coordinate parameters from separate file
           open(unit=ecdio,file=ecdfile,status='old')
           read(ecdio,*)        ! comment line
@@ -1421,7 +1421,7 @@ c
 c
 c
 c  structural analysis performed separately from energetic analysis
-#     include 'stranal.f'
+#     include "stranal.f"
 c
 c
 c  connection to the main routine of trajectory generation is done in
