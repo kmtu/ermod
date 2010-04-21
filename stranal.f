@@ -287,7 +287,7 @@ c
               if(svg(idtyp).le.tiny) svg(idtyp)=0.0e0
 2712        continue
             write(58,581) rst,(svg(idtyp), idtyp=1,stmax)
-581         format(f8.3,<stmax>g10.3)
+581         format(f8.3,99999999g10.3)
 2711      continue
           endfile(58)
           close(58)
