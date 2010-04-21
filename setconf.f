@@ -715,7 +715,8 @@ c
         upljcut=elecut ; lwljcut=upljcut-2.0e0                  ! NAMD
 #endif
       endif
-#     include "param_eng"         ! only part of constants set here
+c     only part of constants set here
+#     include "param_eng"
 c
 c  default settings
 #ifndef trjctry
@@ -737,7 +738,8 @@ c  default settings
       endif
 c  default settings done
 c
-#     include "param_eng"         ! read again for non-default constants
+c     read again for non-default constants
+#     include "param_eng"
       temp=inptemp*8.314510e-3/4.184e0               ! kcal/mol
       if((screen.le.tiny).and.(cltype.ne.0)) then    ! Ewald and PME
         if(ewtoler.le.tiny) call set_stop('ewa')
