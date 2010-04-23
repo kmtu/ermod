@@ -187,7 +187,8 @@ c
 c
       module mpiproc                                                   ! MPI
 #ifndef noMPI
-      include "mpif.h"                                                 ! MPI
+c                                                                      ! MPI
+      include "mpif.h"
 #endif
       integer ierror,myrank,nprocs                                     ! MPI
       contains
@@ -618,7 +619,7 @@ c
           if(myrank.eq.0) then
             write(flcio,911) stnum,(flceng(pti), pti=1,numslv)
           endif
-911       format(i9,<numslv>f15.5)
+911       format(i9,999999999f15.5)
         endif
 c
         do 1501 iduv=1+ptinit,ermax,ptskip
@@ -753,7 +754,7 @@ c
 7553      continue
           endfile(75)
           close(75)
-751       format(i5,<numslv>f15.5)
+751       format(i5,99999f15.5)
         endif
         if(slttype.eq.1) open(unit=73,file='weight_soln',status='new')
         if(slttype.ge.2) open(unit=73,file='weight_refs',status='new')
@@ -901,7 +902,7 @@ c
              do 5554 k=1,3
                rst=rst+cell(m,k)*clm(k)
 5554         continue
-             xst(m)=xst(m)-rst
+             xst(m)=xst(m)-rst             ! get the nearest distance between i,j
 5553       continue
          endif
          dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
