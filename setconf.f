@@ -1069,8 +1069,14 @@ c
 #else
       call dormqr('L', 'T', 3, 3, 3, qr, 3, scale, newcell, 3, work, lwork, info)
 #endif
-      if(info /= 0) stop "setconf%rotate_boxd: failed to rotate cell"
+      if(info /= 0) stop "setconf%rotate_box: failed to rotate cell"
       cell(:, :) = newcell(:, :)
+      if(abs(cell(2, 1) > 1e-8) .or. 
+     &   abs(cell(3, 1) > 1e-8) .or.
+     &   abs(cell(3, 2) > 1e-8)) then
+        print *, cell
+        stop "setconf%rotate_box: assertion failed"
+      endif
 
 !     rotate coordinates
 !     FIXME: get Q and multiply by intrinsic if there is a bottleneck.

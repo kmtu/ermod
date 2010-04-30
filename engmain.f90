@@ -166,7 +166,7 @@ module engmain
   real :: elecut,lwljcut,upljcut,screen,ewtoler
   integer :: intprm,cmbrule,cltype,splodr,plmode
   integer :: ew1max,ew2max,ew3max,ms1max,ms2max,ms3max
-
+  
   integer :: ermax,numslv,esmax,maxins
   integer, dimension(:),   allocatable :: uvmax,uvsoft,uvspec
   real, dimension(:),      allocatable :: uvcrd,edens
