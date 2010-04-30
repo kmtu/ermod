@@ -16,10 +16,10 @@ contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
     use engmain, only: numsite
     integer, intent(in) :: target_solu, tagpt(:), slvmax
-    real, intent(out) :: uvengy(:)
+    real, intent(out) :: uvengy(0:slvmax)
     real, allocatable :: eng(:, :)
     
-    print *, "DEBUG: relcal_proc called"
+    ! print *, "DEBUG: relcal_proc called"
     ! FIXME: fix calling convention & upstream call tree
     ! to calculate several solutes at once
     nsolu_atom = numsite(target_solu)
@@ -51,6 +51,7 @@ contains
     ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
 
     allocate(eng(1:slvmax, 1))
+    eng(:, :) = 0
     call get_pair_energy(eng)
 
     uvengy(1:slvmax) = eng(1:slvmax, 1)
@@ -292,7 +293,7 @@ contains
     integer :: upos, vpos
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v
-    real :: crdu(3), crdv(3), d(3), invbox(3), dist, r, invr2
+    real :: crdu(3), crdv(3), d(3), invbox(3), dist, r
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm
     
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
@@ -330,7 +331,6 @@ contains
           
           dist = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
           r = sqrt(dist)
-          invr2 = 1.0 / dist
           if(r > upljcut) then
              elj = 0.0
           else
@@ -343,7 +343,7 @@ contains
                 case default
                    stop "Unknown coulomb type @ realcal%pairenergy"
              end select
-             rtp1 = ljsgm * ljsgm * invr2
+             rtp1 = ljsgm * ljsgm / dist
              rtp2 = rtp1 * rtp1 * rtp1
              elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
              if(r > lwljcut) then    ! CHARMM form of switching function
