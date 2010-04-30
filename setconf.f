@@ -1071,9 +1071,9 @@ c
 #endif
       if(info /= 0) stop "setconf%rotate_box: failed to rotate cell"
       cell(:, :) = newcell(:, :)
-      if(abs(cell(2, 1) > 1e-8) .or. 
-     &   abs(cell(3, 1) > 1e-8) .or.
-     &   abs(cell(3, 2) > 1e-8)) then
+      if(abs(cell(2, 1)) > 1e-8 .or. 
+     &   abs(cell(3, 1)) > 1e-8 .or.
+     &   abs(cell(3, 2)) > 1e-8) then
         print *, cell
         stop "setconf%rotate_box: assertion failed"
       endif
