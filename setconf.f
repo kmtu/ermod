@@ -1047,10 +1047,12 @@ c
       use engmain, only: cell, sitepos
       integer, intent(in) :: n
       real :: qr(3, 3), newcell(3, 3), scale(3)
-      integer, parameter :: lwork = 10 ! 3 * n + 1
-      real :: work(lwork)
+      integer :: lwork
+      real, allocatable :: work(:)
       integer :: info, perm(3)
 
+      lwork = max(3 * 3 + 1, n)
+      allocate(work(lwork))
 !     QR-factorize box vector
       qr(:, :) = cell
       perm(:) = 0
@@ -1085,6 +1087,7 @@ c
 #else
       call dormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos, 3, work, lwork, info)
 #endif
+      deallocate(work)
       end subroutine
 c
 c
