@@ -277,6 +277,7 @@ c
      #                   slnuv,avslf,minuv,maxuv,numslt,sltlist,
      #                   engnorm,engsmpl,voffset
       use ptinsrt, only: instslt
+      use realcal_blk, only: realcal_proc
       use mpiproc                                                      ! MPI
       integer, parameter :: flcio=91                    ! IO unit for flcuv
       integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
@@ -354,18 +355,42 @@ c
         endif
 c
         call recpcal(tagslt,tagslt,factor,slvmax,tagpt,'charge')
-        do 1101 k=0,slvmax
-          if(k.eq.0) i=tagslt                 ! solute self
-          if(k.gt.0) then                     ! solute-solvent pair
-            i=tagpt(k)
-            if(i.eq.tagslt) goto 1199
-          endif
-          call realcal(tagslt,i,pairep)
-          call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
-          pairep=pairep+factor
-          uvengy(k)=pairep
-1199      continue
-1101    continue
+
+        uvengy(:) = 0
+        if(boxshp /= 0 .and. cltype /= 0) then ! called only when ewald-type real part
+          call realcal_proc(tagslt, tagpt, slvmax, uvengy)
+          do k=0,slvmax
+            if(k.eq.0) i=tagslt ! solute self
+            if(k.gt.0) then     ! solute-solvent pair
+              i=tagpt(k)
+              if(i.eq.tagslt) cycle
+            endif
+            
+            if(k == 0) then
+              call realcal(tagslt, i, pairep) ! (i == tagslt, i.e. self)
+            else 
+              ! FIXME: 
+              call residual_ene(tagslt, i, pairep)
+            endif
+            call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
+            pairep=pairep+factor
+            uvengy(k) = uvengy(k) + pairep
+          enddo
+        else
+          do 1101 k=0,slvmax
+            if(k.eq.0) i=tagslt                 ! solute self
+            if(k.gt.0) then                     ! solute-solvent pair
+              i=tagpt(k)
+              if(i.eq.tagslt) goto 1199
+            endif
+
+            call realcal(tagslt,i,pairep)
+            call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
+            pairep=pairep+factor
+            uvengy(k)=pairep
+1199        continue
+1101      continue
+        endif
 c
         if(wgtslf.eq.0) engnmfc=1.0e0
         if(wgtslf.eq.1) then
@@ -779,6 +804,30 @@ c
       return
       end subroutine
 c
+      subroutine residual_ene(i, j, pairep)
+      use engmain, only: screen, volume, specatm, numsite, charge
+      integer, intent(in) :: i, j
+      real, intent(out) :: pairep
+      real :: rtp1, rtp2, epcl
+      integer :: is, js, ismax, jsmax, ati, atj
+      ismax = numsite(i)
+      jsmax = numsite(j)
+      if(cltype.ne.0) then                                 ! Ewald and PME
+        rtp1=0.0e0
+        do 2501 is=1,ismax
+          ati=specatm(is,i)
+          rtp1=rtp1+charge(ati)
+2501    continue
+        rtp2=0.0e0
+        do 2502 js=1,jsmax
+          atj=specatm(js,j)
+          rtp2=rtp2+charge(atj)
+2502    continue
+        epcl=pi*rtp1*rtp2/screen/screen/volume
+        if(i.eq.j) epcl=epcl/2.0e0                         ! self-interaction
+        pairep=-epcl
+      endif
+      end subroutine
 c
       subroutine volcorrect(engnmfc)
       use engmain, only:  nummol,maxsite,numatm,temp,numsite,sluvid,

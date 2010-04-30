@@ -10,10 +10,10 @@ LAPACKLIBS="-lblas -llapack"
 FFTFLAGS="-DFFTW -I$HOME/include"
 FFTLIBS="-L$HOME/lib -lfftw3"
 LIBS="$FFTLIBS $LAPACKLIBS"
-mpif90 -Wall -o energromacs engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} || exit 1
-mpif90 -Wall -o energromacs_p engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
-mpif90 -Wall -o energromacs_noMPI engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS_noOPT -cpp -Dtrjctry -DGROMACS -DnoMPI ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
-mpif90 -Wall -o enernamd engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD ${FFTFLAGS} ${LIBS} || exit 1
+mpif90 -Wall -o energromacs engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} || exit 1
+mpif90 -Wall -o energromacs_p engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
+mpif90 -Wall -o energromacs_noMPI engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS_noOPT -cpp -Dtrjctry -DGROMACS -DnoMPI ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
+mpif90 -Wall -o enernamd engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD ${FFTFLAGS} ${LIBS} || exit 1
 #mpiifort -g -o enganal.o -c enganal.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o insertion.o -c insertion.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o setconf.o -c setconf.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
