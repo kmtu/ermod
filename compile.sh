@@ -8,10 +8,10 @@ LAPACKLIBS="-lmkl_em64t -lguide"
 FFTFLAGS="-DFFTW -I$HOME/include"
 FFTLIBS="-L$HOME/lib -lfftw3"
 LIBS="$FFTLIBS $LAPACKLIBS"
-mpiifort -warn all -static -o energromacs spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} || exit 1
-mpiifort -warn all -o energromacs_p spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
-mpiifort -warn all -o energromacs_noMPI spline.f90 fft_iface.f90 enganal.f $F90FLAGS_noOPT -cpp -O0 -Dtrjctry -DGROMACS -DnoMPI ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
-mpiifort -warn all -static -o enernamd spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD ${FFTFLAGS} ${LIBS} || exit 1
+mpiifort -warn all -static -o energromacs engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} || exit 1
+mpiifort -warn all -o energromacs_p engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DGROMACS ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
+mpiifort -warn all -o energromacs_noMPI engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS_noOPT -cpp -O0 -Dtrjctry -DGROMACS -DnoMPI ${FFTFLAGS} ${LIBS} -L$HOME/lib -lprofiler || exit 1
+mpiifort -warn all -static -o enernamd engmain.f90 spline.f90 fft_iface.f90 enganal.f $F90FLAGS -cpp -Dtrjctry -DNAMD ${FFTFLAGS} ${LIBS} || exit 1
 #mpiifort -g -o enganal.o -c enganal.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o insertion.o -c insertion.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
 #mpiifort -o setconf.o -c setconf.f $F90FLAGS -cpp -Dtrjctry -DMARBLE -DMKL 
