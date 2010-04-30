@@ -44,7 +44,8 @@ c
      #                   moltype,sluvid,
      #                   ermax,numslv,uvmax,uvsoft,esmax,uvspec,
      #                   uvcrd,edens,ecorr,escrd,eself,
-     #                   aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist
+     #                   aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,
+     #                   block_threshold
 c
       real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
       real eclbin,ecfbin,ec0bin,finfac,ectmvl
@@ -275,7 +276,8 @@ c
      #                   maxins,ermax,numslv,esmax,uvspec,
      #                   edens,ecorr,eself,
      #                   slnuv,avslf,minuv,maxuv,numslt,sltlist,
-     #                   engnorm,engsmpl,voffset
+     #                   engnorm,engsmpl,voffset,
+     #                   boxshp, cltype
       use ptinsrt, only: instslt
       use realcal_blk, only: realcal_proc
       use mpiproc                                                      ! MPI
@@ -805,11 +807,13 @@ c
       end subroutine
 c
       subroutine residual_ene(i, j, pairep)
-      use engmain, only: screen, volume, specatm, numsite, charge
+      use engmain, only: screen, volume, specatm, numsite, charge, cltype
+      implicit none
       integer, intent(in) :: i, j
       real, intent(out) :: pairep
       real :: rtp1, rtp2, epcl
       integer :: is, js, ismax, jsmax, ati, atj
+      real, parameter :: pi = 3.141592653589793283462
       ismax = numsite(i)
       jsmax = numsite(j)
       if(cltype.ne.0) then                                 ! Ewald and PME

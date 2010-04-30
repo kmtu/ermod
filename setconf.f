@@ -672,7 +672,8 @@ c
      #                   lwreg,upreg,
      #                   intprm,elecut,lwljcut,upljcut,
      #                   cmbrule,cltype,screen,ewtoler,splodr,plmode,
-     #                   ew1max,ew2max,ew3max,ms1max,ms2max,ms3max
+     #                   ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
+     #                   block_threshold
       use OUTname, only: OUTintprm,                             ! from outside
      #                   OUTens,OUTbxs,OUTtemp,                 ! from outside
      #                   OUTelc,OUTlwl,OUTupl,                  ! from outside
@@ -715,6 +716,7 @@ c
         upljcut=elecut ; lwljcut=upljcut-2.0e0                  ! NAMD
 #endif
       endif
+      block_threshold = 7.0 ! block-wise calculation
 c     only part of constants set here
 #     include "param_eng"
 c

@@ -19,6 +19,7 @@ contains
     real, intent(out) :: uvengy(:)
     real, allocatable :: eng(:, :)
     
+    print *, "DEBUG: relcal_proc called"
     ! FIXME: fix calling convention & upstream call tree
     ! to calculate several solutes at once
     nsolu_atom = numsite(target_solu)
@@ -36,12 +37,18 @@ contains
 
     call set_solv_atoms(target_solu, tagpt, slvmax)
     call set_solu_atoms(target_solu)
-    
+
+    ! assertion
+    ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged"
+
     call blockify(nsolu_atom, atomno_solu, block_solu)
     call blockify(nsolv_atom, atomno_solv, block_solv)
 
     call sort_block(block_solu, nsolu_atom, belong_solu, atomno_solu, counts_solu, psum_solu)
-    call sort_block(block_solv, nsolu_atom, belong_solv, atomno_solv, counts_solv, psum_solv)
+    call sort_block(block_solv, nsolv_atom, belong_solv, atomno_solv, counts_solv, psum_solv)
+
+    ! assertion
+    ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
 
     allocate(eng(1:slvmax, 1))
     call get_pair_energy(eng)
@@ -51,6 +58,7 @@ contains
     deallocate(eng)
     deallocate(block_solu, belong_solu, atomno_solu, counts_solu, psum_solu)
     deallocate(block_solv, belong_solv, atomno_solv, counts_solv, psum_solv)
+    deallocate(subcell_neighbour)
   end subroutine realcal_proc
 
   integer function count_solv(solu, tagpt, slvmax)
@@ -114,6 +122,7 @@ contains
 
     ! set block size
     block_size(:) = ceiling(laxes(:) / block_threshold)
+    if(any(block_size(:) < 0)) stop "realcal%set_box_info: assertion failed (blocksize)"
 
     ! pre-calculate grid-grid distance and box-box distance
     bmax = maxval(block_size(:))
@@ -188,8 +197,8 @@ contains
     integer, intent(in) :: nmol
     integer, intent(inout) :: belong(:)
     integer, intent(inout) :: atomno(:)
-    integer, intent(inout) :: counts(:, :, :)
-    integer, intent(out) :: psum(:)
+    integer, intent(inout) :: counts(0:block_size(1) - 1, 0:block_size(2) - 1, 0:block_size(3) - 1)
+    integer, intent(out) :: psum(0:block_size(1) * block_size(2) * block_size(3))
     integer, allocatable :: buffer(:, :) ! FIXME: ugly!
     integer, allocatable :: pnum(:, :, :)
     integer :: a, b, c
@@ -247,6 +256,7 @@ contains
        end do
     end do
     psum(pos) = partialsum + 1
+    ! print *, psum
   end subroutine sort_block
 
   ! FIXME: create pairenergy_single_solu as specilization?
@@ -293,14 +303,23 @@ contains
     upos = ubs(1) + block_size(1) * (ubs(2) + block_size(2) * ubs(3))
     vpos = vbs(1) + block_size(1) * (vbs(2) + block_size(2) * vbs(3))
     
-    do ui = psum_solu(upos) + 1, psum_solu(upos + 1)
+    do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
+       belong_u = belong_solu(ui)
        crdu(:) = sitepos(:, ua)
-       belong_u = belong_solu(ua)
-       do vi = psum_solv(vpos) + 1, psum_solv(vpos + 1)
+       ! if(belong_u /= 1) then
+       !    print  *, upos, ui, ua, belong_u, crdu
+       !    stop "INVALID U"
+       ! end if
+       do vi = psum_solv(vpos), psum_solv(vpos + 1) - 1
           va = atomno_solv(vi)
+          belong_v = belong_solv(vi)
           crdv(:) = sitepos(:, va)
-          belong_v = belong_solv(va)
+          ! if(belong_v <= 1 .or. belong_v > 14500) then
+          !    print  *, vpos, vi, va, belong_v, crdv, psum_solv(vpos) + 1, psum_solv(vpos + 1)
+          !    stop "INVALID V"
+          ! end if
+
           d(:) = crdv(:) - crdu(:)
           d(:) = d(:) - laxes(:) * anint(invbox(:) * d(:)) ! get nearest image
           ! FIXME:
@@ -341,7 +360,7 @@ contains
              chr2 = charge(ua) * charge(va)
              eel = chr2 * (1.0e0 - erf(screen * r)) / r 
           end if
-          energy_mat(belong_v, belong_u) = elj + eel
+          energy_mat(belong_v, belong_u) = energy_mat(belong_v, belong_u) + elj + eel
        end do
     end do
   end subroutine get_pair_energy_block
