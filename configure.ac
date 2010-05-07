@@ -131,12 +131,16 @@ AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
 AS_IF([test "x$with_fft" = xfftw],
 	    [AC_CHECK_LIB([fftw3], [dfftw_execute], [], [AC_MSG_FAILURE([Could not find libfftw3.a])])])
 
+# check whether mkl_dfti.f90 is accesible
+# FIXME: This may fail to detect with gfortran 4.4.0-4.4.3
 AS_IF([test "x$with_fft" = xmkl], [dnl
+  AC_FC_SRCEXT(F90)
   AC_MSG_CHECKING([mkl_dfti.f90 is accessible])
   AC_COMPILE_IFELSE([#include "mkl_dfti.f90"
 program main 
 end program], [echo yes], [echo no
-  AC_MSG_FAILURE([could not find mkl_dfti.f90 in include path])])])
+  AC_MSG_FAILURE([could not find mkl_dfti.f90 in include path])])
+  AC_FC_SRCEXT(f90)])
 
 AC_ARG_ENABLE([mpi],
 	AS_HELP_STRING([--disable-mpi],
