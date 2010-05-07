@@ -23,9 +23,16 @@ AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
 		[invalid --with-fft=<fft-type> specification, please check with --help])])
 
 AS_IF([test "x$with_mkl_version" != "x"],
-	    [AS_CASE([x`uname -m`],
-	    	     [xx86_64], [mkl_plat=em64t],
-		     [xi386], [mkl_plat=32])
+	    [case x`uname -m` in #(
+	     xx86_64) :
+               mkl_plat=em64t
+             ;; #(
+	     xi386) :
+               mkl_plat=32
+	     ;; #(
+	     *) :
+	     ;;
+             esac
              mklhome=/opt/intel/mkl/$with_mkl_version
 	     with_blas="-L$mklhome/lib/$mkl_plat -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -lpthread"
 	     with_lapack="-L$mklhome/lib/$mkl_plat -lmkl_lapack"])
@@ -144,12 +151,18 @@ AS_IF([test "x$use_mpi = xyes"],
 	     FCFLAGS="$FCFLAGS -Dno_MPI"])
 # AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
 
-AS_CASE("x$with_fft",
-	[xfftw], [FFLAGS="$FFLAGS -DFFTW"
-	          FCFLAGS="$FCFLAGS -DFFTW"],
-	[xmkl], [FFLAGS="$FFLAGS -DMKL"
-		 FCFLAGS="$FCFLAGS -DMKL"]
-)
+case "x$with_fft" in #(
+ xfftw) :
+ FFLAGS="$FFLAGS -DFFTW"
+ FCFLAGS="$FCFLAGS -DFFTW"
+ ;; #(
+ xmkl) :
+ FFLAGS="$FFLAGS -DMKL"
+ FCFLAGS="$FCFLAGS -DMKL"
+ ;; #(
+ *)
+ ;;
+esac
 
 AS_IF([test "x$lapack_exist" != xyes],
 	    [AC_MSG_ERROR(
