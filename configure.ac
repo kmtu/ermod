@@ -3,6 +3,7 @@
 AC_PREREQ([2.59])
 AC_INIT(enerepr, 0.0.0, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
+AC_CONFIG_MACRO_DIR(.)
 
 # Checks for programs.
 AC_PROG_CPP
@@ -11,9 +12,9 @@ AC_PROG_F77
 AC_PROG_FC
 
 AC_LANG(Fortran 77)
-ACX_MPI
+AX_MPI_MY
 AC_LANG(Fortran)
-ACX_MPI([use_mpi=yes], [use_mpi=no])
+AX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
 AC_ARG_WITH([mkl-version],
 	AS_HELP_STRING([--with-mkl-version=(MKL version)],
