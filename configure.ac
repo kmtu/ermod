@@ -111,6 +111,9 @@ AC_LANG_POP(Fortran)
 
 MY_FC_REAL_DOUBLE
 
+# set to f90 as default
+AC_FC_SRCEXT(f90)
+
 # select FFT library
 # defaults to fftw
 AC_ARG_WITH([fft],
@@ -129,9 +132,11 @@ AS_IF([test "x$with_fft" = xfftw],
 	    [AC_CHECK_LIB([fftw3], [dfftw_execute], [], [AC_MSG_FAILURE([Could not find libfftw3.a])])])
 
 AS_IF([test "x$with_fft" = xmkl], [dnl
+  AC_MSG_CHECKING([mkl_dfti.f90 is accessible])
   AC_COMPILE_IFELSE([#include "mkl_dfti.f90"
 program main 
-end program], [], [AC_MSG_FAILURE([could not find mkl_dfti.f90 in include path])])])
+end program], [echo yes], [echo no
+  AC_MSG_FAILURE([could not find mkl_dfti.f90 in include path])])])
 
 AC_ARG_ENABLE([mpi],
 	AS_HELP_STRING([--disable-mpi],
