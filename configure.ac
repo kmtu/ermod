@@ -12,9 +12,9 @@ AC_PROG_F77
 AC_PROG_FC
 
 AC_LANG(Fortran 77)
-AX_MPI_MY
+ACX_MPI_MY
 AC_LANG(Fortran)
-AX_MPI_MY([use_mpi=yes], [use_mpi=no])
+ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
 AC_ARG_WITH([mkl-version],
 	AS_HELP_STRING([--with-mkl-version=(MKL version)],
