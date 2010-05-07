@@ -1079,7 +1079,7 @@ c
      &   abs(cell(3, 1)) > 1e-8 .or.
      &   abs(cell(3, 2)) > 1e-8) then
         print *, cell
-        stop "setconf%rotate_box: assertion failed"
+        stop "setconf%rotate_box: assertion failed, box rotation is bugged"
       endif
 
 !     rotate coordinates
