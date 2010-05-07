@@ -8,8 +8,8 @@ AC_CONFIG_MACRO_DIR(m4)
 # Checks for programs.
 AC_PROG_CPP
 AC_PROG_CC
-AC_PROG_F77
-AC_PROG_FC
+AC_PROG_F77([ifort gfortran xlf f90 g77 xlf90])
+AC_PROG_FC([ifort gfortran xlf f77 g95 xlf77])
 
 # modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran 77)
