@@ -1,4 +1,4 @@
-ACLOCAL_AMFLAGS = -I.
+ACLOCAL_AMFLAGS = -I .
 
 bin_PROGRAMS = er_gromacs er_namd er_charmm
 
