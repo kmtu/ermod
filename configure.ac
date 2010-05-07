@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 
-AC_PREREQ([2.65])
+AC_PREREQ([2.59])
 AC_INIT(enerepr, 0.0.0, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 
@@ -15,6 +15,21 @@ ACX_MPI
 AC_LANG(Fortran)
 ACX_MPI([use_mpi=yes], [use_mpi=no])
 
+AC_ARG_WITH([mkl-version],
+	AS_HELP_STRING([--with-mkl-version=(MKL version)],
+		[Automatically set environmental variables for MKL]))
+AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
+	    [AC_MSG_FAILURE(
+		[invalid --with-fft=<fft-type> specification, please check with --help])])
+
+AS_IF([test "x$with_mkl_version" != "x"],
+	    [AS_CASE([x`uname -m`],
+	    	     [xx86_64], [mkl_plat=em64t],
+		     [xi386], [mkl_plat=32])
+             mklhome=/opt/intel/mkl/$with_mkl_version
+	     with_blas="-L$mklhome/lib/$mkl_plat -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -lpthread"
+	     with_lapack="-L$mklhome/lib/$mkl_plat -lmkl_lapack"])
+
 # due to bug in ACX_BLAS/LAPACK
 AC_LANG_PUSH(C)
 ACX_BLAS
@@ -28,7 +43,7 @@ AC_CACHE_CHECK([how to extend column width],
 my_f77_extend_source_cv_flag,
 [AC_LANG_PUSH(Fortran 77)
 save_FFLAGS=$FFLAGS
-for flag in "" "-ffixed-line-length-132" "-extended-source"; do
+for flag in "" "-ffixed-line-length-132" "-extend-source"; do
 FFLAGS="$save_FFLAGS $flag"
   AC_COMPILE_IFELSE([      program main
                                                                                 test
