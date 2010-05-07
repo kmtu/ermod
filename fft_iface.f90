@@ -81,9 +81,10 @@ contains
   subroutine fft_ctc(in, out)
     use MKL_DFTI
     integer :: stat
-    complex(8), intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex(8), intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-    stat = dfti_compute_forward_z_out(desc_ctc, in, out)
+    ! use fortran77-style size to bypass type-check. Note that this invalidates type-check!
+    complex(8), intent(in) :: in(*)
+    complex(8), intent(out) :: out(*)
+    stat = DftiComputeForward(desc_ctc, in, out)
     if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_z_out (oops!)"
   end subroutine fft_ctc
 
@@ -91,8 +92,8 @@ contains
   subroutine fft_inplace(inout)
     use MKL_DFTI
     integer :: stat
-    complex(8), intent(inout) :: inout(fftsize(1), fftsize(2), fftsize(3))
-    stat = dfti_compute_forward_z(desc_c, inout)
+    complex(8), intent(inout) :: inout(*)
+    stat = DftiComputeForward(desc_c, inout)
     if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_z (oops!)"
   end subroutine fft_inplace
 
@@ -100,9 +101,9 @@ contains
   subroutine fft_rtc(in, out)
     use MKL_DFTI
     integer :: stat
-    real(8), intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex(8), intent(out) :: out(fftsize(1) / 2 + 1, fftsize(2) / 2 + 1, fftsize(3) / 2 + 1)
-    stat = dfti_compute_forward_dz_out(desc_rtc, in, out)
+    real(8), intent(in) :: in(*)
+    complex(8), intent(out) :: out(*)
+    stat = DftiComputeForward(desc_rtc, in, out)
     if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_dz (oops!)"
   end subroutine fft_rtc
 
