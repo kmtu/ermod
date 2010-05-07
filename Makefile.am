@@ -4,7 +4,6 @@ bin_PROGRAMS = er_gromacs er_namd er_charmm
 
 ersources = engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90
 extra_DIST = enganal.f insertion.f setconf.f stranal.f param_eng
-CLEANFILES = er_gromacs-enganal.$(OBJEXT) er_namd-enganal.$(OBJEXT) er_charmm-enganal.$(OBJEXT)
 
 er_gromacs_SOURCES = $(ersources)
 er_gromacs_LDADD = er_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
