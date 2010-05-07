@@ -11,32 +11,37 @@ AC_PROG_CC
 AC_PROG_F77
 AC_PROG_FC
 
+# modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran 77)
 ACX_MPI_MY
 AC_LANG(Fortran)
 ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
-AC_ARG_WITH([mkl-version],
-	AS_HELP_STRING([--with-mkl-version=(MKL version)],
-		[Automatically set environmental variables for MKL]))
-AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
-	    [AC_MSG_FAILURE(
-		[invalid --with-fft=<fft-type> specification, please check with --help])])
+AC_ARG_WITH([mkl],
+  AS_HELP_STRING([--with-mkl\[=(MKL version)\]],
+    [Automatically set environmental variables for MKL]))
 
-AS_IF([test "x$with_mkl_version" != "x"],
-	    [case x`uname -m` in #(
-	     xx86_64) :
-               mkl_plat=em64t
-             ;; #(
-	     xi386) :
-               mkl_plat=32
-	     ;; #(
-	     *) :
-	     ;;
-             esac
-             mklhome=/opt/intel/mkl/$with_mkl_version
-	     with_blas="-L$mklhome/lib/$mkl_plat -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -lpthread"
-	     with_lapack="-L$mklhome/lib/$mkl_plat -lmkl_lapack"])
+AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
+  [AC_MSG_FAILURE([invalid --with-fft=<fft-type> specification, please check with --help])])
+
+AS_IF([test "x$with_mkl" != "x"],
+  [case x`uname -m` in # (
+  xx86_64) :
+  mkl_plat=em64t
+  ;; # (
+  xi386) :
+  mkl_plat=32
+  ;; # (
+  *) :
+  ;;
+  esac
+  AS_IF([test "x$with_mkl" = "xyes"],
+    AS_IF([test "x$MKLROOT" = "x"],
+      [AC_MSG_FAILURE([could not get MKL version; set MKLROOT or use --with-mkl=(version number)])],
+      mklroot="$MKLROOT"),
+    mklroot="/opt/intel/mkl/$with_mkl")
+  with_blas="-L$mklroot/lib/$mkl_plat -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -lpthread"
+  with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"])
 
 # due to bug in ACX_BLAS/LAPACK
 AC_LANG_PUSH(C)
@@ -119,9 +124,14 @@ AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
 	    [AC_MSG_FAILURE(
 		[invalid --with-fft=<fft-type> specification, please check with --help])])
 
+# FFTW specific test - check libfftw3.a
 AS_IF([test "x$with_fft" = xfftw],
 	    [AC_CHECK_LIB([fftw3], [dfftw_execute], [], [AC_MSG_FAILURE([Could not find libfftw3.a])])])
 
+AS_IF([test "x$with_fft" = xmkl], [dnl
+  AC_COMPILE_IFELSE([#include "mkl_dfti.f90"
+program main 
+end program], [], [AC_MSG_FAILURE([could not find mkl_dfti.f90 in include path])])])
 
 AC_ARG_ENABLE([mpi],
 	AS_HELP_STRING([--disable-mpi],
@@ -129,7 +139,6 @@ AC_ARG_ENABLE([mpi],
 	AS_IF([test x$enable_mpi = x$no],
 		     [use_mpi=no]),
 	[])
-
 
 # Checks for libraries.
 

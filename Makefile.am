@@ -17,5 +17,3 @@ er_charmm_FFLAGS = -DCHARMM
 er_charmm_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) 
 
 
-
-

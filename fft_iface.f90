@@ -1,3 +1,7 @@
+#ifdef MKL
+#  include "mkl_dfti.f90"
+#endif
+
 module fft_iface
 #ifdef MKL
   use MKL_DFTI
