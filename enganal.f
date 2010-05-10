@@ -3,6 +3,7 @@ c
 c
 c
       module mpiproc                                                   ! MPI
+      implicit none
 #ifndef noMPI
 c                                                                      ! MPI
       include "mpif.h"
@@ -34,6 +35,7 @@ c
 c
 c
       module engproc
+      implicit none
       contains
 c
 c  procedure for constructing energy distribution functions
@@ -47,6 +49,9 @@ c
      #                   aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,
      #                   block_threshold
 c
+      implicit real(a-h,k-z)
+      implicit integer(i,j)
+
       real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
       real eclbin,ecfbin,ec0bin,finfac,ectmvl
       integer peread,pemax,pesoft,pecore,sltmltp
@@ -76,7 +81,7 @@ c
         endif
 3702  continue
       iduv=0
-      if(numslt.eq.0) iduv=9
+      if(numslt.le.0) iduv=9
       if((slttype.ge.2).and.(numslt.ne.1)) iduv=9
       if(iduv.ne.0) call eng_stop('num')
       allocate( sltlist(numslt) )
@@ -277,7 +282,7 @@ c
      #                   edens,ecorr,eself,
      #                   slnuv,avslf,minuv,maxuv,numslt,sltlist,
      #                   engnorm,engsmpl,voffset,
-     #                   boxshp, cltype
+     #                   boxshp, cltype, cell
       use ptinsrt, only: instslt
       use realcal_blk, only: realcal_proc
       use mpiproc                                                      ! MPI
@@ -287,6 +292,8 @@ c
       real engnmfc,pairep,wgtslcf,factor
       integer, dimension(:), allocatable :: insdst,engdst,tagpt,tplst
       real, dimension(:),    allocatable :: uvengy,flceng,svfl
+      real, save :: prevcl(3, 3)
+      real, parameter :: tiny = 1.0e-20
       call mpi_info                                                    ! MPI
 c
       if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.skpcnf)) then
@@ -330,11 +337,31 @@ c
       if(stnum.eq.skpcnf) then                ! Ewald and PME initialization
         call recpcal(0,0,factor,slvmax,tagpt,'alloct')
       endif
-      call recpcal(0,0,factor,slvmax,tagpt,'preeng')
+
+      ! check whether cell size changes
+      q=1
+      if(stnum.eq.skpcnf) q=0
+      if(stnum.gt.skpcnf) then
+        factor=0.0e0
+        do 3131 i=1,3
+         do 3132 k=1,3
+           pairep=abs(prevcl(k,i)-cell(k,i))
+           if(factor.lt.pairep) factor=pairep
+3132     continue
+3131    continue
+        if(factor.gt.tiny) q=0
+      endif
+      do 3133 i=1,3
+       do 3134 k=1,3
+         prevcl(k,i)=cell(k,i)
+3134   continue
+3133  continue
+      ! recpcal is called only when cell size differ
+      if(q.eq.0) call recpcal(0,0,factor,slvmax,tagpt,'preeng')
 c
       do 3101 k=1,slvmax
         i=tagpt(k)
-        call recpcal(i,i,factor,slvmax,tagpt,'charge')
+        call recpcal(i,i,factor,slvmax,tagpt,'slvenv')
 3101  continue
 c
       do 90000 cntdst=1,maxdst
@@ -356,7 +383,7 @@ c
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
         endif
 c
-        call recpcal(tagslt,tagslt,factor,slvmax,tagpt,'charge')
+        call recpcal(tagslt,tagslt,factor,slvmax,tagpt,'sltsys')
 
         uvengy(:) = 0
         if(boxshp /= 0 .and. cltype /= 0) then ! called only when ewald-type real part
@@ -685,6 +712,7 @@ c
       if(type.eq.'siz') write(io6,998)
       if(type.eq.'min') write(io6,999)
       if(type.eq.'ecd') write(io6,981)
+      if(type.eq.'fst') write(io6,982)
 991   format(' The number of solute types is incorrectly set')
 992   format(' The number of solute molecules is incorrectly set')
 993   format(' The solute numbering is incorrect for insertion')
@@ -695,6 +723,7 @@ c
 998   format(' The number of energy-coordinate meshes is too large')
 999   format(' The minimum of the energy coordinate is too large')
 981   format(' The energy-coordinate system is inconsistent')
+982   format(' The first particle needs to be the solute')
       call mpi_setup('stop')                                           ! MPI
       stop
       end subroutine
@@ -883,7 +912,7 @@ c
       end subroutine
 c
 c
-      subroutine recpcal(i,j,pairep,slvmax,tagpt,scheme)
+      subroutine recpcal(tagslt,i,pairep,slvmax,tagpt,scheme)
 c
       use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,
      #                    cltype,screen,splodr,charge,
@@ -893,22 +922,22 @@ c
       use fft_iface, only: fft_init_ctc, fft_init_inplace, 
      #                     fft_ctc, fft_inplace,
      #                     fft_set_size
-      integer i,j,ptrnk,slvmax,tagpt(slvmax)
-      integer svi,svj,uvi,uvj,ati,sid,stmax,m,k
+      integer tagslt,i,ptrnk,slvmax,tagpt(slvmax)
+      integer svi,uvi,ati,sid,stmax,m,k
       integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3
       real pi,pairep,chr,xst(3),inm(3),rtp2,cosk,sink,factor
-      complex rcpi,rcpj,nmfact(3)
+      complex rcpi,rcpt
       character*6 scheme
 c
       integer, save :: rc1min,rc1max,rc2min,rc2max,rc3min,rc3max
       integer, dimension(:),       allocatable, save :: slvtag
-      real, dimension(:,:,:),      allocatable, save :: engfac
+      real,    dimension(:,:,:),   allocatable, save :: engfac
       complex, dimension(:,:,:,:), allocatable, save :: rcpslv
       complex, dimension(:,:,:),   allocatable, save :: rcpslt
-      real, dimension(:,:,:),      allocatable, save :: splslv
+      real,    dimension(:,:,:),   allocatable, save :: splslv
       integer, dimension(:,:),     allocatable, save :: grdslv
       complex, dimension(:,:,:),   allocatable, save :: cnvslt
-      real, dimension(:),          allocatable, save :: splint
+      real,    dimension(:),       allocatable, save :: splfc1, splfc2, splfc3
 c
       real, dimension(:,:,:),      allocatable :: splval
       integer, dimension(:,:),     allocatable :: grdval
@@ -948,10 +977,28 @@ c
           call spline_init(splodr)
           allocate( splslv(0:splodr-1,3,ptrnk),grdslv(3,ptrnk) )
           allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
-          allocate(splint(1:(splodr-1)))
-          do si = 1, splodr - 1
-             splint(si) = spline_value(dble(si))
-          enddo
+          ! initialize spline table for all axes
+          allocate( splfc1(rc1min:rc1max),splfc2(rc2min:rc2max),
+     #                                    splfc3(rc3min:rc3max) )
+          do 3251 m=1,3
+            if(m.eq.1) then ; k=rc1min ; rcimax=rc1max ; endif
+            if(m.eq.2) then ; k=rc2min ; rcimax=rc2max ; endif
+            if(m.eq.3) then ; k=rc3min ; rcimax=rc3max ; endif
+            do 3252 rci=k,rcimax
+              rcpi=(0.0e0,0.0e0)
+              do 3253 spi=0,splodr-2
+                chr=spline_value(real(spi+1))
+                rtp2=2.0e0*pi*real(spi*rci)/real(rcimax+1)
+                cosk=chr*cos(rtp2)
+                sink=chr*sin(rtp2)
+                rcpi=rcpi+cmplx(cosk,sink)
+3253          continue
+              factor=real(rcpi*conjg(rcpi))
+              if(m.eq.1) splfc1(rci)=factor
+              if(m.eq.2) splfc2(rci)=factor
+              if(m.eq.3) splfc3(rci)=factor
+3252        continue
+3251      continue
           ! allocate fft-buffers
           allocate( fft_buf(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
           gridsize(1) = ms1max
@@ -993,15 +1040,6 @@ c
                 endif
                 if(rci.le.rcimax/2) inm(m)=real(rci)
                 if(rci.gt.rcimax/2) inm(m)=real(rci-rcimax)
-                rcpi=(0.0e0,0.0e0)
-                do 3215 spi=0,splodr-2
-                  chr=splint(spi+1)
-                  rtp2=2.0e0*pi*real(spi*rci)/real(rcimax)
-                  cosk=chr*cos(rtp2)
-                  sink=chr*sin(rtp2)
-                  rcpi=rcpi+cmplx(cosk,sink)
-3215            continue
-                nmfact(m)=rcpi
               endif
 3211        continue
             do 3221 m=1,3
@@ -1015,8 +1053,8 @@ c
             chr=pi*pi*rtp2/screen/screen
             factor=exp(-chr)/rtp2/pi/volume
             if(cltype.eq.2) then                             ! PME
-              rtp2=abs(nmfact(1)*nmfact(2)*nmfact(3))
-              factor=factor/rtp2/rtp2
+              rtp2=splfc1(rc1)*splfc1(rc2)*splfc1(rc3)
+              factor=factor/rtp2
             endif
 3219        continue
             engfac(rc1,rc2,rc3)=factor
@@ -1025,11 +1063,12 @@ c
 3201    continue
       endif
 c
-      if(scheme.eq.'charge') then
-        if(i.ne.j) return
-        uvi=sluvid(i)
+      if((scheme.eq.'slvenv').or.(scheme.eq.'sltsys')) then
+        if(tagslt.ne.i) call eng_stop('eng')
+        if(scheme.eq.'slvenv') uvi=0                         ! solvent
+        if(scheme.eq.'sltsys') uvi=1                         ! solute
         if(uvi.eq.0) svi=slvtag(i)
-        if((uvi.eq.0).and.(svi.le.0)) return
+        if((uvi.eq.0).and.(svi.le.0)) call eng_stop('eng')
         stmax=numsite(i)
         if(cltype.eq.1) then                                 ! Ewald
           do 5101 rc3=rc3min,rc3max
@@ -1141,45 +1180,41 @@ c
 c
       if(scheme.eq.'energy') then
         pairep=0.0e0
-        uvi=sluvid(i)
-        uvj=sluvid(j)
-        if(uvi.eq.0) svi=slvtag(i)
-        if(uvj.eq.0) svj=slvtag(j)
-        if((uvi.eq.0).and.(svi.le.0)) return
-        if((uvj.eq.0).and.(svj.le.0)) return
-        if((i.eq.j).and.(uvi.eq.0).and.(uvj.eq.0)) call eng_stop('eng')
+        k=sluvid(tagslt)
+        if(k.eq.0) call eng_stop('fst')
+        if(tagslt.ne.i) then
+          svi=slvtag(i)
+          if(svi.le.0) call eng_stop('eng')
+        endif
         if(cltype.eq.1) then                                 ! Ewald
           do 7101 rc3=rc3min,rc3max
            do 7102 rc2=rc2min,rc2max
             do 7103 rc1=rc1min,rc1max
-              if(uvi.eq.0) rcpi=rcpslv(rc1,rc2,rc3,svi)
-              if(uvi.gt.0) rcpi=rcpslt(rc1,rc2,rc3)
-              if(uvj.eq.0) rcpj=rcpslv(rc1,rc2,rc3,svj)
-              if(uvj.gt.0) rcpj=rcpslt(rc1,rc2,rc3)
-              pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpi*conjg(rcpj))
+              rcpt=rcpslt(rc1,rc2,rc3)
+              rcpi=rcpslv(rc1,rc2,rc3,svi)
+              pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpi))
 7103        continue
 7102       continue
 7101      continue
-          if(i.eq.j) pairep=pairep/2.0e0
+          if(tagslt.eq.i) pairep=pairep/2.0e0
         endif
         if(cltype.eq.2) then                                 ! PME
-          if(uvi.eq.0) call eng_stop('eng')   ! particle i needs to be solute
-          if(i.eq.j) then
+          if(tagslt.eq.i) then
             do 7201 rc3=rc3min,rc3max
              do 7202 rc2=rc2min,rc2max
               do 7203 rc1=rc1min,rc1max
-                rcpi=rcpslt(rc1,rc2,rc3)
-                pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpi*conjg(rcpi))
+                rcpt=rcpslt(rc1,rc2,rc3)
+                pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpt))
 7203          continue
 7202         continue
 7201        continue
             pairep=pairep/2.0e0
           endif
-          if(i.ne.j) then
-            stmax=numsite(j)
+          if(tagslt.ne.i) then
+            stmax=numsite(i)
             do 7251 sid=1,stmax
-              ptrnk=svj+sid-1
-              ati=specatm(sid,j)
+              ptrnk=svi+sid-1
+              ati=specatm(sid,i)
               chr=charge(ati)
               do 7271 cg3=0,splodr-1
                do 7272 cg2=0,splodr-1

@@ -21,9 +21,6 @@ AC_ARG_WITH([mkl],
   AS_HELP_STRING([--with-mkl\[=(MKL version)\]],
     [Automatically set environmental variables for MKL]))
 
-AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
-  [AC_MSG_FAILURE([invalid --with-fft=<fft-type> specification, please check with --help])])
-
 AS_IF([test "x$with_mkl" != "x"],
   [case x`uname -m` in # (
   xx86_64) :
