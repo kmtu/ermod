@@ -488,9 +488,15 @@ c
             slnuv(pti)=slnuv(pti)+flceng(pti)*engnmfc
 1151      continue
           if(myrank.eq.0) then
-            write(flcio,911) stnum,(flceng(pti), pti=1,numslv)
+            if(maxdst.eq.1) then
+              write(flcio, 911) stnum,(flceng(pti), pti=1,numslv)
+            endif
+            if(maxdst.gt.1) then
+              write(flcio, 912) cntdst,stnum, (flceng(pti), pti=1,numslv)
+            endif
           endif
 911       format(i9,999999999f15.5)
+912       format(2i9,999999999f15.5)
         endif
 c
         do 1501 iduv=1+ptinit,ermax,ptskip
@@ -1053,7 +1059,7 @@ c
             chr=pi*pi*rtp2/screen/screen
             factor=exp(-chr)/rtp2/pi/volume
             if(cltype.eq.2) then                             ! PME
-              rtp2=splfc1(rc1)*splfc1(rc2)*splfc1(rc3)
+              rtp2=splfc1(rc1)*splfc2(rc2)*splfc3(rc3)
               factor=factor/rtp2
             endif
 3219        continue
@@ -1182,51 +1188,48 @@ c
         pairep=0.0e0
         k=sluvid(tagslt)
         if(k.eq.0) call eng_stop('fst')
-        if(tagslt.ne.i) then
-          svi=slvtag(i)
-          if(svi.le.0) call eng_stop('eng')
-        endif
-        if(cltype.eq.1) then                                 ! Ewald
+        if(tagslt.eq.i) then              ! solute self-energy
           do 7101 rc3=rc3min,rc3max
            do 7102 rc2=rc2min,rc2max
             do 7103 rc1=rc1min,rc1max
               rcpt=rcpslt(rc1,rc2,rc3)
-              rcpi=rcpslv(rc1,rc2,rc3,svi)
-              pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpi))
+              pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpt))
 7103        continue
 7102       continue
 7101      continue
-          if(tagslt.eq.i) pairep=pairep/2.0e0
+          pairep=pairep/2.0e0
         endif
-        if(cltype.eq.2) then                                 ! PME
-          if(tagslt.eq.i) then
+        if(tagslt.ne.i) then              ! solute-solvent pair interaction
+          svi=slvtag(i)
+          if(svi.le.0) call eng_stop('eng')
+          if(cltype.eq.1) then                               ! Ewald
             do 7201 rc3=rc3min,rc3max
              do 7202 rc2=rc2min,rc2max
               do 7203 rc1=rc1min,rc1max
                 rcpt=rcpslt(rc1,rc2,rc3)
-                pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpt))
+                rcpi=rcpslv(rc1,rc2,rc3,svi)
+                pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpi))
 7203          continue
 7202         continue
 7201        continue
-            pairep=pairep/2.0e0
           endif
-          if(tagslt.ne.i) then
+          if(cltype.eq.2) then                               ! PME
             stmax=numsite(i)
             do 7251 sid=1,stmax
               ptrnk=svi+sid-1
               ati=specatm(sid,i)
               chr=charge(ati)
               do 7271 cg3=0,splodr-1
-               do 7272 cg2=0,splodr-1
-                do 7273 cg1=0,splodr-1
-                  factor=chr*splslv(cg1,1,ptrnk)*splslv(cg2,2,ptrnk)
-     #                                          *splslv(cg3,3,ptrnk)
-                  rc1=modulo(grdslv(1,ptrnk)-cg1,ms1max)
-                  rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
-                  rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
-                  pairep=pairep+factor*real(cnvslt(rc1,rc2,rc3))
-7273            continue
-7272           continue
+                do 7272 cg2=0,splodr-1
+                  do 7273 cg1=0,splodr-1
+                    factor=chr*splslv(cg1,1,ptrnk)*splslv(cg2,2,ptrnk)
+     #                                            *splslv(cg3,3,ptrnk)
+                    rc1=modulo(grdslv(1,ptrnk)-cg1,ms1max)
+                    rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
+                    rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
+                    pairep=pairep+factor*real(cnvslt(rc1,rc2,rc3))
+7273              continue
+7272            continue
 7271          continue
 7251        continue
           endif
