@@ -2,7 +2,7 @@
 
 AC_PREREQ([2.59])
 #AC_INIT(enerepr, 0.0.%rev%, Matubayasi Laboratory)
-AC_INIT(enerepr, 0.0.53, Matubayasi Laboratory)
+AC_INIT(enerepr, 0.0.54, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
@@ -186,23 +186,22 @@ AC_ARG_ENABLE([opt],
 	AS_HELP_STRING([--disable-opt],
 		[disable automatic edit to optimization flags]))
 
-AS_IF([test x$ac_compiler_gnu = xyes],
-      [MY_FC_OPT_ACCEPT_NATIVE
-       AS_IF([test x$my_fc_opt_accept_native = xyes],
-             FCFLAGS="$FCFLAGS -march=native"
-             FFLAGS="$FFLAGS -march=native")])
-
 AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
   [FFLAGS="$FFLAGS"
    FCFLAGS="$FCFLAGS"
-   case x$F77 in #(
-     xmpiifort|xifort)
-       optflag="-O3 -no-proc-div -xHost"
-     ;; #(
-     *)
-       optflag="-O"
-     ;;
-   esac
+   AS_IF([test x$ac_compiler_gnu = xyes],
+        [optflag="-O3 -ffast-math"
+         MY_FC_OPT_ACCEPT_NATIVE
+         AS_IF([test x$my_fc_opt_accept_native = xyes],
+                optflag="$optflag -march=native")],
+        [case x$F77 in #(
+           xmpiifort|xifort)
+             optflag="-O3 -no-proc-div -xHost"
+             ;; #(
+           *)
+             optflag="-O"
+             ;;
+         esac])
    FFLAGS="$FFLAGS $optflag"
    FCFLAGS="$FCFLAGS $optflag"])
 
