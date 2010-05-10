@@ -1,0 +1,6 @@
+#!/bin/bash
+
+rev=`hg tip | grep changeset: | tr ':' ' ' | awk '{print $2 + 1}'`
+perl -e "while(<>){if(m/^#(.*)(%rev%)(.*)\$/){print $_; print \$1.\"$rev\".\$3.\"\n\"; <>;}else{print $_;}}" < configure.ac > configure.ac.new
+mv -f configure.ac configure.ac.bak
+mv -f configure.ac.new configure.ac
