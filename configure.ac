@@ -196,7 +196,7 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
                 optflag="$optflag -march=native")],
         [case x$F77 in #(
            xmpiifort|xifort)
-             optflag="-O3 -no-proc-div -xHost"
+             optflag="-O3 -no-prec-div -xHost"
              ;; #(
            *)
              optflag="-O"
