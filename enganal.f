@@ -386,40 +386,28 @@ c
         call recpcal(tagslt,tagslt,factor,slvmax,tagpt,'sltsys')
 
         uvengy(:) = 0
-        if(boxshp /= 0 .and. cltype /= 0) then ! called only when ewald-type real part
+        if(cltype /= 0) then ! called only when ewald-type real part
+          if(boxshp == 0) stop "Ewald / PME is selected, but box is not periodic!"
           call realcal_proc(tagslt, tagpt, slvmax, uvengy)
-          do k=0,slvmax
-            if(k.eq.0) i=tagslt ! solute self
-            if(k.gt.0) then     ! solute-solvent pair
-              i=tagpt(k)
-              if(i.eq.tagslt) cycle
-            endif
-            
-            if(k == 0) then
-              call realcal(tagslt, i, pairep) ! (i == tagslt, i.e. self)
-            else 
-              ! FIXME: 
-              call residual_ene(tagslt, i, pairep)
-            endif
-            call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
-            pairep=pairep+factor
-            uvengy(k) = uvengy(k) + pairep
-          enddo
-        else
-          do 1101 k=0,slvmax
-            if(k.eq.0) i=tagslt                 ! solute self
-            if(k.gt.0) then                     ! solute-solvent pair
-              i=tagpt(k)
-              if(i.eq.tagslt) goto 1199
-            endif
-
-            call realcal(tagslt,i,pairep)
-            call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
-            pairep=pairep+factor
-            uvengy(k)=pairep
-1199        continue
-1101      continue
         endif
+
+        do k=0,slvmax
+          if(k.eq.0) i=tagslt   ! solute self
+          if(k.gt.0) then       ! solute-solvent pair
+            i=tagpt(k)
+            if(i.eq.tagslt) cycle
+          endif
+          
+          if(cltype /= 0 .and. k /= 0) then ! called only when ewald-type, pair interaction
+            pairep = 0
+            call residual_ene(tagslt, i, pairep)
+          else
+            call realcal(tagslt,i,pairep) ! usual case or self-interaction
+          endif
+          call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
+          pairep = pairep + factor
+          uvengy(k) = uvengy(k) + pairep
+        enddo
 c
         if(wgtslf.eq.0) engnmfc=1.0e0
         if(wgtslf.eq.1) then
@@ -822,7 +810,9 @@ c
 1502   continue
 1501  continue
 c
-      call residual_ene(i, j, pairep)
+      if(cltype.ne.0) then                                 ! Ewald and PME
+        call residual_ene(i, j, pairep)
+      endif
 c
       return
       end subroutine
@@ -835,23 +825,22 @@ c
       real :: rtp1, rtp2, epcl
       integer :: is, js, ismax, jsmax, ati, atj
       real, parameter :: pi = 3.141592653589793283462
+      if(cltype == 0) stop "Error: residual_ene: called when cltype == 0, cannot happen"
       ismax = numsite(i)
       jsmax = numsite(j)
-      if(cltype.ne.0) then                                 ! Ewald and PME
-        rtp1=0.0e0
-        do 2501 is=1,ismax
-          ati=specatm(is,i)
-          rtp1=rtp1+charge(ati)
-2501    continue
-        rtp2=0.0e0
-        do 2502 js=1,jsmax
-          atj=specatm(js,j)
-          rtp2=rtp2+charge(atj)
-2502    continue
-        epcl=pi*rtp1*rtp2/screen/screen/volume
-        if(i.eq.j) epcl=epcl/2.0e0                         ! self-interaction
-        pairep=pairep-epcl
-      endif
+      rtp1=0.0e0
+      do is=1,ismax
+        ati=specatm(is,i)
+        rtp1=rtp1+charge(ati)
+      enddo
+      rtp2=0.0e0
+      do js=1,jsmax
+        atj=specatm(js,j)
+        rtp2=rtp2+charge(atj)
+      enddo
+      epcl=pi*rtp1*rtp2/screen/screen/volume
+      if(i.eq.j) epcl=epcl/2.0e0 ! self-interaction
+      pairep=pairep-epcl
       end subroutine
 c
       subroutine volcorrect(engnmfc)
