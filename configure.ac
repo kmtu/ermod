@@ -143,9 +143,10 @@ end program], [echo yes], [echo no
 AC_ARG_ENABLE([mpi],
 	AS_HELP_STRING([--disable-mpi],
 		[disable MPI even if exists]),
-	AS_IF([test x$enable_mpi = x$no],
+	AS_IF([test x$enable_mpi = xno],
 		     [use_mpi=no]),
 	[])
+
 
 # Checks for libraries.
 
@@ -158,6 +159,14 @@ AC_ARG_ENABLE([mpi],
 # FIXME: check cpp flags
 FFLAGS="$FFLAGS -cpp -Dtrjctry"
 FCFLAGS="$FCFLAGS -cpp -Dtrjctry"
+
+AC_ARG_ENABLE([perf],
+	AS_HELP_STRING([--enable-perf],
+		[(internal use only)]),
+	AS_IF([test x$enable_perf = xyes],
+		     [FFLAGS="$FFLAGS -DPERF"
+	              FCFLAGS="$FCFLAGS -DPERF"
+                      LDFLAGS="$LDFLAGS -lprofiler"]))
 
 AS_IF([test "x$use_mpi = xyes"],
 	    [mpi_result="enabled"

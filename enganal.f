@@ -13,8 +13,24 @@ c                                                                      ! MPI
       subroutine mpi_setup(type)                                       ! MPI
       character*4 type                                                 ! MPI
 #ifndef noMPI
-      if(type.eq.'init') call mpi_init(ierror)                         ! MPI
-      if(type.eq.'stop') call mpi_finalize(ierror)                     ! MPI
+      real(4) :: cputime                                               ! MPI
+      real(8), save :: walltime                                        ! MPI
+      if(type.eq.'init') then                                          ! MPI
+        call mpi_init(ierror)                                          ! MPI
+#ifdef PERF
+        walltime = MPI_WTIME()
+#endif
+      endif
+      if(type.eq.'stop') then                                          ! MPI
+#ifdef PERF
+        call CPU_TIME(cputime)
+        print *, "rank = ", myrank, ", CPUtime = ", cputime
+        if(myrank == 1) then
+          print *, "Wall-clock time: ", MPI_WTIME() - walltime
+        endif
+#endif
+        call mpi_finalize(ierror)                                      ! MPI
+      endif
 #endif
       return
       end subroutine                                                   ! MPI
