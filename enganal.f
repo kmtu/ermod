@@ -822,21 +822,7 @@ c
 1502   continue
 1501  continue
 c
-      if(cltype.ne.0) then                                 ! Ewald and PME
-        rtp1=0.0e0
-        do 2501 is=1,ismax
-          ati=specatm(is,i)
-          rtp1=rtp1+charge(ati)
-2501    continue
-        rtp2=0.0e0
-        do 2502 js=1,jsmax
-          atj=specatm(js,j)
-          rtp2=rtp2+charge(atj)
-2502    continue
-        epcl=pi*rtp1*rtp2/screen/screen/volume
-        if(i.eq.j) epcl=epcl/2.0e0                         ! self-interaction
-        pairep=pairep-epcl
-      endif
+      call residual_ene(i, j, pairep)
 c
       return
       end subroutine
@@ -845,7 +831,7 @@ c
       use engmain, only: screen, volume, specatm, numsite, charge, cltype
       implicit none
       integer, intent(in) :: i, j
-      real, intent(out) :: pairep
+      real, intent(inout) :: pairep
       real :: rtp1, rtp2, epcl
       integer :: is, js, ismax, jsmax, ati, atj
       real, parameter :: pi = 3.141592653589793283462
@@ -864,7 +850,7 @@ c
 2502    continue
         epcl=pi*rtp1*rtp2/screen/screen/volume
         if(i.eq.j) epcl=epcl/2.0e0                         ! self-interaction
-        pairep=-epcl
+        pairep=pairep-epcl
       endif
       end subroutine
 c
