@@ -308,18 +308,10 @@ contains
        ua = atomno_solu(ui)
        belong_u = belong_solu(ui)
        crdu(:) = sitepos(:, ua)
-       ! if(belong_u /= 1) then
-       !    print  *, upos, ui, ua, belong_u, crdu
-       !    stop "INVALID U"
-       ! end if
        do vi = psum_solv(vpos), psum_solv(vpos + 1) - 1
           va = atomno_solv(vi)
           belong_v = belong_solv(vi)
           crdv(:) = sitepos(:, va)
-          ! if(belong_v <= 1 .or. belong_v > 14500) then
-          !    print  *, vpos, vi, va, belong_v, crdv, psum_solv(vpos) + 1, psum_solv(vpos + 1)
-          !    stop "INVALID V"
-          ! end if
 
           d(:) = crdv(:) - crdu(:)
           d(:) = d(:) - laxes(:) * anint(invbox(:) * d(:)) ! get nearest image
