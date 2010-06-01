@@ -182,4 +182,29 @@ module engmain
   real :: engnorm,engsmpl,voffset
 
   real :: lwreg,upreg
+
+  namelist /ene_param/ iseed, slttype, estype, boxshp, inscnd, lwreg, upreg, inptemp, &
+       elecut, upljcut, lwljcut, cltype, screen, splodr, &
+       ew1max, ew2max, ew3max, &
+       ms1max, ms2max, ms3max, block_threshold, &
+       engdiv
+
+contains 
+  subroutine init_params(success)
+    logical, intent(out) :: success
+    character(len=*), parameter :: confname = "param.lst"
+    integer, parameter :: unit = 191
+    integer :: err
+    
+    err = 0
+    success = .FALSE.
+    open(unit = unit, file = confname, action = "read", iostat = err)
+    
+    if(err == 0) then
+       read(unit, nml=ene_param)
+       close(unit)
+       success = .TRUE.
+    end if
+
+  end subroutine init_params
 end module engmain

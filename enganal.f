@@ -63,7 +63,7 @@ c
      #                   ermax,numslv,uvmax,uvsoft,esmax,uvspec,
      #                   uvcrd,edens,ecorr,escrd,eself,
      #                   aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,
-     #                   block_threshold
+     #                   ene_param
 c
       implicit real(a-h,k-z)
       implicit integer(i,j)
@@ -81,6 +81,13 @@ c
       real factor,incre,cdrgvl(0:rglmax+1),rgcnt(rglmax),ecpmrd(10)
       integer, dimension(:), allocatable :: tplst
       real, dimension(:,:), allocatable  :: ercrd
+c
+      integer, parameter :: paramfile_io=191
+      character(len=*), parameter :: paramfile="param.lst"
+      integer :: param_err
+      namelist /hist/ eclbin, ecfbin, ec0bin, finfac, 
+     #                ecdmin, ecfmns, ecdcen, eccore, 
+     #                ecdmax, pecore
 c
       allocate( tplst(nummol) )
       numslt=0
@@ -130,7 +137,14 @@ c
       peread=0
       ermax=0
       do 3001 pti=0,numslv
-#       include "param_eng"
+        open(unit = paramfile_io, file = paramfile, action = "read", iostat = param_err)
+        if (param_err == 0) then
+          read(paramfile_io, nml = ene_param)
+          read(paramfile_io, nml = hist)
+          close(paramfile_io)
+        else
+#         include "param_eng"
+        end if
         if(peread.eq.1) then   ! read coordinate parameters from separate file
           open(unit=ecdio,file=ecdfile,status='old')
           read(ecdio,*)        ! comment line

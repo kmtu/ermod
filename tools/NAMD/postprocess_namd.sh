@@ -92,35 +92,38 @@ while(<>){
 
 }
 
-print "c
-      slttype = 1
-      estype = $constant
-      boxshp = $is_periodic
-      inptemp = $temp
-      elecut = 12.0
-      upljcut = $ljcut
-      lwljcut = $switchlj
-      cltype = $coulombtype
-      screen = $alpha
-      splodr = $pme_order
-      ms1max = $box1
-      ms2max = $box2
-      ms3max = $box3
-      engdiv = 1
-      eclbin=5.0e-2 ; ecfbin=2.0e-3 ; ec0bin=2.0e-4 ; finfac=10.0e0
-      ecdmin=-80.0e0 ; ecfmns=-0.20e0 ; ecdcen=0.0e0 ; eccore=20.0e0
-      ecdmax=1.0e11 ; pecore=200
+print "&ene_param
+      slttype = 1,
+      estype = $constant,
+      boxshp = $is_periodic,
+      inptemp = $temp,
+      elecut = 12.0,
+      upljcut = $ljcut,
+      lwljcut = $switchlj,
+      cltype = $coulombtype,
+      screen = $alpha,
+      splodr = $pme_order,
+      ms1max = $box1,
+      ms2max = $box2,
+      ms3max = $box3,
+      engdiv = 1,
       box_threashold = 5.0
+/
+&hist
+      eclbin=5.0e-2, ecfbin=2.0e-3, ec0bin=2.0e-4, finfac=10.0e0,
+      ecdmin=-80.0e0, ecfmns=-0.20e0, ecdcen=0.0e0, eccore=20.0e0,
+      ecdmax=1.0e11, pecore=200
+/
 "
 EOF
-) > $PROGDIR/param_eng
+) > param.lst
 
 # TODO: use below to check LJ mean type
 # Info: USING ARITHMETIC MEAN TO COMBINE L-J SIGMA PARAMETERS"
 
-pushd $PROGDIR
-make || failwiwth "Error compling program"
-popd
+# pushd $PROGDIR
+# make || failwiwth "Error compling program"
+# popd
 
 if [[ ( -e engsln.01 ) -o ( -e engsln.tt ) ]]; then
     echo "Warning: previous output remains, are you running the program twice?" 1>&2

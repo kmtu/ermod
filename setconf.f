@@ -663,7 +663,8 @@ c
 c  setting molecular simulation parameters
 c
       subroutine iniparam
-      use engmain, only: iseed,
+      use engmain, only: init_params,
+     #                   iseed,
      #                   skpcnf,corrcal,
      #                   slttype,sltpick,refpick,wgtslf,wgtins,
      #                   estype,boxshp,inscnd,inscfg,hostspec,ljformat,
@@ -683,6 +684,7 @@ c
       use mpiproc                                                      ! MPI
       real, parameter :: tiny=1.0e-20
       character*3 scrtype
+      logical :: init_from_namelist
       call mpi_info                                                    ! MPI
 c
 #ifndef trjctry
@@ -718,7 +720,10 @@ c
       endif
       block_threshold = 7.0 ! block-wise calculation
 c     only part of constants set here
+      call init_params(init_from_namelist)
+      if(.not. init_from_namelist) then
 #     include "param_eng"
+      endif
 c
 c  default settings
 #ifndef trjctry
@@ -741,7 +746,10 @@ c  default settings
 c  default settings done
 c
 c     read again for non-default constants
+      call init_params(init_from_namelist)
+      if(.not. init_from_namelist) then
 #     include "param_eng"
+      endif
       temp=inptemp*8.314510e-3/4.184e0               ! kcal/mol
       if((screen.le.tiny).and.(cltype.ne.0)) then    ! Ewald and PME
         if(ewtoler.le.tiny) call set_stop('ewa')

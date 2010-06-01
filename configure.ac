@@ -157,8 +157,8 @@ AC_ARG_ENABLE([mpi],
 # Checks for library functions.
 
 # FIXME: check cpp flags
-FFLAGS="$FFLAGS -cpp -Dtrjctry"
-FCFLAGS="$FCFLAGS -cpp -Dtrjctry"
+FFLAGS="$FFLAGS -g -cpp -Dtrjctry"
+FCFLAGS="$FCFLAGS -g -cpp -Dtrjctry"
 
 AC_ARG_ENABLE([perf],
 	AS_HELP_STRING([--enable-perf],
@@ -168,13 +168,13 @@ AC_ARG_ENABLE([perf],
 	              FCFLAGS="$FCFLAGS -DPERF"
                       LDFLAGS="$LDFLAGS -lprofiler"]))
 
-AS_IF([test "x$use_mpi = xyes"],
+AS_IF([test "x$use_mpi" = "xyes"],
 	    [mpi_result="enabled"
 	     F77="$MPIF77"
 	     FC="$MPIFC"],
 	    [mpi_result="disabled"
-	     FFLAGS="$FFLAGS -Dno_MPI"
-	     FCFLAGS="$FCFLAGS -Dno_MPI"])
+	     FFLAGS="$FFLAGS -DnoMPI"
+	     FCFLAGS="$FCFLAGS -DnoMPI"])
 
 # optimization flags
 AC_DEFUN([MY_FC_OPT_ACCEPT_NATIVE],[
