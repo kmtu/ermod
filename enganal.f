@@ -85,9 +85,9 @@ c
       integer, parameter :: paramfile_io=191
       character(len=*), parameter :: paramfile="param.lst"
       integer :: param_err
-      namelist /hist/ eclbin, ecfbin, ec0bin, finfac, 
-     #                ecdmin, ecfmns, ecdcen, eccore, 
-     #                ecdmax, pecore
+      namelist /hist/ ecdmin, cdfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,
+     #                eclbin, ecfbin, ec0bin, finfac, ectmvl, 
+     #                peread, pemax, pesoft, pecore
 c
       allocate( tplst(nummol) )
       numslt=0

@@ -183,11 +183,17 @@ module engmain
 
   real :: lwreg,upreg
 
-  namelist /ene_param/ iseed, slttype, estype, boxshp, inscnd, lwreg, upreg, inptemp, &
-       elecut, upljcut, lwljcut, cltype, screen, splodr, &
-       ew1max, ew2max, ew3max, &
-       ms1max, ms2max, ms3max, block_threshold, &
-       engdiv
+  namelist /ene_param/ iseed, &
+       skpcnf,corrcal, &
+       slttype,sltpick,refpick,wgtslf,wgtins, &
+       estype,boxshp,inscnd,inscfg,hostspec,ljformat, &
+       inptemp,temp, &
+       engdiv,maxins, &
+       lwreg,upreg, &
+       intprm,elecut,lwljcut,upljcut, &
+       cmbrule,cltype,screen,ewtoler,splodr,plmode, &
+       ew1max,ew2max,ew3max,ms1max,ms2max,ms3max, &
+       block_threshold
 
 contains 
   subroutine init_params(success)
