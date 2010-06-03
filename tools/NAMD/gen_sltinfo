@@ -1,0 +1,128 @@
+#!/usr/bin/python
+
+# requires python >= 2.3
+
+import os.path
+import sys
+import optparse
+
+sigma_conv = 2.0e0 ** (5.0/6.0) # from Rmin/2 to sigma
+
+class OptionParser (optparse.OptionParser):
+    def check_required (self, opt):
+        option = self.get_option(opt)
+        # Assumes the option's 'default' is set to None!
+        if getattr(self.values, option.dest) is None:
+            self.error("%s option not supplied" % option)
+
+parser = OptionParser()
+parser.add_option("-p", "--param", dest="param", action="append", 
+                  help="CHARMM parameter file name (can be specified multiple-time)",
+                  default = [])
+parser.add_option("-s", "--solute", dest="solute", type="int",
+                  help="Group no. of solute molecule (in MDinfo file, 1-origin)",
+                  default = None)
+parser.add_option("-t", "--psf", dest="topology",
+                  help="PSF file name", 
+                  default = None)
+parser.add_option("--ljrescale", dest="ljrescale",
+                  action="store_true",
+                  help="(internal use only)", 
+                  default = False)
+
+(options, args) = parser.parse_args()
+
+# check file existence
+if not os.path.exists("MDinfo"):
+    print >> sys.stderr, "Error: MDinfo does not exist!"
+    sys.exit(1)
+
+if options.param == []:
+    print >> sys.stderr, "Error: CHARMM parameter file does not exist (try --help)"
+    sys.exit(1)
+options.check_required("-s")
+options.check_required("-t")
+
+for f in options.param:
+    if not os.path.exists(f):
+        print >> sys.stderr, "Error: parameter file \"%s\" does not exist!" % f
+        sys.exit(1)
+
+if not os.path.exists(options.topology):
+    print >> sys.stderr, "Error: psf file does not exist!"
+    sys.exit(1)
+
+atomtable = {}
+for parfile in options.param:
+    fh = open(parfile, "rt")
+    state = False
+    for l in fh:
+        # skip '!' and after
+        line = l.split("!")[0]
+        if len(line) == 0 or line[0] == '*': # another style for comment
+            continue
+        ls = line.split()
+        kwd = ls[0]
+        if kwd == 'NONBOND':
+            state = True
+            continue
+        if kwd in ['HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP']:
+            state = False
+            continue
+        if not state:
+            continue
+        # inside NONBOND-section
+        atoms = ls[0]
+        eps = -ls[2]
+        rmin = ls[3]
+        if options.ljrescale:
+            rmin = sigma_conv * rmin
+        atomtable[atoms] = (eps, rmin)
+    fh.close()
+
+fh = open("MDinfo", "rt")
+l = fh.next()
+(frames, numtype) = l.split()[0:2]
+frames = int(frames)
+numtype = int(numtype)
+nummols = fh.next().split()[0:numtype]
+numsites = fh.next().split()[0:numtype]
+nummol = [int(e) for e in nummols]
+numsite = [int(e) for e in numsites]
+ntotal = sum(nummol)
+fh.close()
+
+fh = open(options.topology, "rt")
+fh.next()
+fh.next()
+l = int(fh.next().split()[0])
+for i in range(l):
+    # skip
+    fh.next()
+fh.next() # skip blank
+n = int(fh.next().split()[0])
+if n != ntotal:
+    print >> sys.stderr, "Error: number of atoms in MDinfo and psf is inconsistent"
+    sys.exit(1)
+
+ofh = None
+solvent_cnt = 1
+for i in range(numtype):
+    for j in range(nummol[i]):
+        if j == options.solute:
+            fn = "SltInfo"
+        else:
+            fn = "MolPrm%d" % solvent_cnt
+            solvent_cnt += 1
+        ofh = open(fn, "wt")
+        for k in range(numsite[i]):
+            ls = fh.next().split()
+            (_aid, _seg, _resi, resname, atomname, atomtype, charge, _mass, _) = ls
+            if j == 0:
+                (eps, rmin) = atomtable[atomname]
+                print >> ofh, ("%d %s %g %g %g" % 
+                               (k + 1, atomtype, charge, eps, rmin))
+        ofh.close()
+
+                
+        

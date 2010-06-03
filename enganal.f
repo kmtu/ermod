@@ -138,7 +138,7 @@ c
       do 3001 pti=0,numslv
         open(unit = paramfile_io, file = ene_confname, action = "read", iostat = param_err)
         if (param_err == 0) then
-          read(paramfile_io, nml = ene_param)
+          read(paramfile_io, nml = ene_param) ! FIXME: is this necessary?
           read(paramfile_io, nml = hist)
           close(paramfile_io)
         else
