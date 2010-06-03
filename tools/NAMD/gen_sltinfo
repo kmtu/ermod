@@ -117,7 +117,7 @@ if n != ntotal:
 ofh = None
 solvent_cnt = 1
 for i in range(numtype):
-    if i == options.solute:
+    if i == options.solute - 1:
         fn = "SltInfo"
     else:
         fn = "MolPrm%d" % solvent_cnt

@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# rewrite the following variables according to your environment
-PROGDIR=.. # where program is (can be either absolute or relative path)
-PROGCONF=$PROGDIR
-
 SCRIPT_WHERE=$0
 SCRIPT_DIR=${SCRIPT_WHERE%/*}
 
@@ -13,24 +9,16 @@ failwith() {
 }
 
 args=$#
-if (( args <= 2 )); then
-    failwith "Usage: ./postprocess_namd.sh (psf) (dcd) (namd log)"
+if (( args <= 3 )); then
+    failwith "Usage: ./postprocess_namd.sh (psf) (dcd) (xst) (namd log)"
 fi
 
 PSF=$1
 DCD=$2
-LOG=$3
+XST=$3
+LOG=$4
 
 DCDDIR=${DCD%/*}
-
-# check environment consistency
-if [[ -e $PROGDIR/enganal.f ]]; then
-    failwith "Error: PROGDIR is not program directory; edit PROGDIR variable in $0"
-fi
-
-if [[ -e $PROGDIR/Makefile ]]; then
-    failwith "Error: energy representation program is not configured; try ./configure on $PWD/$PROGDIR"
-fi
 
 # check parameter consistency
 
@@ -42,6 +30,10 @@ fi
 
 if [[ ! -e $DCD ]]; then
     failwith "Error: DCD file does not exist!"
+fi
+
+if [[ ! -e $XST ]]; then
+    failwith "Error: XST file does not exist!"
 fi
 
 if [[ ! -e $LOG ]]; then 
@@ -56,14 +48,14 @@ if [[ ! -e SltInfo ]]; then
     failwith "SltInfo file does not exist; try generating it by inpfile.f"
 fi
 
-grep "^Info:" $LOG | perl -e <(cat - <<'EOF'
+grep "^Info:" $LOG | perl <(cat - <<'EOF'
 
 $temp = 300; # as default
 
 while(<>){
 # Info: BERENDSEN PRESSURE COUPLING ACTIVE
 # Info: LANGEVIN PISTON PRESSURE CONTROL ACTIVE
-  if(m/PRESSURE (COUPLING|CONTROL) ACTIVE/){ $estype = 2; }else{ $estype = 1; }
+  if(m/PRESSURE (COUPLING|CONTROL) ACTIVE/){ $constant = 2; }else{ $constant = 1; }
 
 # Info: LANGEVIN DYNAMICS ACTIVE
 # Info: LANGEVIN TEMPERATURE   300
@@ -76,10 +68,10 @@ while(<>){
   if(m/SWITCHING OFF\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)/){ $ljcut = $1; }
   if(m/SWITCHING ON\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)/){ $switchlj = $1; }else{ $switchlj = $ljcut }
 
-  $elecut = $ljcut
+  $elecut = $ljcut;
 
 # Info: PERIODIC CELL BASIS 1  64 0 0
-  if(m/PERIODIC CELL BASIS/){ $coulombtype = 1; } else { $coulombtype = 0; }
+  if(m/PERIODIC CELL BASIS/){ $is_periodic = 1; $coulombtype = 1; } else { $is_periodic = 0; $coulombtype = 0; }
 
 # Info: PARTICLE MESH EWALD (PME) ACTIVE
 # Info: PME TOLERANCE               1e-06"
@@ -109,7 +101,7 @@ print "&ene_param
       ms2max = $box2,
       ms3max = $box3,
       engdiv = 1,
-      box_threashold = 5.0
+      box_threshold = 5.0
 /
 &hist
       eclbin=5.0e-2, ecfbin=2.0e-3, ec0bin=2.0e-4, finfac=10.0e0,
@@ -118,19 +110,15 @@ print "&ene_param
 /
 "
 EOF
-) > param.lst
+) > parameters_er || failwith "Failed to generate parameter from log"
 
 # TODO: use below to check LJ mean type
 # Info: USING ARITHMETIC MEAN TO COMBINE L-J SIGMA PARAMETERS"
 
-# pushd $PROGDIR
-# make || failwiwth "Error compling program"
-# popd
-
-if [[ ( -e engsln.01 ) -o ( -e engsln.tt ) ]]; then
+if [[ -e engsln.01 ]] || [[ -e engsln.tt ]]; then
     echo "Warning: previous output remains, are you running the program twice?" 1>&2
 fi
 ln -sf $DCD ./HISTORY
-$PROGDIR/er_namd || failwith "Error executing main"
+ln -sf $XST ./HISTCELL
 
 
