@@ -63,7 +63,7 @@ c
      #                   ermax,numslv,uvmax,uvsoft,esmax,uvspec,
      #                   uvcrd,edens,ecorr,escrd,eself,
      #                   aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,
-     #                   ene_param
+     #                   ene_param, ene_confname
 c
       implicit real(a-h,k-z)
       implicit integer(i,j)
@@ -83,7 +83,6 @@ c
       real, dimension(:,:), allocatable  :: ercrd
 c
       integer, parameter :: paramfile_io=191
-      character(len=*), parameter :: paramfile="parameters"
       integer :: param_err
       namelist /hist/ ecdmin, cdfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,
      #                eclbin, ecfbin, ec0bin, finfac, ectmvl, 
@@ -137,7 +136,7 @@ c
       peread=0
       ermax=0
       do 3001 pti=0,numslv
-        open(unit = paramfile_io, file = paramfile, action = "read", iostat = param_err)
+        open(unit = paramfile_io, file = ene_confname, action = "read", iostat = param_err)
         if (param_err == 0) then
           read(paramfile_io, nml = ene_param)
           read(paramfile_io, nml = hist)

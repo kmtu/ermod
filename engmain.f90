@@ -183,6 +183,8 @@ module engmain
 
   real :: lwreg,upreg
 
+  character(len=*), parameter :: ene_confname = "parameters_er"
+
   namelist /ene_param/ iseed, &
        skpcnf,corrcal, &
        slttype,sltpick,refpick,wgtslf,wgtins, &
@@ -198,13 +200,12 @@ module engmain
 contains 
   subroutine init_params(success)
     logical, intent(out) :: success
-    character(len=*), parameter :: confname = "parameters"
     integer, parameter :: unit = 191
     integer :: err
     
     err = 0
     success = .FALSE.
-    open(unit = unit, file = confname, action = "read", iostat = err)
+    open(unit = unit, file = ene_confname, action = "read", iostat = err)
     
     if(err == 0) then
        read(unit, nml=ene_param)
