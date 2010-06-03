@@ -4,16 +4,9 @@
 
 import os.path
 import sys
-import optparse
+from optparse import OptionParser
 
 sigma_conv = 2.0e0 ** (5.0/6.0) # from Rmin/2 to sigma
-
-class OptionParser (optparse.OptionParser):
-    def check_required (self, opt):
-        option = self.get_option(opt)
-        # Assumes the option's 'default' is set to None!
-        if getattr(self.values, option.dest) is None:
-            self.error("%s option not supplied" % option)
 
 parser = OptionParser()
 parser.add_option("-p", "--param", dest="param", action="append", 
@@ -40,8 +33,14 @@ if not os.path.exists("MDinfo"):
 if options.param == []:
     print >> sys.stderr, "Error: CHARMM parameter file does not exist (try --help)"
     sys.exit(1)
-options.check_required("-s")
-options.check_required("-t")
+
+if options.solute == None:
+    print >> sys.stderr, "Error: solute number is not specified (try --help)"
+    sys.exit(1)
+
+if options.topology == None:
+    print >> sys.stderr, "Error: topology is not specified (try --help)"
+    sys.exit(1)
 
 for f in options.param:
     if not os.path.exists(f):
@@ -57,24 +56,32 @@ for parfile in options.param:
     fh = open(parfile, "rt")
     state = False
     for l in fh:
+        l = l.strip()
+        if len(l) == 0:
+            continue
+        while l[-1] == '-':
+            l = l + fh.next()
+            l = l.strip()
         # skip '!' and after
         line = l.split("!")[0]
         if len(line) == 0 or line[0] == '*': # another style for comment
             continue
         ls = line.split()
+        if len(ls) == 0:
+            continue
         kwd = ls[0]
-        if kwd == 'NONBOND':
+        if kwd == 'NONBONDED':
             state = True
             continue
-        if kwd in ['HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP']:
+        if kwd in ['NBFIX', 'HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP']:
             state = False
             continue
         if not state:
             continue
         # inside NONBOND-section
         atoms = ls[0]
-        eps = -ls[2]
-        rmin = ls[3]
+        eps = -float(ls[2])
+        rmin = float(ls[3])
         if options.ljrescale:
             rmin = sigma_conv * rmin
         atomtable[atoms] = (eps, rmin)
@@ -110,20 +117,20 @@ if n != ntotal:
 ofh = None
 solvent_cnt = 1
 for i in range(numtype):
+    if i == options.solute:
+        fn = "SltInfo"
+    else:
+        fn = "MolPrm%d" % solvent_cnt
+        solvent_cnt += 1
+    ofh = open(fn, "wt")
     for j in range(nummol[i]):
-        if j == options.solute:
-            fn = "SltInfo"
-        else:
-            fn = "MolPrm%d" % solvent_cnt
-            solvent_cnt += 1
-        ofh = open(fn, "wt")
         for k in range(numsite[i]):
             ls = fh.next().split()
-            (_aid, _seg, _resi, resname, atomname, atomtype, charge, _mass, _) = ls
+            (_aid, _seg, _resi, resname, _atomname, atomtype, charge, _mass, _) = ls
             if j == 0:
-                (eps, rmin) = atomtable[atomname]
+                (eps, rmin) = atomtable[atomtype]
                 print >> ofh, ("%d %s %g %g %g" % 
-                               (k + 1, atomtype, charge, eps, rmin))
+                               (k + 1, atomtype[0], float(charge), eps, rmin))
         ofh.close()
 
                 
