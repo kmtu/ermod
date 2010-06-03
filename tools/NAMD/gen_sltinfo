@@ -89,7 +89,9 @@ nummols = fh.next().split()[0:numtype]
 numsites = fh.next().split()[0:numtype]
 nummol = [int(e) for e in nummols]
 numsite = [int(e) for e in numsites]
-ntotal = sum(nummol)
+ntotal = 0
+for i in range(numtype):
+    ntotal += nummol[i] * numsite[i]
 fh.close()
 
 fh = open(options.topology, "rt")
