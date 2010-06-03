@@ -198,7 +198,7 @@ module engmain
 contains 
   subroutine init_params(success)
     logical, intent(out) :: success
-    character(len=*), parameter :: confname = "param.lst"
+    character(len=*), parameter :: confname = "parameters"
     integer, parameter :: unit = 191
     integer :: err
     

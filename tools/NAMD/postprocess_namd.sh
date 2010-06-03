@@ -58,11 +58,13 @@ fi
 
 grep "^Info:" $LOG | perl -e <(cat - <<'EOF'
 
+$temp = 300; # as default
+
 while(<>){
 # Info: BERENDSEN PRESSURE COUPLING ACTIVE
 # Info: LANGEVIN PISTON PRESSURE CONTROL ACTIVE
   if(m/PRESSURE (COUPLING|CONTROL) ACTIVE/){ $estype = 2; }else{ $estype = 1; }
-  $temp = 300; # as default
+
 # Info: LANGEVIN DYNAMICS ACTIVE
 # Info: LANGEVIN TEMPERATURE   300
   if(m/LANGEVIN TEMPERATURE\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)/){ $temp = $1; }

@@ -83,7 +83,7 @@ c
       real, dimension(:,:), allocatable  :: ercrd
 c
       integer, parameter :: paramfile_io=191
-      character(len=*), parameter :: paramfile="param.lst"
+      character(len=*), parameter :: paramfile="parameters"
       integer :: param_err
       namelist /hist/ ecdmin, cdfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,
      #                eclbin, ecfbin, ec0bin, finfac, ectmvl, 
