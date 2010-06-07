@@ -101,7 +101,7 @@ print "&ene_param
       ms2max = $box2,
       ms3max = $box3,
       engdiv = 1,
-      box_threshold = 5.0
+      block_threshold = 5.0
 /
 &hist
       eclbin=5.0e-2, ecfbin=2.0e-3, ec0bin=2.0e-4, finfac=10.0e0,

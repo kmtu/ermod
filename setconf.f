@@ -100,6 +100,10 @@ c
       real, dimension(:), allocatable :: OUTstmass,OUTcharge
       real, dimension(:), allocatable :: OUTljene,OUTljlen
       integer TotAtm
+#ifdef NAMD
+      integer :: namdheader(21), natom_check
+      logical :: isBoxPresent
+#endif
 c
 c
       contains
@@ -129,7 +133,7 @@ c
       engcnv=1.0e0/4.184e2                         ! from 10 J/mol to kcal/mol
 #endif
 #ifdef NAMD
-      iofmt='not' ; cltrd='yes' ; toptp='rsg' ; skpio=3         ! NAMD
+      iofmt='not' ; cltrd='yes' ; toptp='rsg' ; skpio=0         ! NAMD
 #endif
 #ifdef CHARMM
       mdird='not'                                               ! CHARMM
@@ -184,6 +188,12 @@ c
       if(mdird.eq.'yes') read(mdinf,*) OUTnrun,OUTntype
       if(mdird.eq.'not') read(iotrj,*) OUTnrun,OUTntype         ! CHARMM
       call OUTskip(iotrj,iofmt,skpio)
+#ifdef NAMD
+      read(iotrj) namdheader                                    ! NAMD
+      isBoxPresent = (namdheader(12) /= 0)                      ! NAMD
+      read(iotrj)                                               ! NAMD
+      read(iotrj) natom_check                                   ! NAMD
+#endif
       if(cltrd.eq.'yes') call OUTskip(cltrj,'yes',3)            ! NAMD
 #endif
 c
@@ -615,6 +625,7 @@ c
           call OUTskip(trjID,iofmt,1)                           ! NAMD
         endif                                                   ! NAMD
         allocate( snglcrd(OUTatm) )                             ! NAMD
+        if(isBoxPresent) read(trjID)                            ! NAMD
         do 7713 m=1,3                                           ! NAMD
           read(trjID) (snglcrd(i), i=1,OUTatm)                  ! NAMD
           do 7714 i=1,OUTatm                                    ! NAMD

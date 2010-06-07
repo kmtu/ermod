@@ -84,7 +84,7 @@ c
 c
       integer, parameter :: paramfile_io=191
       integer :: param_err
-      namelist /hist/ ecdmin, cdfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,
+      namelist /hist/ ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,
      #                eclbin, ecfbin, ec0bin, finfac, ectmvl, 
      #                peread, pemax, pesoft, pecore
 c
