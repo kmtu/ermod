@@ -51,11 +51,14 @@ fi
 grep "^Info:" $LOG | perl <(cat - <<'EOF'
 
 $temp = 300; # as default
-
+$constant = 1;
+$switchlj = 0;
+$is_periodic = 0;
+$coulombtype = 0;
 while(<>){
 # Info: BERENDSEN PRESSURE COUPLING ACTIVE
 # Info: LANGEVIN PISTON PRESSURE CONTROL ACTIVE
-  if(m/PRESSURE (COUPLING|CONTROL) ACTIVE/){ $constant = 2; }else{ $constant = 1; }
+  if(m/PRESSURE (COUPLING|CONTROL) ACTIVE/){ $constant = 2; }
 
 # Info: LANGEVIN DYNAMICS ACTIVE
 # Info: LANGEVIN TEMPERATURE   300
@@ -66,12 +69,12 @@ while(<>){
 # Info: SWITCHING ON           9
 # Info: SWITCHING OFF          10
   if(m/SWITCHING OFF\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)/){ $ljcut = $1; }
-  if(m/SWITCHING ON\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)/){ $switchlj = $1; }else{ $switchlj = $ljcut }
+  if(m/SWITCHING ON\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)/){ $switchlj = $1; }
 
   $elecut = $ljcut;
 
 # Info: PERIODIC CELL BASIS 1  64 0 0
-  if(m/PERIODIC CELL BASIS/){ $is_periodic = 1; $coulombtype = 1; } else { $is_periodic = 0; $coulombtype = 0; }
+  if(m/PERIODIC CELL BASIS/){ $is_periodic = 1; $coulombtype = 1; }
 
 # Info: PARTICLE MESH EWALD (PME) ACTIVE
 # Info: PME TOLERANCE               1e-06"
@@ -92,6 +95,7 @@ print "&ene_param
       boxshp = $is_periodic,
       inptemp = $temp,
       elecut = 12.0,
+      ljformat = 1,
       upljcut = $ljcut,
       lwljcut = $switchlj,
       cltype = $coulombtype,

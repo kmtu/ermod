@@ -683,6 +683,7 @@ c
      #                   OUTms1,OUTms2,OUTms3                   ! from outside
       use mpiproc                                                      ! MPI
       real, parameter :: tiny=1.0e-20
+      real :: real_seed
       character*3 scrtype
       logical :: init_from_namelist
       call mpi_info                                                    ! MPI
@@ -750,6 +751,13 @@ c     read again for non-default constants
       if(.not. init_from_namelist) then
 #     include "param_eng"
       endif
+
+      if(iseed == 0) then
+        CALL RANDOM_SEED
+        CALL RANDOM_NUMBER(real_seed)
+        iseed = 100000 + int(899999 * real_seed)
+      endif
+
       temp=inptemp*8.314510e-3/4.184e0               ! kcal/mol
       if((screen.le.tiny).and.(cltype.ne.0)) then    ! Ewald and PME
         if(ewtoler.le.tiny) call set_stop('ewa')

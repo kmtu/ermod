@@ -306,7 +306,7 @@ contains
     
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
-       belong_u = belong_solu(ui)
+       belong_u = belong_solu(ui) ! FIXME: not used in later calculation
        crdu(:) = sitepos(:, ua)
        do vi = psum_solv(vpos), psum_solv(vpos + 1) - 1
           va = atomno_solv(vi)
@@ -352,7 +352,7 @@ contains
              chr2 = charge(ua) * charge(va)
              eel = chr2 * (1.0e0 - erf(screen * r)) / r 
           end if
-          energy_mat(belong_v, belong_u) = energy_mat(belong_v, belong_u) + elj + eel
+          energy_mat(belong_v, 1) = energy_mat(belong_v, 1) + elj + eel
        end do
     end do
   end subroutine get_pair_energy_block

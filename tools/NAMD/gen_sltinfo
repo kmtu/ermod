@@ -18,10 +18,12 @@ parser.add_option("-s", "--solute", dest="solute", type="int",
 parser.add_option("-t", "--psf", dest="topology",
                   help="PSF file name", 
                   default = None)
+# LJ rescaling is required when ljformat = 0; usually lformat = 1 is assumed
 parser.add_option("--ljrescale", dest="ljrescale",
                   action="store_true",
                   help="(internal use only)", 
                   default = False)
+
 
 (options, args) = parser.parse_args()
 

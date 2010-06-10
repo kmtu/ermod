@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-bin_PROGRAMS = er_gromacs er_namd er_charmm
+bin_PROGRAMS = er_gromacs er_namd er_charmm slvfe
 
 ersources = engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90
 EXTRA_DIST = enganal.f insertion.f setconf.f stranal.f param_eng parameters_er.example
@@ -26,3 +26,5 @@ er_charmm_LDADD = er_charmm-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
 er_charmm-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DCHARMM -c -o $@ $<
 
+slvfe_SOURCES = slvfe.f
+slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)
