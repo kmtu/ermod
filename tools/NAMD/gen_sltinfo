@@ -23,7 +23,10 @@ parser.add_option("--ljrescale", dest="ljrescale",
                   action="store_true",
                   help="(internal use only)", 
                   default = False)
-
+parser.add_option("--refsolvent", dest="refs",
+                  action="store_true",
+                  help="(for reference solvent)",
+                  default=False)
 
 (options, args) = parser.parse_args()
 
@@ -134,9 +137,10 @@ for i in range(l):
     fh.next()
 fh.next() # skip blank
 n = int(fh.next().split()[0])
-if n != ntotal:
+if (not options.refs) and n != ntotal:
     print >> sys.stderr, "Error: number of atoms in MDinfo and psf is inconsistent"
     sys.exit(1)
+# FIXME: add check for refs version
 
 ofh = None
 solvent_cnt = 1
