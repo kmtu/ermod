@@ -19,8 +19,8 @@ AC_LANG(Fortran)
 ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
 AC_ARG_WITH([mkl],
-  AS_HELP_STRING([--with-mkl\[=(MKL version)\]],
-    [Automatically set environmental variables for MKL]))
+  AS_HELP_STRING([--with-mkl[[=(MKL version)]]],
+    [Automatically set environmental variables for MKL; for a specific version, use this option like --with-mkl=10.2.3]))
 
 AS_IF([test "x$with_mkl" != "x"],
   [case x`uname -m` in # (
