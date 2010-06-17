@@ -1,29 +1,29 @@
 ACLOCAL_AMFLAGS = -I m4
 
-bin_PROGRAMS = er_gromacs er_namd er_charmm slvfe
+bin_PROGRAMS = ermod_gromacs ermod_namd ermod_charmm slvfe
 
 ersources = engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90
 EXTRA_DIST = enganal.f insertion.f setconf.f stranal.f param_eng parameters_er.example
 EXTRA_DIST += tools/NAMD/*
 
-er_gromacs_SOURCES = $(ersources)
-er_gromacs_LDADD = er_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
+ermod_gromacs_SOURCES = $(ersources)
+ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
 
 # extra dependencies added
-er_gromacs-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
+ermod_gromacs-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DGROMACS -c -o $@ $<
 
-er_namd_SOURCES = $(ersources)
-er_namd_LDADD = er_namd-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
+ermod_namd_SOURCES = $(ersources)
+ermod_namd_LDADD = ermod_namd-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
 
-er_namd-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
+ermod_namd-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DNAMD -c -o $@ $<
 
 #
-er_charmm_SOURCES = $(ersources)
-er_charmm_LDADD = er_charmm-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) 
+ermod_charmm_SOURCES = $(ersources)
+ermod_charmm_LDADD = ermod_charmm-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) 
 
-er_charmm-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
+ermod_charmm-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DCHARMM -c -o $@ $<
 
 slvfe_SOURCES = slvfe.f

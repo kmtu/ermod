@@ -24,7 +24,7 @@ parser.add_option("-s", "--flexible", dest = "solute",
 
 parser.add_option("-d", "--div", dest = "div",
                   help = "Number of sections divided into",
-                  default = 10)
+                  default = None)
 
 (options, args) = parser.parse_args()
 
@@ -165,7 +165,12 @@ def parse_log():
   ms2max = %d,
   ms3max = %d,""" % (alpha, pme_order, box1, box2, box3)
         pass
-    print >> ofh, "  engdiv = %d" % options.div
+    if optins.div == None:
+        if options.solute != None or options.pdb != None:
+            divs = 5
+        else:
+            divs = 10
+    print >> ofh, "  engdiv = %d" % divs
     print >> ofh, """/
 &hist
       eclbin=5.0e-2, ecfbin=2.0e-3, ec0bin=2.0e-4, finfac=10.0e0,
@@ -208,6 +213,8 @@ symlink(options.dcd, "HISTORY")
 if is_periodic == 1:
     (xst, _) = os.path.splitext(options.dcd)
     xst += ".xst"
+    if not os.path.exist(xst):
+        print >> sys.stderr, "Warning: could not find xst file, did you forget copying?"
     symlink(xst, "HISTCELL")
 
 if options.solute:

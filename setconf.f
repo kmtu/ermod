@@ -719,7 +719,7 @@ c
         upljcut=elecut ; lwljcut=upljcut-2.0e0                  ! NAMD
 #endif
       endif
-      block_threshold = 7.0 ! block-wise calculation
+      block_threshold = 4.0 ! block-wise calculation
 c     only part of constants set here
       call init_params(init_from_namelist)
       if(.not. init_from_namelist) then
