@@ -1,0 +1,281 @@
+#!/usr/bin/python
+
+
+import os.path
+import sys
+import re
+from optparse import OptionParser
+
+parser = OptionParser()
+
+# only have to specify one of three:
+parser.add_option("-p", "--param", dest = "param", action = "append",
+                  help = "CHARMM parameter file name (can be specified multiple-time)",
+                  default = [])
+parser.add_option("-c", "--conf", dest = "conf",
+                  help = "NAMD configuration file (only used to find CHARMM paramter files)")
+parser.add_option("-l", "--log", dest = "log",
+                  help = "NAMD log file (only used to find CHARMM paramter files)")
+
+# PSF, mandatory
+parser.add_option("-t", "--psf", dest = "topology",
+                  help="PSF file name")
+
+# can be specified; otherwise specify interactively
+parser.add_option("-s", "--solute", dest = "solute",
+                  help = "Segment name of solute molecule",
+                  default = None)
+
+(options, args) = parser.parse_args()
+
+if options.param == [] and options.conf == None and options.log == None:
+    print >> sys.stderr, "Error: CHARMM parameter file is not specified (specify one of: --param, --log, --conf)"
+    sys.exit(1)
+
+if options.topology == None:
+    print >> sys.stderr, "Error: PSF file is not specified (try --help)"
+    sys.exit(1)
+
+def get_params():
+    if options.param:
+        for f in options.param:
+            if not os.path.exists(f):
+                print >> sys.stderr, "Error: parameter file \"%s\" does not exist!" % f
+                sys.exit(1)
+        return options.param
+    def mine_from_file(fname, kind, pattern, groupno):
+        if not os.path.exists(fname):
+            print >> sys.stderr, "Error: %s file \"%s\" does not exist!" % (kind, fname)
+            sys.exit(1)
+        fh = open(fname, "rt")
+        p = re.compile(pattern)
+        lst = []
+        for l in fh:
+            m = p.match(l)
+            if m:
+                lst.append(m.group(groupno))
+            pass
+        fh.close()
+        if lst == []:
+            print >> sys.stderr, "Error: could not find paramter line in %s file. Did you specify correct file (\"%s\")?" % (kind, fname)
+            sys.exit(1)
+        return lst
+    if options.conf:
+        return mine_from_file(options.conf, "configuration", r"^\s*parameters\s+(\S+)", 1)
+    if options.log:
+        return mine_from_file(options.log, "log", r"^Info: PARAMETERS\s+(\S+)", 1)
+
+parfs = get_params()
+
+if not os.path.exists(options.topology):
+    print >> sys.stderr, "Error: psf file does not exist!"
+    sys.exit(1)
+
+# read LJ interaction parameters from topology file
+atomtable = {}
+for parfile in parfs:
+    fh = open(parfile, "rt")
+    state = False
+    for l in fh:
+        l = l.strip()
+        if len(l) == 0:
+            continue
+        while l[-1] == '-':
+            l = l + fh.next()
+            l = l.strip()
+        # skip '!' and after
+        line = l.split("!")[0]
+        if len(line) == 0 or line[0] == '*': # another style for comment
+            continue
+        ls = line.split()
+        if len(ls) == 0:
+            continue
+        kwd = ls[0]
+        if kwd == 'NONBONDED':
+            state = True
+            continue
+        if kwd in ['NBFIX', 'HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP', 'end', 'return']:
+            state = False
+            continue
+        if not state:
+            continue
+        # inside NONBOND-section
+        atoms = ls[0]
+        eps = -float(ls[2])
+        rmin = float(ls[3])
+        atomtable[atoms] = (eps, rmin)
+    fh.close()
+
+mass_table = {
+  1: 'H',
+  2: 'D',
+  12: 'C',
+  14: 'N',
+  16: 'O',
+  19: 'F',
+  23: 'Na',
+  31: 'P',
+  32: 'S',
+  35: 'Cl',
+  36: 'Cl',
+  40: 'Ca',
+  56: 'Fe',
+  63: 'Cu',
+  64: 'Cu',
+  65: 'Zn',
+  80: 'Br' }
+def atomtype_of_mass(mass):
+    imass = int(round(mass))
+    return mass_table[imass]
+
+def get_topology_info():
+    fh = file(options.topology, "rt")
+
+    l = fh.next()
+    if l[0:3] != "PSF":
+        print >> sys.stderr, "Error in PSF header"
+        sys.exit(1)
+
+    l = fh.next() # dummy line
+    l = fh.next().split()
+    title_lines = int(l[0].strip())
+    for i in range(title_lines):
+        l = fh.next()
+    l = fh.next() # single line dummy
+
+    l = fh.next().split()
+    natoms = int(l[0].strip())
+    atoms = [None] * natoms
+
+    for i in range(natoms):
+        l = fh.next().split()
+        #         serial     segname resid    resname aname atype charge mass
+        atom = (int(l[0]), l[1], int(l[2]), l[3], l[4], l[5], float(l[6]), float(l[7]))
+        atoms[i] = atom
+    l = fh.next() # single dummy line after each block
+
+    # make list of segment names
+    segnames = set([])
+    for a in atoms:
+        segnames.add(a[1])
+
+    if options.solute:
+        solute = options.solute.split(',')
+    else:
+        # interactive input
+        print "Segment names in psf files:",
+        for s in segnames:
+            print s,
+        print
+        l = raw_input("Which segments are solute? (For multiple choce please specify as comma-separated list) ").split()
+        solute = [x.strip() for x in l]
+
+    for s in solute:
+        if s not in segnames:
+            print >> sys.stderr, "No such segname in psf: %s" % s
+            sys.exit(1)
+
+    # determine system size
+
+    # determine where residue begins / ends
+    prev = ("", 0, "")
+    curbegin = 0 # 0-origin
+    restable = []
+    for i in range(natoms):
+        a = atoms[i]
+        cur = (a[1], a[2], a[3])
+        if prev != cur:
+            restable.append((curbegin, i, prev[2], prev[0]))
+            prev = cur
+            curbegin = i
+    restable.append((curbegin, natoms, prev[2], prev[0]))
+    del restable[0] # remove dummy
+
+    # consolidate everything
+    solute_magic = "!solvent!"
+    natom = 0
+    nsoluatoms = 0
+    residues = []
+    resres = []
+    resatoms = []
+    res = ""
+    nres = 1
+    solnstart = False
+    solnend = False
+    prevresn = 0
+
+    # a bit spaghetti...
+    for (rb, re, resname, segname) in restable:
+        if segname in solute:
+            solnstart = True
+            resname = solute_magic
+            nsoluatoms += re - rb
+            if solnend:
+                print >> sys.stderr, """Error: solute is ill-formed.
+     Solute must occupy contiguous atom indices."""
+                sys.exit(1)
+        else:
+            if solnstart:
+                solnend = True
+        if res != "":
+            if res == resname:
+                nres = nres + 1
+                assert(natom == re - rb or resname == solute_magic)
+            else:
+                residues.append(res)
+                resres.append(nres)
+                resatoms.append(natom)
+                nres = 1
+        res = resname
+        natom = re - rb
+    residues.append(res)
+    resres.append(nres)
+    resatoms.append(natom)
+
+    # set solute as a single molecule (no matter how really is)
+    slupos = residues.index(solute_magic)
+    return (atoms, residues, resres, resatoms, slupos)
+
+(atoms, residues, resres, resatoms, slupos) = get_topology_info()
+
+def gen(mode):
+    if not os.path.exists(mode):
+        os.mkdir(mode)
+    mdifh = file(mode + "/MDinfo", "wt")
+    ntypes = len(residues)
+    if mode == "refs":
+        ntypes -= 1 # removing solute
+    print >> mdifh, "FRAMES %d" % ntypes
+    for i in range(len(residues)):
+        if mode == "soln" or i != slupos:
+            print >> mdifh, "%d" % resres[i],
+    print >> mdifh
+    for i in range(len(residues)):
+        if mode == "soln" or i != slupos:
+            print >> mdifh, "%d" % resatoms[i],
+    print >> mdifh
+    mdifh.close()
+    
+    solvent_cnt = 1
+    iatom = 0
+    for i in range(len(residues)):
+        if i == slupos:
+            fn = "SltInfo"
+        else:
+            fn = "MolPrm%d" % solvent_cnt
+            solvent_cnt += 1
+        ofh = open(mode + "/" + fn, "wt")
+        for j in range(resres[i]):
+            for k in range(resatoms[i]):
+                if j == 0:
+                    (_aid, _seg, _resi, resname, _atomname, atomtype, charge, mass) = atoms[iatom]
+                    (eps, rmin) = atomtable[atomtype]
+                    atom = atomtype_of_mass(float(mass))
+                    print >> ofh, ("%d %s %g %g %g" % 
+                                   (k + 1, atom, float(charge), eps, rmin))
+                iatom += 1
+        ofh.close()
+
+gen("soln")
+gen("refs")
+
