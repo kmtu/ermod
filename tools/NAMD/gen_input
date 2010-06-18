@@ -22,7 +22,7 @@ parser.add_option("-p", "--pdb", dest = "pdb",
 parser.add_option("-s", "--flexible", dest = "solute",
                   help = "Solute trajectory file")
 
-parser.add_option("-d", "--div", dest = "div",
+parser.add_option("-d", "--div", dest = "div", type = "int",
                   help = "Number of sections divided into",
                   default = None)
 
@@ -165,11 +165,13 @@ def parse_log():
   ms2max = %d,
   ms3max = %d,""" % (alpha, pme_order, box1, box2, box3)
         pass
-    if optins.div == None:
+    if options.div == None:
         if options.solute != None or options.pdb != None:
             divs = 5
         else:
             divs = 10
+    else:
+        divs = options.div
     print >> ofh, "  engdiv = %d" % divs
     print >> ofh, """/
 &hist
@@ -213,7 +215,7 @@ symlink(options.dcd, "HISTORY")
 if is_periodic == 1:
     (xst, _) = os.path.splitext(options.dcd)
     xst += ".xst"
-    if not os.path.exist(xst):
+    if not os.path.exists(xst):
         print >> sys.stderr, "Warning: could not find xst file, did you forget copying?"
     symlink(xst, "HISTCELL")
 
