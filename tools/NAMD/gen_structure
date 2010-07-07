@@ -94,7 +94,7 @@ for parfile in parfs:
         if kwd == 'NONBONDED':
             state = True
             continue
-        if kwd in ['NBFIX', 'HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP', 'end', 'return']:
+        if kwd.upper() in ['NBFIX', 'HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP', 'END', 'RETURN']:
             state = False
             continue
         if not state:
