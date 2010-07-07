@@ -1,5 +1,4 @@
-#!/usr/bin/python
-
+#!/usr/bin/env python
 
 import os.path
 import sys
@@ -155,9 +154,9 @@ def get_topology_info():
     l = fh.next() # single dummy line after each block
 
     # make list of segment names
-    segnames = set([])
+    segnames = {}
     for a in atoms:
-        segnames.add(a[1])
+        segnames[a[1]] = None
 
     if options.solute:
         solute = options.solute.split(',')
@@ -167,7 +166,7 @@ def get_topology_info():
         for s in segnames:
             print s,
         print
-        l = raw_input("Which segments are solute? (For multiple choce please specify as comma-separated list) ").split()
+        l = raw_input("Which segments are solute? (For multiple choce please specify as comma-separated list) ").split(',')
         solute = [x.strip() for x in l]
 
     for s in solute:
@@ -221,19 +220,23 @@ def get_topology_info():
             if res == resname:
                 nres = nres + 1
                 assert(natom == re - rb or resname == solute_magic)
+                if resname != solute_magic:
+                    natom = 0
             else:
                 residues.append(res)
                 resres.append(nres)
                 resatoms.append(natom)
                 nres = 1
+                natom = 0
         res = resname
-        natom = re - rb
+        natom += re - rb
     residues.append(res)
     resres.append(nres)
     resatoms.append(natom)
 
     # set solute as a single molecule (no matter how really is)
     slupos = residues.index(solute_magic)
+    resres[0] = 1
     return (atoms, residues, resres, resatoms, slupos)
 
 (atoms, residues, resres, resatoms, slupos) = get_topology_info()
