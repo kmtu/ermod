@@ -113,21 +113,25 @@ MY_FC_REAL_DOUBLE
 AC_FC_SRCEXT(f90)
 
 # select FFT library
-# defaults to fftw
 AC_ARG_WITH([fft],
 	AS_HELP_STRING([--with-fft=(fftw|mkl)],
 		[specify which FFT library to be used]),
 	[],
-	[with_fft=fftw]
+	[with_fft=no]
 )
+
+# Search for fftw3 - libfftw3.a
+AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes], [have_fftw3=no])
+
+AS_IF([test "x$with_fft" == xno],
+	    [AS_IF([test "x$have_fftw3" == xyes],
+	    		 [with_fft=fftw])
+             AS_IF([test "x$with_mkl" != "x"],
+                         [with_fft=mkl])])
 
 AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
 	    [AC_MSG_FAILURE(
 		[invalid --with-fft=<fft-type> specification, please check with --help])])
-
-# FFTW specific test - check libfftw3.a
-AS_IF([test "x$with_fft" = xfftw],
-	    [AC_CHECK_LIB([fftw3], [dfftw_execute], [], [AC_MSG_FAILURE([Could not find libfftw3.a])])])
 
 # check whether mkl_dfti.f90 is accesible
 # FIXME: This may fail to detect with gfortran 4.4.0-4.4.3
