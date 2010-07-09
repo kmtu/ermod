@@ -112,18 +112,17 @@ contains
        abs(cell(3, 1)) > 1e-8 .or. &
        abs(cell(3, 2)) > 1e-8) then
        print *, cell
-       stop "realcal%set_box_info: assertion failed"
+       stop "realcal%set_box_info: assertion failed (boxvectors are not triangular)"
     endif
 
     ! get the length of axes
     ! assumes cell's 1st axis being x-axis, 2nd axis on x-y plane
     do i = 1, 3
-       laxes(i) = cell(i, i)
+       laxes(i) = abs(cell(i, i))
     end do
 
     ! set block size
     block_size(:) = ceiling(laxes(:) / block_threshold)
-    if(any(block_size(:) < 0)) stop "realcal%set_box_info: assertion failed (blocksize)"
 
     ! pre-calculate grid-grid distance and box-box distance
     bmax = maxval(block_size(:))
