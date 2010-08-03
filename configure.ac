@@ -229,6 +229,7 @@ case "x$with_fft" in #(
  xfftw) :
  FFLAGS="$FFLAGS -DFFTW"
  FCFLAGS="$FCFLAGS -DFFTW"
+ LDFLAGS="$LDFLAGS -lfftw3"
  ;; #(
  xmkl) :
  FFLAGS="$FFLAGS -DMKL"
