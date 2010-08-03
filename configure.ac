@@ -2,7 +2,7 @@
 
 AC_PREREQ([2.59])
 #AC_INIT(enerepr, 0.0.%rev%, Matubayasi Laboratory)
-AC_INIT(enerepr, 0.0.71, Matubayasi Laboratory)
+AC_INIT(enerepr, 0.0.91, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
@@ -123,6 +123,10 @@ AC_ARG_WITH([fft],
 # Search for fftw3 - libfftw3.a
 AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes], [have_fftw3=no])
 
+AS_IF([test "x$with_fft" == xfftw], 
+            [AS_IF([test "x$have_fftw3" == xno],
+                         [AC_MSG_FAILURE(
+                                 [--with-fft=fftw is specified, but could not find fftw3])])])
 AS_IF([test "x$with_fft" == xno],
 	    [AS_IF([test "x$have_fftw3" == xyes],
 	    		 [with_fft=fftw])
@@ -132,6 +136,7 @@ AS_IF([test "x$with_fft" == xno],
 AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
 	    [AC_MSG_FAILURE(
 		[invalid --with-fft=<fft-type> specification, please check with --help])])
+
 
 # check whether mkl_dfti.f90 is accesible
 # FIXME: This may fail to detect with gfortran 4.4.0-4.4.3
