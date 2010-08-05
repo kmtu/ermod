@@ -7,7 +7,7 @@ c
       integer :: pecore=200,numprm=15
       integer :: numsln=10,numref=5,numdiv=-1
 c
-      character*3 :: peread='not',uvread='yes'
+      character*3 :: peread='not',uvread='yes',slfslt='yes'
       character*4 :: zerosft='mxco',wgtfnform='harm'
       character*3 :: refmerge='yes',extsln='lin'
       character*3 :: wgtf2smpl='yes',slncor='not'
@@ -29,7 +29,7 @@ c
 c
       integer prmmax,maxsln,maxref,numrun
       integer numslv,ermax
-      real temp,kT
+      real temp,kT,slfeng
 c
       real, dimension(:),     allocatable :: nummol
       integer, dimension(:),  allocatable :: rduvmax,rduvcore
@@ -43,7 +43,7 @@ c
       real, dimension(:),     allocatable :: wgtsln,wgtref
 
       namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, 
-     #                  peread, uvread, zerosft, wgtfnform, refmerge, extsln,
+     #                  peread, uvread, slfslt, zerosft, wgtfnform, refmerge, extsln,
      #                  wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl,
      #                  inptemp, pickgr, maxmesh, large, itrmax, error, tiny,
      #                  wgtslnfl, wgtreffl, slndnspf, slncorpf, refdnspf, refcorpf
@@ -69,9 +69,9 @@ c
 c
 c
       module sysread
-      use sysvars, only: clcond,uvread,slncor,tiny,
+      use sysvars, only: clcond,uvread,slfslt,slncor,tiny,
      #                   maxsln,maxref,numrun,
-     #                   numslv,ermax,nummol,
+     #                   numslv,ermax,slfeng,nummol,
      #                   rdcrd,rddst,rddns,rdslc,rdcor,rdspec,
      #                   aveuv,uvene,blkuv,wgtsln,wgtref
       character*85 engfile(5)
@@ -79,8 +79,7 @@ c
 c
       subroutine defcond
 c
-      use sysvars, only: peread,readwgtfl,
-     #                   wgtslnfl,wgtreffl,
+      use sysvars, only: peread,readwgtfl,wgtslnfl,wgtreffl,
      #                   numprm,prmmax,numsln,numref,numdiv,
      #                   inptemp,temp,kT,
      #                   pecore,maxmesh,large,
@@ -258,8 +257,37 @@ c
             if(cnt.eq.2) wgtref(i)=factor
 8893      continue
           close(81)
+          factor=0.0e0
+          do 8894 i=1,j
+            if(cnt.eq.1) factor=factor+wgtsln(i)
+            if(cnt.eq.2) factor=factor+wgtref(i)
+8894      continue
+          do 8895 i=1,j
+            if(cnt.eq.1) wgtsln(i)=wgtsln(i)/factor
+            if(cnt.eq.2) wgtref(i)=wgtref(i)/factor
+8895      continue
         endif
 8891  continue
+c
+      if(slfslt.eq.'yes') then
+        if(clcond.ne.'merge') then
+          write(6,881) ; read(5,*) slfeng
+881       format(' What is the solute self-energy?')
+        endif
+        if(clcond.eq.'merge') then
+          if(readwgtfl.eq.'not') then
+            write(6,882) ; stop
+882         format(' readwgtfl needs to be yes when slfslt is yes')
+          endif
+          slfeng=0.0e0
+          open(unit=81,file=wgtreffl,status='old')
+          do 8871 i=1,maxref
+            read(81,*) k,factor,factor
+            slfeng=slfeng+wgtref(i)*factor
+8871      continue
+          close(81)
+        endif
+      endif
 c
       return
       end subroutine
@@ -410,6 +438,7 @@ c
           blkuv(pti,cntrun)=aveuv(pti)
           factor=factor+aveuv(pti)
 7233    continue
+        if(slfslt.eq.'yes') factor=factor+slfeng
         blkuv(0,cntrun)=factor
       endif
 c
@@ -434,7 +463,8 @@ c
 c
       subroutine chmpot(prmcnt,cntrun)
 c
-      use sysvars, only: uvread,normalize,showdst,wrtzrsft,
+      use sysvars, only: uvread,slfslt,
+     #                   normalize,showdst,wrtzrsft,slfeng,
      #                   rduvmax,rduvcore,
      #                   rdcrd,rddst,rddns,rdslc,rdcor,rdspec,
      #                   chmpt,aveuv,svgrp,svinf
@@ -560,6 +590,7 @@ c
       do 5199 pti=1,numslv
         slvfe=slvfe+chmpt(pti,prmcnt,cntrun)
 5199  continue
+      if(slfslt.eq.'yes') slvfe=slvfe+slfeng
       chmpt(0,prmcnt,cntrun)=slvfe
 c
       if(wrtzrsft.eq.'yes') then
@@ -674,7 +705,7 @@ c
             ampl=wgtmxco(pti)
             factor=ampl*lcsln+(1.0e0-ampl)*lcref
           case('zero')
-            k=zeroec(pti,1) ; factor=slncv(k)
+            factor=cvfcen(pti,1,'slncv',wgtfnform,'yes')
           case('cntr')
             factor=cvfcen(pti,1,'slncv',wgtfnform,'not')
           case default
@@ -780,9 +811,7 @@ c
               ampl=wgtmxco(pti)
               factor=ampl*lcsln+(1.0e0-ampl)*lcref
             case('zero')
-              k=zeroec(pti,cnt)
-              if(cnt.eq.1) factor=sdrcv(k)
-              if(cnt.eq.2) factor=inscv(k)
+              factor=cvfcen(pti,cnt,'inscv',wgtfnform,'yes')
             case('cntr')
               factor=cvfcen(pti,cnt,'inscv',wgtfnform,'not')
             case default
@@ -838,6 +867,7 @@ c
         do 3153 iduv=1,gemax
         if(uvspec(iduv).eq.pti) then
           ampl=abs(uvcrd(iduv))-minuv
+c         ampl=nummol(pti)*(abs(uvcrd(iduv))-minuv)
           weight(iduv)=exp(-ampl/kT)*weight(iduv)
         endif
 3153    continue
@@ -1108,7 +1138,8 @@ c
 c
 c
       module opwrite
-      use sysvars, only: clcond,uvread,prmmax,numrun,numslv,pickgr,
+      use sysvars, only: clcond,uvread,slfslt,
+     #                   prmmax,numrun,numslv,pickgr,slfeng,
      #                   chmpt,aveuv,blkuv,svgrp,svinf
       integer grref
       contains
@@ -1117,6 +1148,9 @@ c
 c
       integer prmcnt,pti,k
       real factor,valcp
+c
+      if(slfslt.eq.'yes') write(6,321) slfeng
+321   format('  Self-energy of the solute   =   ',f12.4, '  kcal/mol')
 c
       if(clcond.ne.'merge') then
         write(6,*)
@@ -1127,6 +1161,7 @@ c
         do 3311 pti=1,numslv
           factor=factor+aveuv(pti)
 3311    continue
+        if(slfslt.eq.'yes') factor=factor+slfeng
         write(6,332) factor
 331     format('  Solute-solvent energy       =   ', 999999f12.4)
 332     format('  Total solvation energy      =   ',f12.4, '  kcal/mol')
@@ -1192,7 +1227,7 @@ c
 773   format(' cumulative average & 95% error for solvation energy')
 c
       do 9983 pti=0,numslv
-        if((numslv.eq.1).and.(pti.eq.0)) goto 9984
+        if((numslv.eq.1).and.(pti.ne.0)) goto 9984
         avcp0=0.0e0
         do 9978 cntrun=1,numrun
           avcp0=avcp0+chmpt(pti,grref,cntrun)
@@ -1215,8 +1250,7 @@ c
           stdcp=2.0e0*stdcp/sqrt(factor)
           if(prmcnt.eq.1) then
             write(6,*)
-            if((numslv.eq.1).and.(pti.eq.1)) write(6,670)
-            if((numslv.gt.1).and.(pti.eq.0)) write(6,670)
+            if(pti.eq.0) write(6,670)
 670         format(' group  inft  solvation free energy     error',
      #             '          difference')
             if(numslv.gt.1) then
@@ -1234,7 +1268,7 @@ c
 c
       write(6,*) ; write(6,*)
       do 9981 pti=0,numslv
-        if((numslv.eq.1).and.(pti.eq.0)) goto 9982
+        if((numslv.eq.1).and.(pti.ne.0)) goto 9982
         do 9988 prmcnt=1,prmmax
           group=svgrp(prmcnt)
           inft=svinf(prmcnt)
