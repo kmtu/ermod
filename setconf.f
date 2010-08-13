@@ -991,7 +991,7 @@ c
             sitemass(ati)=factor
             charge(ati)=xst(1)
             if(ljformat.eq.1) xst(3)=sgmcnv*xst(3)
-            if((ljformat.eq.3).or.(ljformat.eq.4)) then
+            if((ljformat.eq.3).or.(ljformat.eq.4).and.(xst(3).ne.0.0)) then
               factor=(xst(2)/xst(3))**(1.0e0/6.0e0)
               xst(2)=xst(3)/(4.0e0*(factor**6.0e0))
               xst(3)=factor
