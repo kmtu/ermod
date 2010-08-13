@@ -122,23 +122,23 @@ def parse_mdp():
     params["inptemp"] = temp
 
     if options.pdb:
-        params['calctype'] = 2 # fixed
+        params['slttype'] = 2 # rigid
     elif options.solute:
-        params['calctype'] = 3 # flexible
+        params['slttype'] = 3 # flexible
     else:
-        params['calctype'] = 1 # solution
+        params['slttype'] = 1 # solution
 
     if dic["vdwtype"] == "Cut-off":
         cutoff = float(dic["rvdw"]) * 10.0 # nm -> angstrom
         params['upljcut'] = cutoff
-        params['lowljcut'] = cutoff
+        params['lwljcut'] = cutoff
     elif dic["vdwtype"] == "Switch":
         params['upljcut'] = float(dic["rvdw"]) * 10.0
-        params['lowljcut'] = float(dic["rvdw_switch"]) * 10.0
+        params['lwljcut'] = float(dic["rvdw_switch"]) * 10.0
     elif dic["vdwtype"] in ["Shift", "Encad-Shift"]:
         warn("Warning: shifted L-J potential is not supported; using switched L-J (may cause inconsistent result)")
         params['upljcut'] = float(dic["rvdw"]) * 10.0
-        params['lowljcut'] = float(dic["rvdw_switch"]) * 10.0
+        params['lwljcut'] = float(dic["rvdw_switch"]) * 10.0
     else:
         warn("Warning: unknown vdwtype; please specify vdw parameters manually")
 
@@ -168,9 +168,9 @@ def parse_mdp():
         params['screen'] = 1. / (betawidth * 10.0)
         
     if dic["epc"] == "no":
-        params['simtype'] = 1
+        params['estype'] = 1
     elif dic["epc"] in ["Berendsen", "Parrinello-Rahman"]:
-        params['simtype'] = 2
+        params['estype'] = 2
     else:
         warining("Warning: Unknown pressure coupling type, check log / output")
         params['simtype'] = 1
