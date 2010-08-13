@@ -5,6 +5,7 @@ bin_PROGRAMS = ermod_gromacs ermod_namd ermod_charmm slvfe
 ersources = engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90
 EXTRA_DIST = enganal.f insertion.f setconf.f stranal.f param_eng parameters_er.example
 EXTRA_DIST += tools/NAMD/*
+EXTRA_DIST += tools/gromacs/*
 
 ermod_gromacs_SOURCES = $(ersources)
 ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
