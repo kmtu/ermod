@@ -101,6 +101,9 @@ c
       real, dimension(:), allocatable :: OUTljene,OUTljlen
       integer TotAtm
 c
+#ifdef GROMACS
+      character(len=80) :: buffer
+#endif
 c
       contains
 c
@@ -570,16 +573,26 @@ c
         read(trjID) ((factor,m=1,3),i=1,OUTatm)                 ! Toray
 #endif
 #ifdef GROMACS
-        call OUTskip(trjID,iofmt,4)                             ! GROMACS
+        buffer = ""
+        do while((buffer /= "POSITIONRED").and.(buffer /= "POSITION"))! GROMACS
+          read(trjID,*) buffer                                  ! GROMACS
+          buffer = trim(buffer)                                 ! GROMACS
+        enddo                                                   ! GROMACS
         do 7711 i=1,OUTatm                                      ! GROMACS
-          read(trjID,*) k,(dumchr, m=1,2),k,(xst(m), m=1,3)     ! GROMACS
+          if(buffer == "POSITION") then                         ! GROMACS
+            read(trjID,*) k,(dumchr, m=1,2),k,(xst(m), m=1,3)   ! GROMACS
+          else                                                  ! GROMACS
+            read(trjID,*) (xst(m), m=1,3)                       ! GROMACS
+          endif                                                 ! GROMACS
           do 7712 m=1,3                                         ! GROMACS
             OUTpos(m,i)=lencnv*xst(m)                           ! GROMACS
 7712      continue                                              ! GROMACS
 7711    continue                                                ! GROMACS
         call OUTskip(trjID,iofmt,1)                             ! GROMACS
         if(OUTbox.ne.0) then                                    ! GROMACS
-          call OUTskip(trjID,iofmt,1)                           ! GROMACS
+          do while(trim(buffer) /= "BOX")                       ! GROMACS
+            read(trjID,*) buffer                                ! GROMACS
+          enddo                                                 ! GROMACS
           read(trjID,*) (xst(m), m=1,3)                         ! GROMACS
           do 7713 m=1,3                                         ! GROMACS
             OUTcell(m,m)=lencnv*xst(m)                          ! GROMACS
