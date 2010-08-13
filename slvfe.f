@@ -55,7 +55,7 @@ c
       integer, parameter :: iounit = 191
       integer :: iostat
       
-      open(unit=iounit, file= parmfname, action='read', iostat=iostat)
+      open(unit=iounit, file= parmfname, action='read', status='old', iostat=iostat)
       if(iostat /= 0) goto 99
       read(iounit, nml=fevars)
       close(iounit)
