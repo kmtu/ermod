@@ -235,19 +235,28 @@ def symlink(src, dest):
             return
     os.symlink(src, dest)
 
+def convtraj(src, trunk):
+    subprocess.check_call(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"])
+    symlink(trunk + ".g96", trunk)
+
 # link or generate trajectory
 (_, ext) = os.path.splitext(options.traj)
 if ext != ".g96":
     log("Trajectory is not g96 file, converting files")
-    subprocess.check_call(["trjconv", "-f", options.traj, "-o", "HISTORY.g96", "-novel"])
-    symlink("HISTORY.g96", "HISTORY")
+    convtraj(options.traj, "HISTORY")
 else:
     log("Trajectory is g96 file, linking to HISTORY")
     symlink(options.traj, "HISTORY")
 
 if options.solute:
     # flexible
-    symlink(options.solute, "SltConf")
+    (_, ext) = os.path.splitext(options.solute)
+    if ext != ".g96":
+        log("Solute trajectory is not g96 file, converting files")
+        convtraj(options.solute, "SltConf")
+    else:
+        log("Solute trajectory is g96 file, linking to HISTORY")
+        symlink(options.solute, "SltConf")
 elif options.pdb:
     # fixed
     fh = open(options.pdb, "rt")
