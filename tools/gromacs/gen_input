@@ -27,6 +27,11 @@ parser.add_option("-d", "--div", dest = "div", type = "int",
                   help = "Number of sections divided into",
                   default = None)
 
+
+parser.add_option("--minenergy", dest = "minenergy", type = "float",
+                  help = "Minimum energy",
+                  default = -20.0)
+
 parser.add_option("-v", "--verbose", dest = "verbose", action = "store_true",
                   help = "Increase verbosity (for debug)",
                   default = False)
@@ -198,10 +203,10 @@ def parse_mdp():
     print >> ofh, """/
 &hist
       eclbin=5.0e-2, ecfbin=2.0e-3, ec0bin=2.0e-4, finfac=10.0e0,
-      ecdmin=-20.0e0, ecfmns=-0.20e0, ecdcen=0.0e0, eccore=20.0e0,
+      ecdmin=%f, ecfmns=-0.20e0, ecdcen=0.0e0, eccore=20.0e0,
       ecdmax=1.0e11, pecore=200
 /
-"""
+""" % options.minenergy
 
     frames = int(dic["nsteps"]) / int(dic["nstxout"])
     return (frames, is_periodic)
