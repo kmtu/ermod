@@ -106,11 +106,12 @@ class topology:
     def process_atomtypes(self, ls):
         if len(ls) == 6:
             mode = "shortform"
-        try:
-            int(ls[1])
-            mode = "bondtype"
-        except ValueError:
-            mode = "atomnumber"
+        else:
+            try:
+                int(ls[1])
+                mode = "bondtype"
+            except ValueError:
+                mode = "atomnumber"
   
         if mode == "shortform":
             aname = ls[0]
