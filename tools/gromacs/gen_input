@@ -6,6 +6,7 @@ import shutil
 import sys
 import re
 import pickle
+import subprocess
 from optparse import OptionParser
 
 parser = OptionParser()
@@ -75,10 +76,6 @@ if options.log == None:
 
 if options.traj == None:
     error("trajectory file is not specified (try --help)")
-
-(_, ext) = os.path.splitext(options.traj)
-if ext != ".g96":
-    warn("Trajectory is not g96 file")
 
 def check_exists(f):
     if not os.path.exists(f):
@@ -233,8 +230,15 @@ def symlink(src, dest):
             return
     os.symlink(src, dest)
 
-# link trajectory
-symlink(options.traj, "HISTORY")
+# link or generate trajectory
+(_, ext) = os.path.splitext(options.traj)
+if ext != ".g96":
+    log("Trajectory is not g96 file, converting files")
+    subprocess.check_call(["trjconv", "-f", options.traj, "-o", "HISTORY.g96", "-novel"])
+    symlink("HISTORY.g96", "HISTORY")
+else:
+    log("Trajectory is g96 file, linking to HISTORY")
+    symlink(options.traj, "HISTORY")
 
 if options.solute:
     # flexible
