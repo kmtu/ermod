@@ -34,6 +34,7 @@ c                                                                      ! MPI
 #endif
       return
       end subroutine                                                   ! MPI
+
       subroutine mpi_info                                              ! MPI
       nprocs=1
       myrank=0
@@ -43,6 +44,14 @@ c                                                                      ! MPI
 #endif
       return
       end subroutine                                                   ! MPI
+
+      subroutine mpi_abend()
+      integer :: ierror
+#ifndef noMPI
+      call mpi_abort(mpi_comm_world, 1, ierror)                        ! MPI
+#endif
+      end subroutine
+
       end module                                                       ! MPI
 c
 c
@@ -747,7 +756,7 @@ c
 999   format(' The minimum of the energy coordinate is too large')
 981   format(' The energy-coordinate system is inconsistent')
 982   format(' The first particle needs to be the solute')
-      call mpi_setup('stop')                                           ! MPI
+      call mpi_abend()                                                ! MPI
       stop
       end subroutine
 c
