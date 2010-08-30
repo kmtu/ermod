@@ -672,19 +672,17 @@ c
 3221        continue
             factor=0.0e0
             do 3222 iduvp=1,gemax
-              if(work(iduvp).gt.tiny) factor=factor+work(iduvp)
+              factor=factor+work(iduvp)
 3222        continue
             do 3223 iduvp=1,gemax
               work(iduvp)=work(iduvp)/factor
 3223        continue
             factor=0.0e0 ; ampl=0.0e0 ; lcsln=0.0e0 ; lcref=0.0e0
             do 3224 iduvp=1,gemax
-              if(work(iduvp).gt.tiny) then
-                factor=factor+work(iduvp)*uvcrd(iduvp)
-                ampl=ampl+work(iduvp)*uvcrd(iduvp)*uvcrd(iduvp)
-                lcsln=lcsln+work(iduvp)*slncv(iduvp)
-                lcref=lcref+work(iduvp)*uvcrd(iduvp)*slncv(iduvp)
-              endif
+              factor=factor+work(iduvp)*uvcrd(iduvp)
+              ampl=ampl+work(iduvp)*uvcrd(iduvp)*uvcrd(iduvp)
+              lcsln=lcsln+work(iduvp)*slncv(iduvp)
+              lcref=lcref+work(iduvp)*uvcrd(iduvp)*slncv(iduvp)
 3224        continue
             work(1)=(ampl*lcsln-factor*lcref)/(ampl-factor*factor)
             work(2)=(lcref-factor*lcsln)/(ampl-factor*factor)
