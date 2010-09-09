@@ -156,7 +156,6 @@ c
 #if defined(GROMACS) && defined(MDLIB)
 !     GROMACS + MDLIB
       call open_gmtraj(gmxhandle, 0, status) ! 0 == HISTORY
-      print *, "Status = ", status
       if(status == 0) then
         use_mdlib = .true.
       endif
@@ -184,6 +183,7 @@ c
       endif
       if(cltrd.eq.'yes') close(cltrj)                ! cell trajectory file
       if(mdird.eq.'yes') close(mdinf)                ! MD info
+      use_mdlib = .false.                            ! Clear for next
       return
       end subroutine
 c
@@ -615,8 +615,7 @@ c
 #ifdef GROMACS
 #ifdef MDLIB
 !     GROMACS + MDLIB
-        print *, "test mdlib"
-        if(use_mdlib) then
+        if(trjID == iotrj .and. use_mdlib) then
           allocate(tmpOUT(3, OUTatm))
           call read_gmtraj_step(gmxhandle, tmpOUT, tmpcell, gmxstatus)
           OUTpos(:, :) = lencnv * tmpOUT(:, :)

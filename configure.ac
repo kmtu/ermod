@@ -178,6 +178,7 @@ AC_ARG_ENABLE([mpi],
 # Checks for library functions.
 
 # FIXME: check cpp flags
+CFLAGS="$CFLAGS -g"
 FFLAGS="$FFLAGS -g -cpp -Dtrjctry"
 FCFLAGS="$FCFLAGS -g -cpp -Dtrjctry"
 
