@@ -12,6 +12,18 @@ AC_PROG_CC
 AC_PROG_F77([ifort gfortran xlf f90 g77 xlf90])
 AC_PROG_FC([ifort gfortran xlf f77 g95 xlf77])
 
+# Check GROMACS library
+AC_LANG_PUSH(C)
+AC_CHECK_LIB(md, read_first_x, 
+             [with_libmd=yes],
+	     [with_libmd=no])
+AC_CHECK_HEADER(statutil.h,
+               [with_statutil_h=yes],
+	       [with_statutil_h=no])
+AC_LANG_POP(C)
+
+AM_CONDITIONAL([USE_LIBMD], [test "x$with_libmd" = "xyes" -a "x$with_statutil_h" = "xyes"])
+
 # modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran 77)
 ACX_MPI_MY
@@ -239,6 +251,10 @@ case "x$with_fft" in #(
  ;;
 esac
 
+AM_COND_IF([USE_LIBMD],
+           [use_libmd=yes],
+	   [use_libmd=no])
+
 AS_IF([test "x$lapack_exist" != xyes],
 	    [AC_MSG_ERROR(
 		[dnl
@@ -254,6 +270,7 @@ AC_OUTPUT
 AC_MSG_RESULT([dnl
 LAPACK: $lapack_result
 FFT: $with_fft
+GROMACS XTC support: $use_libmd
 MPI: $mpi_result
 FFLAGS=$FFLAGS
 FCFLAGS=$FCFLAGS

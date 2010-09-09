@@ -100,9 +100,13 @@ c
       real, dimension(:), allocatable :: OUTstmass,OUTcharge
       real, dimension(:), allocatable :: OUTljene,OUTljlen
       integer TotAtm
+      logical :: use_mdlib
 c
 #ifdef GROMACS
       character(len=80) :: buffer
+#ifdef MDLIB
+      integer(16) :: gmxhandle
+#endif
 #endif
 c
       contains
@@ -141,16 +145,43 @@ c
       end subroutine
 c
       subroutine opentrj
+#if defined(GROMACS) && defined(MDLIB)
+!     GROMACS + MDLIB
+      integer :: status
+      external open_gmtraj
+#endif
+
       call OUTinitial
-      if(iofmt.eq.'yes') open(unit=iotrj,file=trjfile,status='old')
-      if(iofmt.eq.'not') open(unit=iotrj,file=trjfile,status='old',
+      use_mdlib = .false.
+#if defined(GROMACS) && defined(MDLIB)
+!     GROMACS + MDLIB
+      call open_gmtraj(gmxhandle, 0, status) ! 0 == HISTORY
+      print *, "Status = ", status
+      if(status == 0) then
+        use_mdlib = .true.
+      endif
+#endif
+      if(.not.(use_mdlib)) then
+        if(iofmt.eq.'yes') open(unit=iotrj,file=trjfile,status='old')
+        if(iofmt.eq.'not') open(unit=iotrj,file=trjfile,status='old',
      #                                          form='unformatted')
+      endif
       if(cltrd.eq.'yes') open(unit=cltrj,file=celfile,status='old')
       if(mdird.eq.'yes') open(unit=mdinf,file=inffile,status='old')
       return
       end subroutine
+
       subroutine closetrj
-      close(iotrj)                                   ! trajectory file
+#if defined(GROMACS) && defined(MDLIB)
+!     GROMACS + MDLIB
+      external close_gmtraj
+      if(use_mdlib) then
+        call close_gmtraj(gmxhandle)
+      endif
+#endif
+      if(.not.use_mdlib) then
+        close(iotrj)                                 ! trajectory file
+      endif
       if(cltrd.eq.'yes') close(cltrj)                ! cell trajectory file
       if(mdird.eq.'yes') close(mdinf)                ! MD info
       return
@@ -186,7 +217,9 @@ c
 #ifdef trjctry
       if(mdird.eq.'yes') read(mdinf,*) OUTnrun,OUTntype
       if(mdird.eq.'not') read(iotrj,*) OUTnrun,OUTntype         ! CHARMM
-      call OUTskip(iotrj,iofmt,skpio)
+      if(.not.use_mdlib) then
+        call OUTskip(iotrj,iofmt,skpio)
+      endif
       if(cltrd.eq.'yes') call OUTskip(cltrj,'yes',3)            ! NAMD
 #endif
 c
@@ -430,6 +463,13 @@ c
 #ifdef NAMD
       real*4, dimension(:), allocatable :: snglcrd   ! used to read DCD file
 #endif
+#if defined(GROMACS) && defined(MDLIB)
+      real(8), allocatable :: tmpOUT(:, :) ! real(8) for interfacing reason
+      real(8) :: tmpcell(3, 3)
+      integer :: gmxstatus
+
+      external read_gmtraj_step
+#endif
 c
       if(OUTtrj.eq.0) trjID=iotrj
       if(OUTtrj.ne.0) trjID=OUTtrj
@@ -573,6 +613,19 @@ c
         read(trjID) ((factor,m=1,3),i=1,OUTatm)                 ! Toray
 #endif
 #ifdef GROMACS
+#ifdef MDLIB
+!     GROMACS + MDLIB
+        print *, "test mdlib"
+        if(use_mdlib) then
+          allocate(tmpOUT(3, OUTatm))
+          call read_gmtraj_step(gmxhandle, tmpOUT, tmpcell, gmxstatus)
+          OUTpos(:, :) = lencnv * tmpOUT(:, :)
+          OUTcell(:, :) = lencnv * tmpcell(:, :)
+          deallocate(tmpOUT)
+          return
+        endif
+#endif
+
         buffer = ""
         do while((buffer /= "POSITIONRED").and.(buffer /= "POSITION"))! GROMACS
           read(trjID,*) buffer                                  ! GROMACS
