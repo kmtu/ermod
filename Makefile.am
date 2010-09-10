@@ -15,7 +15,7 @@ extra_flags =
 if USE_LIBMD
 ermod_gromacs_SOURCES += gromacsfio.c
 extra_flags += -DMDLIB
-ermod_gromacs_LDADD += -lmd
+ermod_gromacs_LDADD += -lgmx -lmd -lm
 endif
 
 # extra dependencies added

@@ -105,7 +105,7 @@ c
 #ifdef GROMACS
       character(len=80) :: buffer
 #ifdef MDLIB
-      integer(16) :: gmxhandle
+      integer(8) :: gmxhandle
 #endif
 #endif
 c
@@ -615,7 +615,7 @@ c
 #ifdef GROMACS
 #ifdef MDLIB
 !     GROMACS + MDLIB
-        if(trjID == iotrj .and. use_mdlib) then
+        if(trjID == iotrj .and. use_mdlib .eqv. .true.) then
           allocate(tmpOUT(3, OUTatm))
           call read_gmtraj_step(gmxhandle, tmpOUT, tmpcell, gmxstatus)
           OUTpos(:, :) = lencnv * tmpOUT(:, :)
