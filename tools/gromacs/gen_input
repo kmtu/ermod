@@ -208,7 +208,10 @@ def parse_mdp():
 /
 """ % options.minenergy
 
-    frames = int(dic["nsteps"]) / int(dic["nstxout"])
+    if int(dic["nstxtcout"]) != 0:
+        frames = int(dic["nsteps"]) / int(dic["nstxtcout"])
+    else:
+        frames = int(dic["nsteps"]) / int(dic["nstxout"])
     return (frames, is_periodic)
     
 (frames, is_periodic) = parse_mdp()
@@ -236,6 +239,9 @@ def symlink(src, dest):
     os.symlink(src, dest)
 
 def convtraj(src, trunk):
+    if trunk == "HISTORY":
+        symlink(src, trunk)
+        return
     subprocess.check_call(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"])
     symlink(trunk + ".g96", trunk)
 
