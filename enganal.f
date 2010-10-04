@@ -330,7 +330,7 @@ c
       real engnmfc,pairep,wgtslcf,factor
       integer, dimension(:), allocatable :: insdst,engdst,tagpt,tplst
       real, dimension(:),    allocatable :: uvengy,flceng,svfl
-      real, save :: prevcl(3, 3)
+      real, save :: prevcl(3, 3), usreal
       real, parameter :: tiny = 1.0e-20
       call mpi_info                                                    ! MPI
 c
@@ -418,6 +418,11 @@ c
           if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
             call instslt(wgtslcf,'last')
           endif
+          if(slttype.eq.2) then               ! rigid solute
+            if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then   ! initialization
+              call realcal(tagslt,tagslt,usreal)           ! self real part
+            endif
+          endif
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
         endif
 c
@@ -440,7 +445,11 @@ c
             pairep = 0
             call residual_ene(tagslt, i, pairep)
           else
-            call realcal(tagslt,i,pairep) ! usual case or self-interaction
+            if((slttype.eq.2).and.(k.eq.0)) then ! rigid solute self real part
+              pairep=usreal
+            else
+              call realcal(tagslt,i,pairep) ! usual case or self-interaction
+            endif
           endif
           call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
           pairep = pairep + factor
