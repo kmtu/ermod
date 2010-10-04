@@ -16,8 +16,8 @@ c
 c
       real :: inptemp=300.0e0                          ! Kelvin
       integer :: pickgr=3
-      integer :: maxmesh=30000,large=500000,itrmax=100
-      real :: error=1.0e-8,tiny=1.0e-10
+      integer :: maxmesh=30000, large=500000, itrmax=100
+      real :: error=1.0e-8, tiny=1.0e-10, zero=0.0e0
 c
       character(len=1024) :: wgtslnfl='soln/weight_soln'
       character(len=1024) :: wgtreffl='refs/weight_refs'
@@ -69,7 +69,7 @@ c
 c
 c
       module sysread
-      use sysvars, only: clcond,uvread,slfslt,slncor,tiny,
+      use sysvars, only: clcond,uvread,slfslt,slncor,
      #                   maxsln,maxref,numrun,
      #                   numslv,ermax,slfeng,nummol,
      #                   rdcrd,rddst,rddns,rdslc,rdcor,rdspec,
@@ -295,7 +295,7 @@ c
 c
       subroutine datread(cntrun)
 c
-      use sysvars, only: refmerge,
+      use sysvars, only: refmerge,zero,tiny,
      #                   slndnspf,slncorpf,refdnspf,refcorpf,numbers
       integer cntrun,slnini,slnfin,refini,reffin,ecmin,ecmax
       integer iduv,iduvp,i,k,m,pti,cnt
@@ -372,7 +372,7 @@ c
             if((cnt.eq.1).or.(cnt.eq.3)) then
               read(71,*) rdcrd(iduv),pti,factor
               if(pti.ne.k) then
-                if(factor.gt.tiny) then
+                if(factor.gt.zero) then
                   write(6,*) ' Incorrect energy range with species ',pti
                   stop
                 endif
@@ -451,7 +451,7 @@ c
 c
       module sfecalc
       use sysvars, only: zerosft,wgtfnform,extsln,slncor,
-     #                   numslv,ermax,nummol,kT,itrmax,error,tiny
+     #                   numslv,ermax,nummol,kT,itrmax,zero,error
       integer, dimension(:), allocatable :: idrduv,uvmax
       real, dimension(:),    allocatable :: uvcrd,edist,edens
       real, dimension(:,:),  allocatable :: edscr,ecorr
@@ -557,12 +557,12 @@ c
         uvpot=0.0e0 ; slvfe=0.0e0
         do 5002 iduv=1,gemax
           if(uvspec(iduv).eq.pti) then
-            if((edist(iduv).le.tiny).and.(edens(iduv).le.tiny)) goto 5009
+            if((edist(iduv).le.zero).and.(edens(iduv).le.zero)) goto 5009
             uvpot=uvpot+uvcrd(iduv)*edist(iduv)
             slvfe=slvfe-kT*(edist(iduv)-edens(iduv))
             factor=-(slncv(iduv)+zrsln(pti)+uvcrd(iduv))
             if((slncor.eq.'yes').and.
-     #         (edist(iduv).gt.tiny).and.(edens(iduv).le.tiny)) then
+     #         (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
               ampl=factor*edens(iduv)/edist(iduv)
               factor=ampl-(zrsln(pti)+uvcrd(iduv))
      #                   *(1.0e0-edens(iduv)/edist(iduv))
@@ -572,7 +572,7 @@ c
               if(cnt.eq.1) lcsln=pyhnc(slncv(iduv),cnt)
               if(cnt.eq.2) lcref=pyhnc(inscv(iduv),cnt)
               if((slncor.eq.'yes').and.(cnt.eq.1).and.
-     #           (edist(iduv).gt.tiny).and.(edens(iduv).le.tiny)) then
+     #           (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
                 lcsln=pyhnc(sdrcv(iduv)+zrsdr(pti),3)
               endif
 5005        continue
@@ -621,28 +621,28 @@ c
       real, dimension(:), allocatable :: work
 c
       do 3111 iduv=1,gemax
-        if((edist(iduv).gt.tiny).and.(edens(iduv).gt.tiny)) then
+        if((edist(iduv).gt.zero).and.(edens(iduv).gt.zero)) then
           factor=edist(iduv)/edens(iduv)
           slncv(iduv)=-kT*log(factor)-uvcrd(iduv)
         endif
 3111  continue
 c
       do 3211 iduv=1,gemax
-        if((edist(iduv).le.tiny).or.(edens(iduv).le.tiny)) then
-          if(edist(iduv).le.tiny) then
+        if((edist(iduv).le.zero).or.(edens(iduv).le.zero)) then
+          if(edist(iduv).le.zero) then
             slncv(iduv)=0.0e0 ; goto 3211
           endif
           pti=uvspec(iduv)
           m=1 ; k=gemax
           do 3212 iduvp=1,iduv-1
             if((uvspec(iduvp).eq.pti).and.(m.lt.iduvp).and.
-     #         (edist(iduvp).gt.tiny).and.(edens(iduvp).gt.tiny)) then
+     #         (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
               m=iduvp
             endif
 3212      continue
           do 3213 iduvp=gemax,iduv+1,-1
             if((uvspec(iduvp).eq.pti).and.(k.gt.iduvp).and.
-     #         (edist(iduvp).gt.tiny).and.(edens(iduvp).gt.tiny)) then
+     #         (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
               k=iduvp
             endif
 3213      continue
@@ -658,7 +658,7 @@ c
             allocate( work(gemax) ) ; work(:)=0.0e0
             do 3221 iduvp=1,gemax
               if((uvspec(iduvp).eq.pti).and.
-     #           (edist(iduvp).gt.tiny).and.(edens(iduvp).gt.tiny)) then
+     #           (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
                 if(iduvp.eq.iduv) then
                   write(6,*) ' A bug in program or data' ; stop
                 endif
@@ -672,17 +672,19 @@ c
 3221        continue
             factor=0.0e0
             do 3222 iduvp=1,gemax
-              factor=factor+work(iduvp)
+              if(work(iduvp) .gt. zero) factor=factor+work(iduvp)
 3222        continue
             do 3223 iduvp=1,gemax
               work(iduvp)=work(iduvp)/factor
 3223        continue
             factor=0.0e0 ; ampl=0.0e0 ; lcsln=0.0e0 ; lcref=0.0e0
             do 3224 iduvp=1,gemax
-              factor=factor+work(iduvp)*uvcrd(iduvp)
-              ampl=ampl+work(iduvp)*uvcrd(iduvp)*uvcrd(iduvp)
-              lcsln=lcsln+work(iduvp)*slncv(iduvp)
-              lcref=lcref+work(iduvp)*uvcrd(iduvp)*slncv(iduvp)
+              if(work(iduvp).gt.zero) then
+                factor=factor+work(iduvp)*uvcrd(iduvp)
+                ampl=ampl+work(iduvp)*uvcrd(iduvp)*uvcrd(iduvp)
+                lcsln=lcsln+work(iduvp)*slncv(iduvp)
+                lcref=lcref+work(iduvp)*uvcrd(iduvp)*slncv(iduvp)
+              endif
 3224        continue
             work(1)=(ampl*lcsln-factor*lcref)/(ampl-factor*factor)
             work(2)=(lcref-factor*lcsln)/(ampl-factor*factor)
@@ -741,7 +743,7 @@ c
              factor=edens(iduvp) ; ampl=edens(iduv)
            endif
            lcref=edmcr(iduvp,iduv)-factor*ampl
-           if((factor.le.tiny).or.(ampl.le.tiny)) then
+           if((factor.le.zero).or.(ampl.le.zero)) then
              if(iduv.eq.iduvp) lcref=1.0e0
              if(iduv.ne.iduvp) lcref=0.0e0
            endif
@@ -756,7 +758,7 @@ c
           do 1162 iduvp=1,gemax
             if(cnt.eq.1) ampl=edist(iduvp)
             if(cnt.eq.2) ampl=edens(iduvp)
-            if(ampl.gt.tiny) factor=factor+(edist(iduvp)-edens(iduvp))
+            if(ampl.gt.zero) factor=factor+(edist(iduvp)-edens(iduvp))
      #                                    *edmcr(iduvp,iduv)
 1162      continue
           work(iduv)=factor/egnvl(iduv)
@@ -789,12 +791,12 @@ c
         do 1181 iduv=1,gemax
           if(cnt.eq.1) ampl=edist(iduv)
           if(cnt.eq.2) ampl=edens(iduv)
-          if(ampl.gt.tiny) then
+          if(ampl.gt.zero) then
             factor=-kT*(edist(iduv)-edens(iduv))/ampl
             if(cnt.eq.1) lcref=factor-sdrcv(iduv)
             if(cnt.eq.2) lcref=factor-inscv(iduv)
           endif
-          if(ampl.le.tiny) lcref=0.0e0
+          if(ampl.le.zero) lcref=0.0e0
           if(cnt.eq.1) sdrcv(iduv)=lcref
           if(cnt.eq.2) inscv(iduv)=lcref
 1181    continue
@@ -858,7 +860,7 @@ c
       if(engtype.eq.'yes') then
         minuv=abs(uvcrd(1))
         do 3152 iduv=1,gemax
-          if((uvspec(iduv).eq.pti).and.(weight(iduv).gt.tiny)) then
+          if((uvspec(iduv).eq.pti).and.(weight(iduv).gt.zero)) then
             if(abs(uvcrd(iduv)).lt.minuv) minuv=abs(uvcrd(iduv))
           endif
 3152    continue
@@ -892,8 +894,8 @@ c         ampl=nummol(pti)*(abs(uvcrd(iduv))-minuv)
           ampl=ampl+weight(iduv)
         endif
 3251  continue
-      if(ampl.gt.tiny) factor=factor/ampl
-      if(ampl.le.tiny) factor=0.0e0
+      if(ampl.gt.zero) factor=factor/ampl
+      if(ampl.le.zero) factor=0.0e0
       cvfcen=factor
       deallocate( weight )
       return
@@ -907,9 +909,9 @@ c
         if(uvspec(iduv).eq.pti) then
           if((uvcrd(iduv).le.0).and.(uvcrd(iduv+1).ge.0)) then
             factor=abs(uvcrd(iduv)) ; ampl=uvcrd(iduv+1)
-            if(ampl.gt.factor+tiny) k=iduv
-            if(factor.gt.ampl+tiny) k=iduv+1
-            if(abs(factor-ampl).le.tiny) then
+            if(ampl.gt.factor+zero) k=iduv
+            if(factor.gt.ampl+zero) k=iduv+1
+            if(abs(factor-ampl).le.zero) then
               if(cnt.eq.1) then
                 lcsln=edist(iduv) ; lcref=edist(iduv+1)
               endif
@@ -951,10 +953,10 @@ c
             if(cnt.eq.2) errtag=1
           case('geom')
             factor=fsln*fref
-            if(factor.gt.tiny) wght=sqrt(factor)
+            if(factor.gt.zero) wght=sqrt(factor)
           case default              ! corresponding to wgttype = 'harm'
             factor=fsln+fref
-            if(factor.gt.tiny) wght=fsln*fref/factor
+            if(factor.gt.zero) wght=fsln*fref/factor
         end select
       endif
       if(errtag.ne.0) then
@@ -981,17 +983,17 @@ c
       real intg,indpmf,factor
       integer cnt
       factor=indpmf/kT
-      if(factor.lt.-tiny) then
+      if(factor.lt.-zero) then
         if(cnt.eq.1) intg=factor+factor/(exp(-factor)-1.0e0)
         if(cnt.eq.2) intg=(log(1.0e0-factor))*(1.0e0/factor-1.0e0)
         intg=intg+1.0e0
       endif
-      if(factor.ge.-tiny) intg=factor/2.0e0
+      if(factor.ge.-zero) intg=factor/2.0e0
       if(cnt.eq.3) then
-        if(factor.ge.tiny) then
+        if(factor.ge.zero) then
           intg=1.0e0-(log(1.0e0+factor))*(1.0e0/factor+1.0e0)
         endif
-        if(factor.lt.tiny) intg=-factor/2.0e0
+        if(factor.lt.zero) intg=-factor/2.0e0
       endif
       pyhnc=intg
       return
@@ -1012,8 +1014,8 @@ c
               if(cnt.eq.2) factor=factor+edens(iduv)
             endif
 2102      continue
-          if(factor.gt.tiny) factor=nummol(pti)/factor
-          if(factor.le.tiny) factor=0.0e0
+          if(factor.gt.zero) factor=nummol(pti)/factor
+          if(factor.le.zero) factor=0.0e0
           do 2103 iduv=1,gemax
             if(uvspec(iduv).eq.pti) then
               if(cnt.eq.1) edist(iduv)=factor*edist(iduv)
@@ -1039,7 +1041,7 @@ c
                   ampl=ampl+correc(iduvp)*lcref
                 endif
 2127          continue
-              if(ampl.gt.tiny) lcsln=lcsln+nummol(pti)/ampl
+              if(ampl.gt.zero) lcsln=lcsln+nummol(pti)/ampl
 2126        continue
             lcsln=lcsln/real(numslv)
             if(cnt.eq.1) correc(iduv)=lcsln*edist(iduv)
@@ -1056,7 +1058,7 @@ c
           do 2135 iduv=1,gemax
             if(cnt.eq.1) ampl=edist(iduv)
             if(cnt.eq.2) ampl=edens(iduv)
-            if(ampl.gt.tiny) then
+            if(ampl.gt.zero) then
               factor=abs(correc(iduv)-1.0e0)
               if(factor.gt.errtmp) errtmp=factor
             endif
@@ -1089,8 +1091,8 @@ c
           do 2152 iduv=1,gemax
             if(uvspec(iduv).eq.pti) then
               i=0
-              if((cnt.eq.1).and.(edist(iduv).gt.tiny)) i=1
-              if((cnt.eq.2).and.(edens(iduv).gt.tiny)) i=1
+              if((cnt.eq.1).and.(edist(iduv).gt.zero)) i=1
+              if((cnt.eq.2).and.(edens(iduv).gt.zero)) i=1
               if(i.eq.1) then
                 if(ecmin.gt.iduv) ecmin=iduv
                 if(ecmax.lt.iduv) ecmax=iduv
@@ -1100,14 +1102,14 @@ c
           k=0 ; factor=0.0e0
           do 2153 iduv=ecmin,ecmax
             i=0
-            if((cnt.eq.1).and.(edist(iduv).gt.tiny)) i=1
-            if((cnt.eq.2).and.(edens(iduv).gt.tiny)) i=1
+            if((cnt.eq.1).and.(edist(iduv).gt.zero)) i=1
+            if((cnt.eq.2).and.(edens(iduv).gt.zero)) i=1
             if(i.eq.1) then
               k=k+1
               if(cnt.eq.1) factor=factor+edist(iduv)
               if(cnt.eq.2) factor=factor+edens(iduv)
             endif
-            if((cnt.eq.2).and.(edens(iduv).le.tiny)) then
+            if((cnt.eq.2).and.(edens(iduv).le.zero)) then
               write(6,215) iduv,uvcrd(iduv)
 215           format('     No sampling at ',i5,' with energy ',g14.6)
             endif
@@ -1324,7 +1326,7 @@ c
 c
 c
       subroutine wrtcumu(wrtdata)
-      use sysvars, only: large,tiny
+      use sysvars, only: large,zero
       integer cntrun,pti
       real avecp,factor,slvfe,shcp(large),wrtdata(0:numslv,numrun)
       real, dimension(:),   allocatable :: runcp,runer
@@ -1344,8 +1346,8 @@ c
           avecp=runcp(pti)/factor ; shcp(2*pti+1)=avecp
           if(cntrun.gt.1) then
             slvfe=runer(pti)/factor-avecp*avecp
-            if(slvfe.lt.tiny) shcp(2*pti+2)=0.0e0
-            if(slvfe.ge.tiny) shcp(2*pti+2)=(2.0e0/sqrt(factor))
+            if(slvfe.le.zero) shcp(2*pti+2)=0.0e0
+            if(slvfe.gt.zero) shcp(2*pti+2)=(2.0e0/sqrt(factor))
      #                          *sqrt(factor/(factor-1.0e0))*sqrt(slvfe)
           endif
 7774    continue
