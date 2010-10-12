@@ -63,14 +63,18 @@ def where_gromacs():
         sp = subprocess.Popen("which luck", shell=True, stdout=subprocess.PIPE)
         output = sp.communicate()[0]
         if output == "":
-            warn("Could not find luck(1). Default search path is not set; please specify with -I")
-        else:
-            rp = os.path.realpath(output)
-            bindir = os.path.dirname(rp)
-            p = os.path.normpath(os.path.join(bindir, "../share/gromacs/top"))
-            if os.path.exists(p):
-                log("Found gromacs topology path %s" % p)
-                options.includes.append(p)
+            sp = subprocess.Popen("which g_luck", shell=True, stdout=subprocess.PIPE)
+            output = sp.communicate()[0]
+            if outout == "":
+                warn("Could not find luck / g_luck (1). Default search path is not set; please specify with -I")
+                return
+
+        rp = os.path.realpath(output)
+        bindir = os.path.dirname(rp)
+        p = os.path.normpath(os.path.join(bindir, "../share/gromacs/top"))
+        if os.path.exists(p):
+            log("Found gromacs topology path %s" % p)
+            options.includes.append(p)
 
     except OSError, e:
         pass
