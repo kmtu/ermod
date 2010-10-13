@@ -1,0 +1,13 @@
+; for GROMACS 4.0
+#include <ffG43a1.itp>
+#include <methanol.itp>
+#include <spc.itp>
+; for GROMACS 4.5
+; 
+; #include <gromos43a1.ff/methanol.itp>
+
+[ system ]
+Methanol in water
+
+[ molecules ]
+Methanol 1
