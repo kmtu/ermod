@@ -18,5 +18,6 @@ tinit = 0
 
 coulombtype = PME
 
-nstxout = 50
+nstxout = 5000
+nstxtcout = 50
 nstvout = 0
