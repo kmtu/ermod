@@ -944,7 +944,7 @@ c
       integer tagslt,i,ptrnk,slvmax,tagpt(slvmax)
       integer svi,uvi,ati,sid,stmax,m,k
       integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3
-      real pi,pairep,chr,xst(3),inm(3),rtp2,cosk,sink,factor
+      real pi,pairep,chr,xst(3),inm(3),rtp2,cosk,sink,factor,fac1,fac2,fac3
       complex rcpi,rcpt
       character*6 scheme
 c
@@ -1233,14 +1233,15 @@ c
               ati=specatm(sid,i)
               chr=charge(ati)
               do 7271 cg3=0,splodr-1
+                fac1 = chr * splslv(cg1,1,ptrnk)
+                rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
                 do 7272 cg2=0,splodr-1
+                  fac2 = fac1 * splslv(cg2,2,ptrnk)
+                  rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
                   do 7273 cg1=0,splodr-1
-                    factor=chr*splslv(cg1,1,ptrnk)*splslv(cg2,2,ptrnk)
-     #                                            *splslv(cg3,3,ptrnk)
+                    fac3 = fac2 * splslv(cg3,3,ptrnk)
                     rc1=modulo(grdslv(1,ptrnk)-cg1,ms1max)
-                    rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
-                    rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
-                    pairep=pairep+factor*real(cnvslt(rc1,rc2,rc3))
+                    pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
 7273              continue
 7272            continue
 7271          continue
