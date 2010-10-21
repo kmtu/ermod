@@ -943,7 +943,7 @@ c
      #                     fft_set_size
       integer tagslt,i,ptrnk,slvmax,tagpt(slvmax)
       integer svi,uvi,ati,sid,stmax,m,k
-      integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3
+      integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3,grid1
       real pi,pairep,chr,xst(3),inm(3),rtp2,cosk,sink,factor,fac1,fac2,fac3
       complex rcpi,rcpt
       character*6 scheme
@@ -1233,16 +1233,25 @@ c
               ati=specatm(sid,i)
               chr=charge(ati)
               do 7271 cg3=0,splodr-1
-                fac1 = chr * splslv(cg1,1,ptrnk)
+                fac1 = chr * splslv(cg3,3,ptrnk)
                 rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
                 do 7272 cg2=0,splodr-1
                   fac2 = fac1 * splslv(cg2,2,ptrnk)
                   rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
-                  do 7273 cg1=0,splodr-1
-                    fac3 = fac2 * splslv(cg3,3,ptrnk)
-                    rc1=mod(grdslv(1,ptrnk)-cg1+ms1max,ms1max) ! speedhack
-                    pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
-7273              continue
+                  grid1=grdslv(1,ptrnk)
+                  if(grid1 >= splodr-1) then
+                    do cg1=0,splodr-1
+                      fac3 = fac2 * splslv(cg1,1,ptrnk)
+                      rc1=grid1-cg1
+                      pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
+                    enddo
+                  else
+                    do 7273 cg1=0,splodr-1
+                      fac3 = fac2 * splslv(cg1,1,ptrnk)
+                      rc1=mod(grid1+ms1max-cg1,ms1max) ! speedhack
+                      pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
+7273                continue
+                  endif
 7272            continue
 7271          continue
 7251        continue
