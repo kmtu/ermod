@@ -11,7 +11,7 @@ module realcal_blk
   integer :: subcell_num_neighbour
 
   integer :: block_size(3)
-  real :: laxes(3)
+  real :: laxes(3), invbox(3)
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
     use engmain, only: numsite
@@ -120,6 +120,7 @@ contains
     do i = 1, 3
        laxes(i) = abs(cell(i, i))
     end do
+    invbox(:) = 1 / laxes(:)
 
     ! set block size
     block_size(:) = ceiling(laxes(:) / block_threshold)
@@ -265,43 +266,40 @@ contains
     ! cut-off by subcell distance
     real, intent(out) :: energy_mat(:, :)
     integer :: u1, u2, u3
-    integer :: ubs(3), vbs(3)
-    integer :: i
+    integer :: vbs(3)
+    integer :: i, upos, vpos
 
     do u3 = 0, block_size(3) - 1
        do u2 = 0, block_size(2) - 1
           do u1 = 0, block_size(1) - 1
-             do i = 1, subcell_num_neighbour
-                vbs(1) = modulo(u1 + subcell_neighbour(1, i) , block_size(1))
-                vbs(2) = modulo(u2 + subcell_neighbour(2, i) , block_size(2))
-                vbs(3) = modulo(u3 + subcell_neighbour(3, i) , block_size(3))
-                
-                ubs(:) = (/ u1, u2, u3 /)
-                
-                call get_pair_energy_block(ubs, vbs, energy_mat)
-             end do
+             upos = u1 + block_size(1) * (u2 + block_size(2) * u3)
+             if(psum_solu(upos + 1) /= psum_solu(upos)) then ! if solute have atoms in the block
+                do i = 1, subcell_num_neighbour
+                   vbs(1) = mod(u1 + subcell_neighbour(1, i) , block_size(1))
+                   vbs(2) = mod(u2 + subcell_neighbour(2, i) , block_size(2))
+                   vbs(3) = mod(u3 + subcell_neighbour(3, i) , block_size(3))
+                   
+                   vpos = vbs(1) + block_size(1) * (vbs(2) + block_size(2) * vbs(3))
+
+                   call get_pair_energy_block(upos, vpos, energy_mat)
+                end do
+             end if
           end do
        end do
     end do
   end subroutine get_pair_energy
 
-  subroutine get_pair_energy_block(ubs, vbs, energy_mat)
+  subroutine get_pair_energy_block(upos, vpos, energy_mat)
     use engmain, only: sitepos, cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge
-    integer, intent(in) :: ubs(3), vbs(3)
+    integer, intent(in) :: upos, vpos
     real, intent(out) :: energy_mat(:, :)
-    integer :: upos, vpos
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v
-    real :: crdu(3), crdv(3), d(3), invbox(3), dist, r
+    real :: crdu(3), crdv(3), d(3), dist, r
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm
     
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
-
-    invbox(:) = 1.0 / laxes(:)
-
-    upos = ubs(1) + block_size(1) * (ubs(2) + block_size(2) * ubs(3))
-    vpos = vbs(1) + block_size(1) * (vbs(2) + block_size(2) * vbs(3))
     
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)

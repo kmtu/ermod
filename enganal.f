@@ -1240,7 +1240,7 @@ c
                   rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
                   do 7273 cg1=0,splodr-1
                     fac3 = fac2 * splslv(cg3,3,ptrnk)
-                    rc1=modulo(grdslv(1,ptrnk)-cg1,ms1max)
+                    rc1=mod(grdslv(1,ptrnk)-cg1+ms1max,ms1max) ! speedhack
                     pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
 7273              continue
 7272            continue
