@@ -482,7 +482,7 @@ c
       lwork = -1
       liwork = 10 * n
       allocate(iwork(liwork))
-      call DSYEVR('V', 'A', 'U', n, gemax, n, dummyr, dummyr,
+      call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr,
      #            dummyi, dummyi, abstol, dummyi, eigval, 
      #            z, n, isuppz, worktmp, lwork, iwork, liwork, info)
       if (info /= 0) then
@@ -494,7 +494,7 @@ c
 
       lwork = worktmp
       allocate(work(lwork))
-      call DSYEVR('V', 'A', 'U', n, gemax, n, dummyr, dummyr,
+      call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr,
      #            dummyi, dummyi, abstol, dummyi, eigval, 
      #            z, n, isuppz, work, lwork, iwork, liwork, info)
 
