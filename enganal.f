@@ -943,8 +943,8 @@ c
      #                     fft_set_size
       integer tagslt,i,ptrnk,slvmax,tagpt(slvmax)
       integer svi,uvi,ati,sid,stmax,m,k
-      integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3
-      real pi,pairep,chr,xst(3),inm(3),rtp2,cosk,sink,factor
+      integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3,grid1
+      real pi,pairep,chr,xst(3),inm(3),rtp2,cosk,sink,factor,fac1,fac2,fac3
       complex rcpi,rcpt
       character*6 scheme
 c
@@ -1233,15 +1233,25 @@ c
               ati=specatm(sid,i)
               chr=charge(ati)
               do 7271 cg3=0,splodr-1
+                fac1 = chr * splslv(cg3,3,ptrnk)
+                rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
                 do 7272 cg2=0,splodr-1
-                  do 7273 cg1=0,splodr-1
-                    factor=chr*splslv(cg1,1,ptrnk)*splslv(cg2,2,ptrnk)
-     #                                            *splslv(cg3,3,ptrnk)
-                    rc1=modulo(grdslv(1,ptrnk)-cg1,ms1max)
-                    rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
-                    rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
-                    pairep=pairep+factor*real(cnvslt(rc1,rc2,rc3))
-7273              continue
+                  fac2 = fac1 * splslv(cg2,2,ptrnk)
+                  rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
+                  grid1=grdslv(1,ptrnk)
+                  if(grid1 >= splodr-1) then
+                    do cg1=0,splodr-1
+                      fac3 = fac2 * splslv(cg1,1,ptrnk)
+                      rc1=grid1-cg1
+                      pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
+                    enddo
+                  else
+                    do 7273 cg1=0,splodr-1
+                      fac3 = fac2 * splslv(cg1,1,ptrnk)
+                      rc1=mod(grid1+ms1max-cg1,ms1max) ! speedhack
+                      pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
+7273                continue
+                  endif
 7272            continue
 7271          continue
 7251        continue
@@ -1252,10 +1262,40 @@ c
       return
       end subroutine
 c
+      subroutine binsearch(coord, n, value, ret)
+      real, intent(in) :: coord(n)
+      integer, intent(out) :: ret
+      real, intent(in) :: value
+      integer, intent(in) :: n
+      integer :: rmin, rmax, rmid
+      if(value < coord(1)) then
+        ret = 0
+        return
+      endif
+      if(value > coord(n)) then
+        ret = n
+        return
+      endif
+
+      rmin = 1
+      rmax = n + 1
+      do
+        if(rmax - rmin <= 1) then
+          exit
+        endif
+        rmid = (rmin + rmax - 1) / 2
+        if(value > coord(rmid)) then
+          rmin = rmid + 1
+        else
+          rmax = rmid + 1
+        endif
+      enddo
+      ret = rmin - 1
+      end subroutine
 c
       subroutine getiduv(pti,factor,iduv)
       use engmain, only: ermax,numslv,uvmax,uvcrd,esmax,escrd,io6
-      integer pti,iduv,k,idpick,idmax
+      integer pti,iduv,k,idpick,idmax,picktest
       real factor,egcrd
       if(pti.eq.0) idmax=esmax               ! solute self-energy
       if(pti.gt.0) idmax=uvmax(pti)          ! solute-solvent interaction
@@ -1266,13 +1306,13 @@ c
 1051    continue
       endif
       iduv=idpick
-      do 1011 k=1,idmax
-        if(pti.eq.0) egcrd=escrd(k)          ! solute self-energy
-        if(pti.gt.0) egcrd=uvcrd(k+idpick)   ! solute-solvent interaction
-        if(factor.ge.egcrd) iduv=iduv+1
-        if(factor.lt.egcrd) go to 1099
-1011  continue
-1099  continue
+      if(pti == 0) then
+        call binsearch(escrd, idmax, factor, picktest)
+      else
+        call binsearch(uvcrd(idpick+1), idmax - idpick, factor, picktest)
+      endif
+      iduv = picktest + idpick
+
       if(iduv.le.idpick) then
         iduv=idpick+1                                 ! smallest energy mesh
         write(io6,199) factor,pti
@@ -1280,8 +1320,10 @@ c
         call eng_stop('min')
       endif
       if(iduv.gt.(idpick+idmax)) iduv=idpick+idmax    ! largest energy mesh
+
       return
       end subroutine
+
 c
 c
       subroutine sltcnd(systype,tagslt,type)
