@@ -242,7 +242,8 @@ def convtraj(src, trunk):
     if trunk == "HISTORY":
         symlink(src, trunk)
         return
-    subprocess.check_call(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"])
+    retcode = subprocess.call(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"])
+    assert(retcode == 0)
     symlink(trunk + ".g96", trunk)
 
 # link or generate trajectory
