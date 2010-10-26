@@ -67,7 +67,7 @@ void open_gmtraj_(void **handle, int *which, int *status)
   }
 
   *handle = fh;
-  status = 0;
+  *status = 0;
 
   // close_trn(fp);
 
