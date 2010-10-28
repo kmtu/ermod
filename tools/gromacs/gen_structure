@@ -11,18 +11,18 @@ parser = OptionParser()
 
 # topology, mandatory
 parser.add_option("-t", "--top", dest = "topology",
-                  help = "gromacs topology file (*.top) for solution",
+                  help = "Gromacs topology file (*.top) for solution",
                   default = None)
 
 # "#define"s.
 parser.add_option("-D", dest = "defines", action="append",
-                  help="defined attributes",
+                  help="Defined attributes",
                   default = [])
 parser.add_option("-I", dest = "includes", action="append",
                   help="#include directive lookup paths",
                   default = [])
 parser.add_option("--cpp", dest = "cpp",
-                  help = "how to invoke cpp (1) command (default = cpp)",
+                  help = "How to invoke cpp (1) command (default = cpp)",
                   default = "cpp")
 
 # can be specified; otherwise specify interactively
@@ -281,7 +281,7 @@ def get_topology_info():
         for s in mollist:
             print s,
         print
-        l = raw_input("Which molecules are solute? (For multiple choce please specify as comma-separated list) ").split(',')
+        l = raw_input("Which molecules are solutes? (For multiple choice please specify as comma-separated list) ").split(',')
         solutes = [x.strip() for x in l]
 
     for s in solutes:
