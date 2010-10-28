@@ -12,18 +12,6 @@ AC_PROG_CC
 AC_PROG_F77([ifort gfortran xlf f90 g77 xlf90])
 AC_PROG_FC([ifort gfortran xlf f77 g95 xlf77])
 
-# Check GROMACS library
-AC_LANG_PUSH(C)
-AC_CHECK_LIB(md, read_first_x, 
-             [with_libmd=yes],
-	     [with_libmd=no])
-AC_CHECK_HEADER(statutil.h,
-               [with_statutil_h=yes],
-	       [with_statutil_h=no])
-AC_LANG_POP(C)
-
-AM_CONDITIONAL([USE_LIBMD], [test "x$with_libmd" = "xyes" -a "x$with_statutil_h" = "xyes"])
-
 # modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran 77)
 ACX_MPI_MY
@@ -51,7 +39,47 @@ AS_IF([test "x$with_mkl" != "x"],
       mklroot="$MKLROOT"),
     mklroot="/opt/intel/mkl/$with_mkl")
   with_blas="-L$mklroot/lib/$mkl_plat -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -lpthread"
-  with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"])
+  with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"
+  INCLUDE="${mklroot}/include $INCLUDE"
+  FPATH="${mklroot}/include $FPATH"
+])
+
+AC_ARG_WITH([gromacs],
+  AS_HELP_STRING([--with-gromacs=(path to gromcs root directory)],
+    [Automatically set environment variables for GROMACS]))
+
+AS_IF([test "x$with_gromacs" != "x"],
+  [gromacs_mandatory=yes
+   gromacsroot=$with_gromacs],
+  [AS_IF([test "x$GMXBIN" == "x"],
+     [AC_PATH_PROGS([GMXLUCK], [luck g_luck])
+      AS_IF([test "x$GMXLUCK" != "x"],
+        [GMXBIN=`AS_DIRNAME(["$GMXLUCK"])`])]
+     AS_IF([test "x$GMXBIN" != "x"],
+       [gromacsroot=`AS_DIRNAME(["$GMXBIN"])`]))])
+
+AS_IF([test "x$gromacsroot" != "x"],
+  [CPPFLAGS="$CPPFLAGS -I$gromacsroot/include/gromacs"
+   LIBS="$LIBS -L$gromacsroot/lib"])
+
+# Check GROMACS library
+AC_LANG_PUSH(C)
+AC_CHECK_LIB(md, read_first_x, 
+             [with_libmd=yes],
+	     [with_libmd=no])
+AC_CHECK_HEADER(statutil.h,
+               [with_statutil_h=yes],
+	       [with_statutil_h=no])
+AC_LANG_POP(C)
+
+AM_CONDITIONAL([USE_LIBMD], [test "x$with_libmd" = "xyes" -a "x$with_statutil_h" = "xyes"])
+
+AM_COND_IF([USE_LIBMD],
+           [use_libmd=yes],
+	   [use_libmd=no])
+
+AS_IF([test "x$use_libmd" = "xno" -a "x$gromacs_mandatory" = "xyes"],
+   AC_MSG_FAILURE([could not find gromacs files. Maybe you do not have single precision library?]))
 
 # due to bug in ACX_BLAS/LAPACK
 AC_LANG_PUSH(C)
@@ -252,10 +280,6 @@ case "x$with_fft" in #(
  *)
  ;;
 esac
-
-AM_COND_IF([USE_LIBMD],
-           [use_libmd=yes],
-	   [use_libmd=no])
 
 AS_IF([test "x$lapack_exist" != xyes],
 	    [AC_MSG_ERROR(
