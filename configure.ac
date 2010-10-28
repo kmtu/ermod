@@ -40,8 +40,7 @@ AS_IF([test "x$with_mkl" != "x"],
     mklroot="/opt/intel/mkl/$with_mkl")
   with_blas="-L$mklroot/lib/$mkl_plat -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -lpthread"
   with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"
-  INCLUDE="${mklroot}/include $INCLUDE"
-  FPATH="${mklroot}/include $FPATH"
+  FCFLAGS="-I$mklroot/include $FCFLAGS"
 ])
 
 AC_ARG_WITH([gromacs],
