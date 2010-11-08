@@ -59,7 +59,7 @@ AS_IF([test "x$with_gromacs" != "x"],
 
 AS_IF([test "x$gromacsroot" != "x"],
   [CPPFLAGS="$CPPFLAGS -I$gromacsroot/include/gromacs"
-   LIBS="$LIBS -L$gromacsroot/lib"])
+   LDFLAGS="$LDFLAGS -L$gromacsroot/lib"])
 
 # Check GROMACS library
 AC_LANG_PUSH(C)
