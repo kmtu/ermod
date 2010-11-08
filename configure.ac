@@ -63,21 +63,21 @@ AS_IF([test "x$gromacsroot" != "x"],
 
 # Check GROMACS library
 AC_LANG_PUSH(C)
-AC_CHECK_LIB(md, read_first_x, 
-             [with_libmd=yes],
-	     [with_libmd=no])
+AC_CHECK_LIB(gmx, read_first_x, 
+             [with_libgmx=yes],
+	     [with_libgmx=no])
 AC_CHECK_HEADER(statutil.h,
                [with_statutil_h=yes],
 	       [with_statutil_h=no])
 AC_LANG_POP(C)
 
-AM_CONDITIONAL([USE_LIBMD], [test "x$with_libmd" = "xyes" -a "x$with_statutil_h" = "xyes"])
+AM_CONDITIONAL([USE_LIBGMX], [test "x$with_libgmx" = "xyes" -a "x$with_statutil_h" = "xyes"])
 
-AM_COND_IF([USE_LIBMD],
-           [use_libmd=yes],
-	   [use_libmd=no])
+AM_COND_IF([USE_LIBGMX],
+           [use_libgmx=yes],
+	   [use_libgmx=no])
 
-AS_IF([test "x$use_libmd" = "xno" -a "x$gromacs_mandatory" = "xyes"],
+AS_IF([test "x$use_libgmx" = "xno" -a "x$gromacs_mandatory" = "xyes"],
    AC_MSG_FAILURE([could not find gromacs files. Maybe you do not have single precision library?]))
 
 # due to bug in ACX_BLAS/LAPACK
@@ -295,7 +295,7 @@ AC_OUTPUT
 AC_MSG_RESULT([dnl
 LAPACK: $lapack_result
 FFT: $with_fft
-GROMACS XTC support: $use_libmd
+GROMACS XTC support: $use_libgmx
 MPI: $mpi_result
 FFLAGS=$FFLAGS
 FCFLAGS=$FCFLAGS

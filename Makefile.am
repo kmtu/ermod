@@ -12,10 +12,10 @@ ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS
 
 extra_flags = 
 
-if USE_LIBMD
+if USE_LIBGMX
 ermod_gromacs_SOURCES += gromacsfio.c
 extra_flags += -DMDLIB
-ermod_gromacs_LDADD += -lgmx -lmd -lm
+ermod_gromacs_LDADD += -lgmx -lm
 endif
 
 # extra dependencies added
