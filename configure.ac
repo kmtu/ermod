@@ -65,7 +65,8 @@ AS_IF([test "x$gromacsroot" != "x"],
 AC_LANG_PUSH(C)
 AC_CHECK_LIB(gmx, read_first_x, 
              [with_libgmx=yes],
-	     [with_libgmx=no])
+	     [with_libgmx=no],
+             [-lm])
 AC_CHECK_HEADER(statutil.h,
                [with_statutil_h=yes],
 	       [with_statutil_h=no])
