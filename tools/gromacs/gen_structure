@@ -108,27 +108,41 @@ class topology:
         carryover["ljtype"] = ["geometric", "arithmetic", "geometric"][pat]
 
     def process_atomtypes(self, ls):
-        if len(ls) == 6:
-            mode = "shortform"
-        else:
-            try:
-                int(ls[1])
-                mode = "bondtype"
-            except ValueError:
-                mode = "atomnumber"
-  
-        if mode == "shortform":
-            aname = ls[0]
-            mass = float(ls[1])
-            charge = float(ls[2])
-            sigma = float(ls[4])
-            eps = float(ls[5])
-        else:
-            aname = ls[0]
-            mass = float(ls[2])
-            charge = float(ls[3])
-            sigma = float(ls[5])
-            eps = float(ls[6])
+        # OK, atomtypes in GROMACS is full of mess;
+        # The problem is that two of 6 fields are OPTIONAL.
+        # see push_at function src/kernel/toppush.c; it's OFFICIALLY full of mess!
+        if len(ls) < 6:
+            error("Error processing atomtypes section: too few elements")
+
+        (have_bonded_type, have_atomic_number) = (None, None)
+
+        if len(ls[3]) == 1:
+            # single character
+            (have_bonded_type, have_atomic_number) = (False, False)
+        elif len(ls[5]) == 1:
+            (have_bonded_type, have_atomic_number) = (True, True)
+        elif len(ls[4]) == 1:
+            if ls[1][0].isalpha():
+                (have_bonded_type, have_atomic_number) = (True, False)
+            else:
+                (have_bonded_type, have_atomic_number) = (False, True)
+        
+        if have_bonded_type == None or have_atomic_number == None:
+            error("Invalid format of atomtypes")
+
+        aname = ls[0]
+
+        offset = 0
+        if have_bonded_type:
+            offset += 1
+        if have_atomic_number:
+            offset += 1
+
+        mass = float(ls[offset + 1])
+        charge = float(ls[offset + 2])
+        sigma = float(ls[offset + 4])
+        eps = float(ls[offset + 5])
+
         self.atom2mass[aname] = mass
         self.atom2charge[aname] = charge
         self.atom2sigma[aname] = sigma
