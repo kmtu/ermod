@@ -65,7 +65,7 @@ def where_gromacs():
         if output == "":
             sp = subprocess.Popen("which g_luck", shell=True, stdout=subprocess.PIPE)
             output = sp.communicate()[0]
-            if outout == "":
+            if output == "":
                 warn("Could not find luck / g_luck (1). Default search path is not set; please specify with -I")
                 return
 
