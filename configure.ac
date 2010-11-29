@@ -53,9 +53,9 @@ AS_IF([test "x$with_gromacs" != "x"],
   [AS_IF([test "x$GMXBIN" == "x"],
      [AC_PATH_PROGS([GMXLUCK], [luck g_luck])
       AS_IF([test "x$GMXLUCK" != "x"],
-        [GMXBIN=`AS_DIRNAME(["$GMXLUCK"])`])]
-     AS_IF([test "x$GMXBIN" != "x"],
-       [gromacsroot=`AS_DIRNAME(["$GMXBIN"])`]))])
+        [GMXBIN=`AS_DIRNAME(["$GMXLUCK"])`])])
+   AS_IF([test "x$GMXBIN" != "x"],
+       [gromacsroot=`AS_DIRNAME(["$GMXBIN"])`])])
 
 AS_IF([test "x$gromacsroot" != "x"],
   [CPPFLAGS="$CPPFLAGS -I$gromacsroot/include/gromacs"
