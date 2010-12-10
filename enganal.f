@@ -1380,6 +1380,10 @@ c
       use mpiproc                                                      ! MPI
       integer stnum
       integer, parameter :: large=100000000
+#ifdef VMDPLUGINS
+      external vmdfio_init_traj, vmdfio_fini_traj
+      call vmdfio_init_traj
+#endif
       call mpi_setup('init')                                           ! MPI
       call opentrj
       do 99999 stnum=1,large
@@ -1388,6 +1392,9 @@ c
 99999 continue
 1111  call closetrj
       call mpi_setup('stop')                                           ! MPI
+#ifdef VMDPLUGINS
+      call vmdfio_fini_traj
+#endif
       stop
       end
 #endif
