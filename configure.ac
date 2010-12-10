@@ -8,7 +8,8 @@ AC_CONFIG_MACRO_DIR(m4)
 
 # Checks for programs.
 AC_PROG_CPP
-AC_PROG_CC
+AC_PROG_CC([icc gcc cc fcc])
+AC_PROG_CC_C_O
 AC_PROG_F77([ifort gfortran xlf f90 g77 xlf90])
 AC_PROG_FC([ifort gfortran xlf f77 g95 xlf77])
 
@@ -291,6 +292,7 @@ lapack_result="$LAPACK_LIBS $BLAS_LIBS"
 
 
 AC_CONFIG_FILES([Makefile])
+AC_CONFIG_HEADERS([config.h])
 AC_OUTPUT
 
 AC_MSG_RESULT([dnl

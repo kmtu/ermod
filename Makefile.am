@@ -1,6 +1,8 @@
 ACLOCAL_AMFLAGS = -I m4
 
-bin_PROGRAMS = ermod_gromacs ermod_namd ermod_charmm slvfe
+bin_PROGRAMS = ermod_gromacs ermod_namd ermod_charmm ermod_auto slvfe
+
+pkglibexec_DATA = vmdplugins/libexec/*.so
 
 ersources = engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90
 EXTRA_DIST = enganal.f insertion.f setconf.f stranal.f param_eng parameters_er.example gromacsfio.c
@@ -18,6 +20,7 @@ extra_flags += -DMDLIB
 ermod_gromacs_LDADD += -lgmx -lm
 endif
 
+
 # extra dependencies added
 ermod_gromacs-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DGROMACS $(extra_flags) -c -o $@ $<
@@ -34,6 +37,15 @@ ermod_charmm_LDADD = ermod_charmm-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
 
 ermod_charmm-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DCHARMM -c -o $@ $<
+
+# auto == vmdpluginfio
+ermod_auto_SOURCES = $(ersources) vmdfio.c 
+ermod_auto_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
+ermod_auto_LDADD = ermod_auto-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) -ldl -lm
+
+ermod_auto-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
+	$(F77) $(AM_FFLAGS) $(FFLAGS) -DVMDPLUGINS -c -o $@ $<
+
 
 slvfe_SOURCES = slvfe.f
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)

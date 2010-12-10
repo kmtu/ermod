@@ -108,6 +108,9 @@ c
       integer(8) :: gmxhandle
 #endif
 #endif
+#ifdef VMDPLUGINS
+      integer(8) :: vmdslthandle, vmdhisthandle
+#endif
 c
       contains
 c
@@ -144,7 +147,25 @@ c
       return
       end subroutine
 c
+
+#ifdef VMDPLUGINS
+      subroutine opentrj_sltcnf(fname)
+      character(len=*) :: fname
+      integer :: status
+      call vmdfio_open_traj(vmdslthandle, fname, len_trim(fname), status)
+      if(status /= 0) then
+        stop "vmdfio_open_traj_: unable to open trajectory. SltConf must be a symlink"
+      endif
+      end subroutine
+#endif
+
+c
       subroutine opentrj
+#ifdef VMDPLUGINS
+      external vmdfio_open_traj
+      integer :: status
+#endif
+
 #if defined(GROMACS) && defined(MDLIB)
 !     GROMACS + MDLIB
       integer :: status
@@ -160,6 +181,14 @@ c
         use_mdlib = .true.
       endif
 #endif
+
+#ifdef VMDPLUGINS
+      call vmdfio_open_traj(vmdhisthandle, trjfile, len_trim(trjfile), status)
+      if(status /= 0) then
+        stop "vmdfio_open_traj_: unable to open trajectory. HISTORY must be a symlink"
+      endif
+      return
+#endif
       if(.not.(use_mdlib)) then
         if(iofmt.eq.'yes') open(unit=iotrj,file=trjfile,status='old')
         if(iofmt.eq.'not') open(unit=iotrj,file=trjfile,status='old',
@@ -170,13 +199,27 @@ c
       return
       end subroutine
 
+      subroutine closetrj_sltconf
+#ifdef VMDPLUGINS
+      external vmdfio_close_traj
+      call vmdfio_close_traj(vmdslthandle)
+      return
+#endif
+      end subroutine
+
       subroutine closetrj
+      
 #if defined(GROMACS) && defined(MDLIB)
 !     GROMACS + MDLIB
       external close_gmtraj
       if(use_mdlib) then
         call close_gmtraj(gmxhandle)
       endif
+#endif
+#ifdef VMDPLUGINS
+      external vmdfio_close_traj
+      call vmdfio_close_traj(vmdhisthandle)
+      use_mdlib = .true.
 #endif
       if(.not.use_mdlib) then
         close(iotrj)                                 ! trajectory file
@@ -470,6 +513,13 @@ c
 
       external read_gmtraj_step
 #endif
+#ifdef VMDPLUGINS
+      real(8), allocatable :: tmpOUT(:, :)
+      real(8) :: tmpcell(3,3)
+      integer :: vmdstatus
+      
+      external vmdfio_read_traj_step
+#endif
 c
       if(OUTtrj.eq.0) trjID=iotrj
       if(OUTtrj.ne.0) trjID=OUTtrj
@@ -651,6 +701,20 @@ c
 7713      continue                                              ! GROMACS
           call OUTskip(trjID,iofmt,1)                           ! GROMACS
         endif                                                   ! GROMACS
+#endif
+#ifdef VMDPLUGINS
+        allocate(tmpOUT(3, OUTatm))
+        if(trjID == iotrj) then
+          call vmdfio_read_traj_step(vmdhisthandle, tmpOUT, tmpcell, vmdstatus)
+        else
+          call vmdfio_read_traj_step(vmdslthandle, tmpOUT, tmpcell, vmdstatus)
+        endif
+        
+        if(vmdstatus /= 0) stop "Error while reading trajectory"
+        OUTpos(:, :) = lencnv * tmpOUT(:, :)
+        OUTcell(:, :) = lencnv * tmpcell(:, :)
+        deallocate(tmpOUT)
+        return
 #endif
 #ifdef DLPOLY
         call OUTskip(trjID,iofmt,1)                             ! DL_POLY

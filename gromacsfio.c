@@ -1,4 +1,7 @@
-
+/*
+  GROMACS trajectory file I/O for GROMACS 4.0.x
+  (does not work on 4.5.x or later)
+ */
 
 /* FIXME: add F77_FUNC(small,CAPITAL) issues */
 
