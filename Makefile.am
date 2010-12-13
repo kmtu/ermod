@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-bin_PROGRAMS = ermod_gromacs ermod_namd ermod_charmm ermod_auto slvfe
+bin_PROGRAMS = ermod_gromacs ermod_namd ermod_auto slvfe
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
@@ -31,13 +31,6 @@ ermod_namd_LDADD = ermod_namd-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(MP
 
 ermod_namd-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DNAMD -c -o $@ $<
-
-#
-ermod_charmm_SOURCES = $(ersources)
-ermod_charmm_LDADD = ermod_charmm-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(MPILIBS)
-
-ermod_charmm-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
-	$(F77) $(AM_FFLAGS) $(FFLAGS) -DCHARMM -c -o $@ $<
 
 # auto == vmdpluginfio
 ermod_auto_SOURCES = $(ersources) vmdfio.c 
