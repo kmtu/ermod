@@ -8,7 +8,7 @@ EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
 
 ermod_gromacs_SOURCES = $(ersources)
-ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
+ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(MPILIBS)
 
 extra_flags = 
 
@@ -23,14 +23,14 @@ ermod_gromacs-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DGROMACS $(extra_flags) -c -o $@ $<
 
 ermod_namd_SOURCES = $(ersources)
-ermod_namd_LDADD = ermod_namd-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
+ermod_namd_LDADD = ermod_namd-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(MPILIBS)
 
 ermod_namd-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DNAMD -c -o $@ $<
 
 #
 ermod_charmm_SOURCES = $(ersources)
-ermod_charmm_LDADD = ermod_charmm-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) 
+ermod_charmm_LDADD = ermod_charmm-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(MPILIBS)
 
 ermod_charmm-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) -DCHARMM -c -o $@ $<
