@@ -461,6 +461,51 @@ c
       integer gemax
       contains
 c
+      subroutine syevr_wrap(n, mat, eigval, info)
+      integer, intent(in) :: n
+      real, intent(inout) :: mat(n, n)
+      real, intent(out) :: eigval(n)
+      integer, intent(out) :: info
+      real, allocatable :: z(:, :)
+      real, allocatable :: work(:)
+      real :: worksize
+      integer :: lwork, liwork
+      integer, allocatable :: iwork(:)
+      integer, allocatable :: isuppz(:)
+      real :: dummyr, abstol
+      integer :: dummyi
+
+      allocate(isuppz(2 * n))
+      allocate(z(n, n))
+      
+      abstol = 0.0
+      lwork = -1
+      liwork = 10 * n
+      allocate(iwork(liwork))
+      call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr,
+     #            dummyi, dummyi, abstol, dummyi, eigval, 
+     #            z, n, isuppz, worktmp, lwork, iwork, liwork, info)
+      if (info /= 0) then
+        deallocate(isuppz)
+        deallocate(z)
+        deallocate(iwork)
+        return
+      endif
+
+      lwork = worktmp
+      allocate(work(lwork))
+      call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr,
+     #            dummyi, dummyi, abstol, dummyi, eigval, 
+     #            z, n, isuppz, work, lwork, iwork, liwork, info)
+
+      mat(:, :) = z(:, :)
+      
+      deallocate(isuppz)
+      deallocate(z)
+      deallocate(iwork)
+      deallocate(work)
+      end subroutine
+
       subroutine chmpot(prmcnt,cntrun)
 c
       use sysvars, only: uvread,slfslt,
@@ -751,7 +796,8 @@ c
 1153     continue
 1152    continue
 c
-        call DSYEV('V','U',gemax,edmcr,gemax,egnvl,work,wrksz,k)
+        call syevr_wrap(gemax, edmcr, egnvl, k)
+        ! call DSYEV('V','U',gemax,edmcr,gemax,egnvl,work,wrksz,k)
         pti=numslv+1
         do 1161 iduv=pti,gemax
           factor=0.0e0
