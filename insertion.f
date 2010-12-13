@@ -339,9 +339,6 @@ c
 c
       use engmain, only: nummol,maxsite,inscfg,numsite,bfcoord
       use setconf, only: molcen
-#ifdef VMDPLUGINS
-      use OUTname, only: opentrj_sltcnf, closetrj_sltconf
-#endif
       use OUTname, only: iofmt,bxiso,toptp,skpio,OUTconfig,OUTskip
       character*4 caltype
       integer i,sid,stmax,m
@@ -352,10 +349,6 @@ c
 c
       if(caltype.eq.'init') then
 ! FIXME: move this entire section into setconf.f
-#ifdef VMDPLUGINS
-        call opentrj_sltcnf(slttrj)
-        return
-#endif
         if(iofmt.eq.'yes') open(unit=slcnf,file=slttrj,status='old')
         if(iofmt.eq.'not') open(unit=slcnf,file=slttrj,status='old',
      #                                           form='unformatted')
@@ -363,10 +356,6 @@ c
         return
       endif
       if(caltype.eq.'last') then
-#ifdef VMDPLUGINS
-        call closetrj_sltconf
-        return
-#endif
         close(slcnf)
         return
       endif

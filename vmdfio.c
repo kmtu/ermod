@@ -25,7 +25,7 @@
 */
 
 #ifndef INSTALL_PLUGIN_PATH
-#warn INSTALL_PLUGIN_PATH is not defined
+#warning INSTALL_PLUGIN_PATH is not defined
 #define INSTALL_PLUGIN_PATH ""
 #endif
 
@@ -46,10 +46,7 @@ static void* ldhandles[MAXPLUGINS];
  */
 static int register_callback(void* __vp, vmdplugin_t * entity)
 {
-  fprintf(stderr, "DEBUG: incoming %s\n", entity->prettyname);
-  
   if(entity == NULL || entity -> type == NULL) return 0;
-  fprintf(stderr, "DEBUG: register %s\n", entity->prettyname);
   vmdpluginentries[typecounts++] = (molfile_plugin_t*)entity;
   return 0;
 }
@@ -121,8 +118,7 @@ void vmdfio_init_traj_(void)
       char* pluginpath = strdupcat(d1, ent -> d_name);
       free(d1);
       
-      fprintf(stderr, "DEBUG: loading %s\n", pluginpath);
-      if(is_executable(pluginpath) && *pluginpath != '.'){
+      if(is_executable(pluginpath) && pluginpath[strlen(pluginpath)-1] != '.'){
 	void* handle;
 	handle = dlopen(pluginpath, RTLD_NOW | RTLD_GLOBAL);
 	if(!handle){
@@ -144,7 +140,7 @@ void vmdfio_init_traj_(void)
 	    if(r != 0)
 	      fprintf(stderr, "Warning: error while registering %s\n", pluginpath);
 	  }else{
-	    fprintf(stderr, "DEBUG: init %p ent %p name %s\n", initptr, entptr, pluginpath);
+	    fprintf(stderr, "Warning: failed to load entry point (plugin: %s)\n", pluginpath);
 	  }
 	}
       }
@@ -189,15 +185,13 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
     buf[r] = '\0';
   }
 
-  if(strncmp(fname, buf, *fnamelen) == 0){
+  if(*fnamelen == strlen(buf) && strncmp(fname, buf, *fnamelen) == 0){
     /* not a symbolic link? */
     fprintf(stderr, "Error: vmdfio.c: failed to open with vmdfio_open_traj_. (filename = \"%s\".) Perhaps it's not a symbolic link?\n", buf);
     *status = -1;
     goto cleanup;
   }
   
-  fprintf(stderr, "Symbolic link to: %s\n", buf);
-
   /* 
      select plugin to use.
      use filename_extension to select
@@ -211,6 +205,8 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
     if(lastdot == NULL) goto cleanup;
     ext = lastdot + 1;
   }
+  fprintf(stderr, "Opening: %s...", buf);
+
   for(i = 0; i < typecounts; ++i){
     int extlen = strlen(ext);
     molfile_plugin_t *p = vmdpluginentries[i];
@@ -218,10 +214,6 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
     char* tokptr;
     char* ptr;
 
-    fprintf(stderr, "DEBUG: %p\n", p->type);
-    fprintf(stderr, "DEBUG: %s\n", p->type);
-    fprintf(stderr, "DEBUG: %s\n", p->prettyname);
-    
     if(strcmp(p -> type, MOLFILE_PLUGIN_TYPE) != 0) continue; 
     plugin_supportext = strdup(p -> filename_extension);
 
@@ -239,7 +231,12 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
 	/* Found, open with this plugin */
 	pp -> natoms = MOLFILE_NUMATOMS_UNKNOWN;
 	fh = (p -> open_file_read)(buf, ext, &(pp->natoms));
+	if(fh == NULL){
+	  fprintf(stderr, "Error while opening %s\n", buf);
+	  exit(1);
+	}
 	pp -> filehandle = fh;
+	fprintf(stderr, "OK, successfully opened with \"%s\"\n", p -> prettyname);
 
 	*handle = pp;
 	break;
@@ -262,7 +259,7 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
   return;
 }
 
-void vmdfio_read_traj_step_(void **handle, double* xout, double* box, int *status)
+void vmdfio_read_traj_step_(void **handle, double* xout, double* box, int *natoms_aux, int *status)
 {
   vmdpluginio *p = *handle;
   molfile_plugin_t *plugin = p -> plugin;
@@ -270,16 +267,29 @@ void vmdfio_read_traj_step_(void **handle, double* xout, double* box, int *statu
   int natoms = p -> natoms;
   float* buf;
   int r;
+  static int firstcall = 1;
+
+  if(natoms == MOLFILE_NUMATOMS_UNKNOWN){
+    /* not determined from the trajectory */
+    natoms = *natoms_aux;
+  }else{
+    /* check integrity */
+    if(natoms != p -> natoms && firstcall){
+      fprintf(stderr, "Warning: # of atoms in trajectory does not match with # of atoms in configurations\n");
+      firstcall = 0;
+    }
+  }
+
   buf = malloc(sizeof(float) * 3 * natoms);
   snapshot.coords = buf;
-  
+
   r = (plugin -> read_next_timestep)(p -> filehandle, natoms, &snapshot);
-  
+
   do{
     int i;
     double x, y, u, v, w;
 
-    if(r != MOLFILE_EOF){
+    if(r == MOLFILE_EOF){
       *status = -1;
       break;
     }
@@ -298,10 +308,10 @@ void vmdfio_read_traj_step_(void **handle, double* xout, double* box, int *statu
       ~b.~c = xu + yv = cos alpha
     */
 
-    x = cos(snapshot.gamma);
-    y = sin(snapshot.gamma);
-    u = cos(snapshot.beta);
-    v = (cos(snapshot.alpha) - x * u) / y; /* FIXME: potential underflow risk */
+    x = cos(snapshot.gamma * M_PI / 180.0);
+    y = sin(snapshot.gamma * M_PI / 180.0);
+    u = cos(snapshot.beta * M_PI / 180.0);
+    v = (cos(snapshot.alpha * M_PI / 180.0) - x * u) / y; /* FIXME: potential underflow risk */
     w = sqrt(1 - u * u - v * v);  /* FIXME: same above */
 
     box[0] = snapshot.A;
@@ -312,8 +322,8 @@ void vmdfio_read_traj_step_(void **handle, double* xout, double* box, int *statu
     box[8] = snapshot.C * w;
     
     box[1] = 0.; box[2] = 0.; box[5] = 0;
-    
-    status = 0;
+
+    *status = 0;
   }while(0);
 
   free(buf);

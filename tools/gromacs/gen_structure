@@ -120,12 +120,14 @@ class topology:
 
         (have_bonded_type, have_atomic_number) = (None, None)
 
-        if len(ls[3]) == 1:
+        print "DEBUG", ls
+
+        if ls[3].isalpha() and len(ls[3]) == 1:
             # single character
             (have_bonded_type, have_atomic_number) = (False, False)
-        elif len(ls[5]) == 1:
+        elif ls[5].isalpha() and len(ls[5]) == 1:
             (have_bonded_type, have_atomic_number) = (True, True)
-        elif len(ls[4]) == 1:
+        elif ls[4].isalpha() and len(ls[4]) == 1:
             if ls[1][0].isalpha():
                 (have_bonded_type, have_atomic_number) = (True, False)
             else:

@@ -189,6 +189,10 @@ contains
        blktmp(:) = int(floor(sitepos(:, a) / laxes(:) * block_size(:)))
        do j = 1, 3
           blk(j, i) = modulo(blktmp(j), block_size(j))
+          if(blk(j,i) < 0) then
+             print *, laxes(:), blktmp(:), block_size(:)
+             STOP "INVLBLK"
+          endif
        end do
     end do
   end subroutine blockify
@@ -211,6 +215,7 @@ contains
        a = blk(1, i)
        b = blk(2, i)
        c = blk(3, i)
+       if(a < 0 .or. b < 0 .or. c < 0) STOP "INVL"
        counts(a, b, c) = counts(a, b, c) + 1
     end do
 
