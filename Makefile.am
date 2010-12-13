@@ -8,6 +8,7 @@ ersources = engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90
 EXTRA_DIST = enganal.f insertion.f setconf.f stranal.f param_eng parameters_er.example gromacsfio.c
 EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
+EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE
 
 ermod_gromacs_SOURCES = $(ersources)
 ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS)
