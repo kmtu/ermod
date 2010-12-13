@@ -8,6 +8,7 @@ CXX = g++
 SHLD = g++ -shared
 CCFLAGS = -O -g -fPIC
 CXXFLAGS = -O -g -fPIC
+NETCDF=yes
 
 #.SILENT:
 
@@ -36,32 +37,13 @@ SCXXFLAGS = $(CCFLAGS) $(DEF)"STATIC_PLUGIN"
 
 STATICPLUGINS = biomoccaplugin cpmdplugin psfplugin pdbplugin dcdplugin babelplugin gromacsplugin parmplugin crdplugin namdbinplugin binposplugin graspplugin msmsplugin stlplugin cubeplugin edmplugin ccp4plugin dsn6plugin brixplugin pltplugin raster3dplugin parm7plugin rst7plugin tinkerplugin uhbdplugin vaspchgcarplugin vaspparchgplugin vaspposcarplugin vaspoutcarplugin vaspxdatcarplugin vaspxmlplugin dlpolyplugin lammpsplugin vtfplugin xyzplugin corplugin moldenplugin phiplugin pbeqplugin grdplugin situsplugin dxplugin spiderplugin mapplugin avsplugin fs4plugin pqrplugin mol2plugin gridplugin carplugin mdfplugin gamessplugin xsfplugin bgfplugin xbgfplugin jsplugin maeffplugin dtrplugin basissetplugin
 PLUGINS = biomoccaplugin.so cpmdplugin.so psfplugin.so pdbplugin.so dcdplugin.so babelplugin.so gromacsplugin.so crdplugin.so namdbinplugin.so binposplugin.so graspplugin.so msmsplugin.so stlplugin.so cubeplugin.so edmplugin.so ccp4plugin.so dsn6plugin.so parmplugin.so brixplugin.so pltplugin.so raster3dplugin.so parm7plugin.so rst7plugin.so tinkerplugin.so uhbdplugin.so vaspchgcarplugin.so vaspparchgplugin.so vaspposcarplugin.so vaspoutcarplugin.so vaspxdatcarplugin.so vaspxmlplugin.so dlpolyplugin.so lammpsplugin.so vtfplugin.so xyzplugin.so corplugin.so moldenplugin.so phiplugin.so pbeqplugin.so grdplugin.so situsplugin.so dxplugin.so spiderplugin.so mapplugin.so avsplugin.so fs4plugin.so pqrplugin.so mol2plugin.so gridplugin.so carplugin.so mdfplugin.so gamessplugin.so xsfplugin.so bgfplugin.so xbgfplugin.so jsplugin.so dtrplugin.so maeffplugin.so basissetplugin.so
-# is removed for bug
 
-#
-# Check to see if we should build the Tcl-based plugins
-# XXX non-portable GNU make syntax used here...
-#
-ifdef TCLLIB
-ifdef TCLINC
-ifdef TCLLDFLAGS
-STATICPLUGINS += webpdbplugin
-PLUGINS       += webpdbplugin.so
-endif
-endif
-endif
-
-#
 # Check to see if we should build the optional NetCDF-based plugins
 # XXX non-portable GNU make syntax used here...
 #
-ifdef NETCDFLIB
-ifdef NETCDFINC
-ifdef NETCDFLDFLAGS
+ifdef NETCDF
 STATICPLUGINS += netcdfplugin
 PLUGINS       += netcdfplugin.so
-endif
-endif
 endif
 
 # list of all optional plugins for use by distrib target
