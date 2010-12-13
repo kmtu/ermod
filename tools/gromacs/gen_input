@@ -243,6 +243,8 @@ def convtraj(src, trunk):
         symlink(src, trunk)
         return
     retcode = subprocess.call(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"])
+    if retcode != 0:
+        retcode = subprocess.call(["trjconv_d", "-f", src, "-o", trunk + ".g96", "-novel"])
     assert(retcode == 0)
     symlink(trunk + ".g96", trunk)
 
