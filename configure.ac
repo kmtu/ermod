@@ -44,44 +44,6 @@ AS_IF([test "x$with_mkl" != "x"],
   FCFLAGS="-I$mklroot/include $FCFLAGS"
 ])
 
-AC_ARG_WITH([gromacs],
-  AS_HELP_STRING([--with-gromacs=(path to gromcs root directory)],
-    [Automatically set environment variables for GROMACS]))
-
-AS_IF([test "x$with_gromacs" != "x"],
-  [gromacs_mandatory=yes
-   gromacsroot=$with_gromacs],
-  [AS_IF([test "x$GMXBIN" == "x"],
-     [AC_PATH_PROGS([GMXLUCK], [luck g_luck])
-      AS_IF([test "x$GMXLUCK" != "x"],
-        [GMXBIN=`AS_DIRNAME(["$GMXLUCK"])`])])
-   AS_IF([test "x$GMXBIN" != "x"],
-       [gromacsroot=`AS_DIRNAME(["$GMXBIN"])`])])
-
-AS_IF([test "x$gromacsroot" != "x"],
-  [CPPFLAGS="$CPPFLAGS -I$gromacsroot/include/gromacs"
-   LDFLAGS="$LDFLAGS -L$gromacsroot/lib"])
-
-# Check GROMACS library
-AC_LANG_PUSH(C)
-AC_CHECK_LIB(gmx, read_first_x, 
-             [with_libgmx=yes],
-	     [with_libgmx=no],
-             [-lm])
-AC_CHECK_HEADER(statutil.h,
-               [with_statutil_h=yes],
-	       [with_statutil_h=no])
-AC_LANG_POP(C)
-
-AM_CONDITIONAL([USE_LIBGMX], [test "x$with_libgmx" = "xyes" -a "x$with_statutil_h" = "xyes"])
-
-AM_COND_IF([USE_LIBGMX],
-           [use_libgmx=yes],
-	   [use_libgmx=no])
-
-AS_IF([test "x$use_libgmx" = "xno" -a "x$gromacs_mandatory" = "xyes"],
-   AC_MSG_FAILURE([could not find gromacs files. Maybe you do not have single precision library?]))
-
 # due to bug in ACX_BLAS/LAPACK
 AC_LANG_PUSH(C)
 ACX_BLAS
@@ -298,7 +260,6 @@ AC_OUTPUT
 AC_MSG_RESULT([dnl
 LAPACK: $lapack_result
 FFT: $with_fft
-GROMACS XTC support: $use_libgmx
 MPI: $mpi_result
 FFLAGS=$FFLAGS
 FCFLAGS=$FCFLAGS
