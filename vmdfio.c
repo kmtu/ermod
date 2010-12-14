@@ -122,8 +122,8 @@ void vmdfio_init_traj_(void)
 	void* handle;
 	handle = dlopen(pluginpath, RTLD_NOW | RTLD_GLOBAL);
 	if(!handle){
-	  perror("Warning: failed to load plugin");
-	  fprintf(stderr, "plugin name: \"%s\"\n", pluginpath);
+	  perror("Warning: failed to load plugin, reason");
+	  fprintf(stderr, "(Plugin name: \"%s\")\n", pluginpath);
 	}
 	if(handle){
 	  void* initptr;

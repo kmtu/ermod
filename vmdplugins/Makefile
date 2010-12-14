@@ -9,6 +9,7 @@ SHLD = g++ -shared
 CCFLAGS = -O -g -fPIC
 CXXFLAGS = -O -g -fPIC
 NETCDF=yes
+NETCDFLIB=-lnetcdf
 
 #.SILENT:
 
