@@ -44,6 +44,29 @@ AS_IF([test "x$with_mkl" != "x"],
   FCFLAGS="-I$mklroot/include $FCFLAGS"
 ])
 
+AC_ARG_WITH([fftw],
+  AS_HELP_STRING([--with-fftw[[=(fftw root, default to /usr)]]],
+    [Set fftw root directory]))
+
+case x$with_fftw in # (
+  xyes) :
+  with_fftw=/usr
+  ;; # (
+  xno) :
+  with_fftw=
+  ;; # (
+  *) :
+  # do nothing
+  ;;
+esac
+
+# FIXME: AC_SUBST should be used
+AS_IF([test "x$with_fftw" != "x"],
+  [FFTWROOT=$with_fftw
+   CFLAGS="$CFLAGS -I$FFTWROOT/include"
+   FCFLAGS="$FCFLAGS -I$FFTWROOT/include"
+   LDFLAGS="$LDFLAGS -L$FFTWROOT/lib"])
+
 # due to bug in ACX_BLAS/LAPACK
 AC_LANG_PUSH(C)
 ACX_BLAS
@@ -130,6 +153,7 @@ AS_IF([test "x$with_fft" == xfftw],
             [AS_IF([test "x$have_fftw3" == xno],
                          [AC_MSG_FAILURE(
                                  [--with-fft=fftw is specified, but could not find fftw3])])])
+
 AS_IF([test "x$with_fft" == xno],
 	    [AS_IF([test "x$have_fftw3" == xyes],
 	    		 [with_fft=fftw])
@@ -139,7 +163,6 @@ AS_IF([test "x$with_fft" == xno],
 AS_IF([test "x$with_fft" != xfftw && test "x$with_fft" != xmkl],
 	    [AC_MSG_FAILURE(
 		[invalid --with-fft=<fft-type> specification, please check with --help])])
-
 
 # check whether mkl_dfti.f90 is accesible
 # FIXME: This may fail to detect with gfortran 4.4.0-4.4.3
