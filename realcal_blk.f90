@@ -322,7 +322,7 @@ contains
           
           dist = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
           r = sqrt(dist)
-          if(r > upljcut) then
+          if(r >= upljcut) then
              elj = 0.0
           else
              ljeps = sqrt(ljene(va)*ljene(ua))
