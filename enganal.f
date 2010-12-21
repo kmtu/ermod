@@ -837,8 +837,8 @@ c
              eplj=swth*eplj
            endif
          endif
-         if(rst.gt.reelcut) epcl=0.0e0
-         if(rst.le.reelcut) then
+         if(rst.ge.reelcut) epcl=0.0e0
+         if(rst.lt.reelcut) then
            chr2=charge(ati)*charge(atj)
            if((i.eq.j).and.(is.eq.js)) then
              if(cltype.eq.0) rtp1=real(0)                  ! bare Coulomb
