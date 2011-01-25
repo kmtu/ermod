@@ -14,10 +14,11 @@ c
       character*3 :: normalize='yes',showdst='not'
       character*3 :: wrtzrsft='not',readwgtfl='yes'
 c
-      real :: inptemp=300.0e0                          ! Kelvin
-      integer :: pickgr=3
+      real :: inptemp=300.0e0                                     ! Kelvin
+      real, parameter :: zero=0.0e0,tiny=1.0e-10,error=1.0e-8
+      integer :: pickgr=3,msemin=1,msemax=5
+      real, parameter :: mesherr=0.10e0                           ! kcal/mol
       integer :: maxmesh=30000, large=500000, itrmax=100
-      real :: error=1.0e-8, tiny=1.0e-10, zero=0.0e0
 c
       character(len=1024) :: wgtslnfl='soln/weight_soln'
       character(len=1024) :: wgtreffl='refs/weight_refs'
@@ -845,34 +846,14 @@ c
 c
       real function cvfcen(pti,cnt,systype,wgttype,engtype)
       integer pti,cnt,iduv,errtag
-      real factor,ampl,minuv,cvfnc
+      real factor,cvfnc
       real, dimension(:), allocatable :: weight
       character*5 systype
       character*4 wgttype
       character*3 engtype
       allocate( weight(gemax) )
-      weight(:)=0.0e0
-      do 3151 iduv=1,gemax
-        if(uvspec(iduv).eq.pti) then
-          weight(iduv)=wgtdst(iduv,cnt,systype,wgttype)
-        endif
-3151  continue
-      if(engtype.eq.'yes') then
-        minuv=abs(uvcrd(1))
-        do 3152 iduv=1,gemax
-          if((uvspec(iduv).eq.pti).and.(weight(iduv).gt.zero)) then
-            if(abs(uvcrd(iduv)).lt.minuv) minuv=abs(uvcrd(iduv))
-          endif
-3152    continue
-        do 3153 iduv=1,gemax
-        if(uvspec(iduv).eq.pti) then
-          ampl=abs(uvcrd(iduv))-minuv
-c         ampl=nummol(pti)*(abs(uvcrd(iduv))-minuv)
-          weight(iduv)=exp(-ampl/kT)*weight(iduv)
-        endif
-3153    continue
-      endif
-      factor=0.0e0 ; ampl=0.0e0 ; errtag=0
+      call getwght(weight,pti,cnt,systype,wgttype,engtype)
+      factor=0.0e0 ; errtag=0
       do 3251 iduv=1,gemax
         if(uvspec(iduv).eq.pti) then
           select case(systype)
@@ -891,15 +872,50 @@ c         ampl=nummol(pti)*(abs(uvcrd(iduv))-minuv)
             write(6,*) ' Bug in the program' ; stop
           endif
           factor=factor+cvfnc*weight(iduv)
-          ampl=ampl+weight(iduv)
         endif
 3251  continue
-      if(ampl.gt.zero) factor=factor/ampl
-      if(ampl.le.zero) factor=0.0e0
       cvfcen=factor
       deallocate( weight )
       return
       end function
+c
+c
+      subroutine getwght(weight,pti,cnt,systype,wgttype,engtype)
+      integer pti,cnt,iduv
+      real weight(gemax),minuv,ampl
+      character*5 systype
+      character*4 wgttype
+      character*3 engtype
+      weight(:)=0.0e0
+      do 3151 iduv=1,gemax
+        if(uvspec(iduv).eq.pti) then
+          weight(iduv)=wgtdst(iduv,cnt,systype,wgttype)
+        endif
+3151  continue
+      if(engtype.eq.'yes') then
+        minuv=abs(uvcrd(1))
+        do 3152 iduv=1,gemax
+          if((uvspec(iduv).eq.pti).and.(weight(iduv).gt.zero)) then
+            if(abs(uvcrd(iduv)).lt.minuv) minuv=abs(uvcrd(iduv))
+          endif
+3152    continue
+        do 3153 iduv=1,gemax
+        if(uvspec(iduv).eq.pti) then
+c         ampl=abs(uvcrd(iduv))-minuv
+          ampl=nummol(pti)*(abs(uvcrd(iduv))-minuv)
+          weight(iduv)=exp(-ampl/kT)*weight(iduv)
+        endif
+3153    continue
+      endif
+      ampl=0.0e0
+      do 3154 iduv=1,gemax
+        if(uvspec(iduv).eq.pti) ampl=ampl+weight(iduv)
+3154  continue
+      if(ampl.gt.zero) weight(:)=weight(:)/ampl
+      if(ampl.le.zero) then
+        write(6,*) ' Zero weight at ',pti ; stop
+      endif
+      end subroutine
 c
 c
       integer function zeroec(pti,cnt)
@@ -1138,15 +1154,16 @@ c
 c
 c
       module opwrite
-      use sysvars, only: clcond,uvread,slfslt,
-     #                   prmmax,numrun,numslv,pickgr,slfeng,
-     #                   chmpt,aveuv,blkuv,svgrp,svinf
+      use sysvars, only: clcond,uvread,slfslt,prmmax,numrun,numslv,
+     #                   pickgr,msemin,msemax,mesherr,
+     #                   slfeng,chmpt,aveuv,blkuv,svgrp,svinf
       integer grref
+      real, dimension(:), allocatable :: mshdif
       contains
 c
       subroutine wrtresl
 c
-      integer prmcnt,pti,k
+      integer prmcnt,pti,k,group,inft
       real factor,valcp
 c
       if(slfslt.eq.'yes') write(6,321) slfeng
@@ -1176,11 +1193,13 @@ c
 c
       if(clcond.ne.'basic') then
         do 9975 prmcnt=1,prmmax
-          if(svgrp(prmcnt).eq.pickgr) then
+          group=svgrp(prmcnt)
+          if(group.eq.pickgr) then
             grref=prmcnt ; goto 9976
           endif
 9975    continue
 9976    continue
+        allocate( mshdif(msemin:msemax) ) ; mshdif(:)=-1.0e0
       endif
 c
       if(clcond.eq.'range') then
@@ -1192,16 +1211,33 @@ c
           if(pti.ne.0) write(6,592) pti
 591       format('               chemical potential     difference')
 592       format('               ',i3,'-th component       difference')
-          factor=chmpt(pti,grref,1)
           do 5196 prmcnt=1,prmmax
+            group=svgrp(prmcnt) ; inft=svinf(prmcnt)
             valcp=chmpt(pti,prmcnt,1)
-            write(6,661) svgrp(prmcnt),svinf(prmcnt),valcp,valcp-factor
+            factor=valcp-chmpt(pti,grref,1)
+            write(6,661) group,inft,valcp,factor
+            if((pti.eq.0).and.(inft.eq.0)) mshdif(group)=abs(factor)
 5196      continue
 5195    continue
 661     format(i4,i7,f17.5,f18.5)
       endif
 c
       if(clcond.eq.'merge') call wrtmerge
+c
+      if(clcond.ne.'basic') then
+        factor=0.0e0
+        do 9871 group=msemin,msemax
+          valcp=mshdif(group)
+          if((valcp.gt.zero).and.(factor.lt.valcp)) factor=valcp
+9871    continue
+        if(factor.gt.mesherr) then
+          write(6,*)
+          write(6,571) factor,mesherr
+        endif
+571     format(' Warning: mesh error is ',f8.3,' kcal/mol and is larger'
+     #         ' than the recommended value of ',g12.3,' kcal/mol')
+        deallocate( mshdif )
+      endif
 c
       return
       end subroutine
@@ -1262,6 +1298,7 @@ c
           endif
           write(6,671) group,inft,avecp,stdcp,avecp-avcp0
 671       format(i4,i7,f17.5,2f18.5)
+          if((pti.eq.0).and.(inft.eq.0)) mshdif(group)=abs(avecp-avcp0)
 9985    continue
 9984    continue
 9983  continue
