@@ -360,13 +360,13 @@ c
          if((slttype.eq.1) .or. 
      #      ((slttype.ge.2).and.(sluvid(i).eq.0))) then
             slvmax=slvmax+1
-            tplst(slvmax)=i
+            tplst(slvmax)=i ! which particle is treated by this node?
         endif
 3001  continue
       allocate( insdst(ermax),engdst(ermax),tagpt(slvmax) )
       allocate( uvengy(0:slvmax),flceng(numslv),svfl(numslv) )
       do 3002 k=1,slvmax
-        tagpt(k)=tplst(k)
+        tagpt(k)=tplst(k) ! and copied from tplst
 3002  continue
       deallocate( tplst )
 c
