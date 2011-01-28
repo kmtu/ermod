@@ -169,12 +169,12 @@ def parse_mdp():
         params['splodr'] = int(dic['pme_order'])
         params['screen'] = 1. / (betawidth * 10.0)
         
-    if dic["epc"] == "no":
+    if dic["epc"] == "No":
         params['estype'] = 1
     elif dic["epc"] in ["Berendsen", "Parrinello-Rahman"]:
         params['estype'] = 2
     else:
-        warining("Warning: Unknown pressure coupling type, check log / output")
+        warn("Warning: Unknown pressure coupling type, check log / output")
         params['simtype'] = 1
 
     if options.div == None:
