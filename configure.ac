@@ -253,19 +253,8 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
 
 # AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
 
-case "x$with_fft" in #(
- xfftw) :
- FFLAGS="$FFLAGS -DFFTW"
- FCFLAGS="$FCFLAGS -DFFTW"
- LDFLAGS="$LDFLAGS -lfftw3"
- ;; #(
- xmkl) :
- FFLAGS="$FFLAGS -DMKL"
- FCFLAGS="$FCFLAGS -DMKL"
- ;; #(
- *)
- ;;
-esac
+AM_CONDITIONAL([USE_FFTW], [test x$with_fft = xfftw])
+AM_CONDITIONAL([USE_MKL], [test x$with_fft = xmkl])
 
 AS_IF([test "x$lapack_exist" != xyes],
 	    [AC_MSG_ERROR(

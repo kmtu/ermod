@@ -15,7 +15,8 @@ c
       character*3 :: wrtzrsft='not',readwgtfl='yes'
 c
       real :: inptemp=300.0e0                                     ! Kelvin
-      real, parameter :: zero=0.0e0,tiny=1.0e-10,error=1.0e-8
+      real, parameter :: zero=0.0e0
+      real :: error=1.0e-8, tiny=1.0e-10
       integer :: pickgr=3,msemin=1,msemax=5
       real, parameter :: mesherr=0.10e0                           ! kcal/mol
       integer :: maxmesh=30000, large=500000, itrmax=100
