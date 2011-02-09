@@ -1318,7 +1318,7 @@ c
       if(pti == 0) then
         call binsearch(escrd, idmax, factor, picktest)
       else
-        call binsearch(uvcrd(idpick+1), idmax - idpick, factor, picktest)
+        call binsearch(uvcrd(idpick+1), idmax, factor, picktest)
       endif
       iduv = picktest + idpick
 
