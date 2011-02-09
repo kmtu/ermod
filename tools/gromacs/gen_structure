@@ -120,7 +120,8 @@ class topology:
 
         (have_bonded_type, have_atomic_number) = (None, None)
 
-        print "DEBUG", ls
+        log("Molecular structure: ")
+        log(ls)
 
         if ls[3].isalpha() and len(ls[3]) == 1:
             # single character
