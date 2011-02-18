@@ -24,6 +24,9 @@ parser.add_option("-I", dest = "includes", action="append",
 parser.add_option("--cpp", dest = "cpp",
                   help = "How to invoke cpp (1) command (default = cpp)",
                   default = "cpp")
+parser.add_option("--no-auto-dir-search", dest = "auto_dir_search", action = "store_false",
+                  help = "Stop default DIR searching.", 
+                  default = True)
 
 # can be specified; otherwise specify interactively
 parser.add_option("-s", "--solute", dest = "solute",
@@ -58,27 +61,35 @@ if options.topology == None:
     error("Error: topology must be specified (try --help)")
     sys.exit(1)
 
+def find_luck():
+    candidates = ["luck", "luck_d", "g_luck", "g_luck_d"]
+    for cmd in candidates:
+        sp = subprocess.Popen("which %s" % cmd, shell=True, stdout=subprocess.PIPE, stderr=None)
+        output = sp.communicate()[0]
+        if output != "":
+            return output
+    return None
+
 def where_gromacs():
     try:
         if os.environ.has_key("GMXDATA"):
-            p = os.path.join(os.environ["GMXDATA"], "top")
+            p1 = os.path.join(os.environ["GMXDATA"], "top")
+            p2 = os.path.join(os.environ["GMXDATA"], "gromacs/top")
+            ps = [p1, p2]
         else:
-            sp = subprocess.Popen("which luck", shell=True, stdout=subprocess.PIPE, stderr=None)
-            output = sp.communicate()[0]
-            if output == "":
-                sp = subprocess.Popen("which g_luck", shell=True, stdout=subprocess.PIPE, stderr=None)
-                output = sp.communicate()[0]
-                if output == "":
-                    warn("Could not find luck / g_luck (1). Default search path to (gromacs-root-path)/share/gromacs/top is not set; please specify with -I")
-                    return
-
+            output = find_luck()
+            if output == None:
+                warn("Could not find luck / g_luck (1). Default search path to (gromacs-root-path)/share/gromacs/top is not set; please specify with -I")
+                return
+            
             rp = os.path.realpath(output)
             bindir = os.path.dirname(rp)
-            p = os.path.normpath(os.path.join(bindir, "../share/gromacs/top"))
+            ps = [os.path.normpath(os.path.join(bindir, "../share/gromacs/top"))]
 
-        if os.path.exists(p):
-            log("Found gromacs topology path %s" % p)
-            options.includes.append(p)
+        for p in ps:
+            if os.path.exists(p):
+                log("Found gromacs topology path %s" % p)
+                options.includes.append(p)
 
     except OSError, e:
         pass
@@ -244,7 +255,8 @@ if not os.path.exists(options.topology):
     print >> sys.stderr, "Error: topology file does not exist!"
     sys.exit(1)
 
-where_gromacs()
+if options.auto_dir_search:
+    where_gromacs()
 
 includes = ["-I" + i for i in options.includes]
 defines = ["-D" + d for d in options.defines]
