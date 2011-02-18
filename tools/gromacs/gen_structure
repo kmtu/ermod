@@ -257,6 +257,7 @@ if not os.path.exists(options.topology):
 
 if options.auto_dir_search:
     where_gromacs()
+    options.includes.append(".")
 
 includes = ["-I" + i for i in options.includes]
 defines = ["-D" + d for d in options.defines]
