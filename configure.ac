@@ -39,7 +39,7 @@ AS_IF([test "x$with_mkl" != "x"],
       [AC_MSG_FAILURE([could not get MKL version; set MKLROOT or use --with-mkl=(version number)])],
       mklroot="$MKLROOT"),
     mklroot="/opt/intel/mkl/$with_mkl")
-  with_blas="-L$mklroot/lib/$mkl_plat -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -lguide -lpthread"
+  with_blas="-L$mklroot/lib/$mkl_plat -lmkl_solver_lp64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group -lguide -lpthread"
   with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"
   FCFLAGS="-I$mklroot/include $FCFLAGS"
 ])
