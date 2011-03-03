@@ -64,7 +64,7 @@ if options.topology == None:
 def find_luck():
     candidates = ["luck", "luck_d", "g_luck", "g_luck_d"]
     for cmd in candidates:
-        sp = subprocess.Popen("which %s" % cmd, shell=True, stdout=subprocess.PIPE, stderr=None)
+        sp = subprocess.Popen("which %s" % cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output = sp.communicate()[0]
         if output != "":
             return output
