@@ -64,7 +64,7 @@ if options.topology == None:
 def find_luck():
     candidates = ["luck", "luck_d", "g_luck", "g_luck_d"]
     for cmd in candidates:
-        sp = subprocess.Popen("which %s" % cmd, shell=True, stdout=subprocess.PIPE, stderr=None)
+        sp = subprocess.Popen("which %s" % cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output = sp.communicate()[0]
         if output != "":
             return output
@@ -79,7 +79,8 @@ def where_gromacs():
         else:
             output = find_luck()
             if output == None:
-                warn("Could not find luck / g_luck (1). Default search path to (gromacs-root-path)/share/gromacs/top is not set; please specify with -I")
+                if options.includes == []:
+                    warn("Could not find luck / g_luck (1). Default search path to (gromacs-root-path)/share/gromacs/top is not set; please specify with -I")
                 return
             
             rp = os.path.realpath(output)
