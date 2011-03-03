@@ -79,7 +79,8 @@ def where_gromacs():
         else:
             output = find_luck()
             if output == None:
-                warn("Could not find luck / g_luck (1). Default search path to (gromacs-root-path)/share/gromacs/top is not set; please specify with -I")
+                if options.includes == []:
+                    warn("Could not find luck / g_luck (1). Default search path to (gromacs-root-path)/share/gromacs/top is not set; please specify with -I")
                 return
             
             rp = os.path.realpath(output)
