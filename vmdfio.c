@@ -63,6 +63,14 @@ static int check_directory_available(char *path)
 
 static int is_executable(char* path)
 {
+  struct stat st;
+  int r;
+  r = stat(path, &st);
+  if(r != 0) return 0;
+  if(!(S_ISREG(st.st_mode) || S_ISLNK(st.st_mode))) {
+    return 0;
+  }
+  
   if(access(path, X_OK) == 0) return 1;
   return 0;
 }
@@ -124,24 +132,23 @@ void vmdfio_init_traj_(void)
 	if(!handle){
 	  perror("Warning: failed to load plugin, reason");
 	  fprintf(stderr, "(Plugin name: \"%s\")\n", pluginpath);
+	  continue;
 	}
-	if(handle){
-	  void* initptr;
-	  void* entptr;
-	  initptr = dlsym(handle, "vmdplugin_init");
-	  entptr = dlsym(handle, "vmdplugin_register");
-	  if(initptr != NULL && entptr != NULL){
-	    int r;
-	    r = ((int (*)(void))initptr)();
-	    if(r != 0)
-	      fprintf(stderr, "Warning: error while initializing %s\n", pluginpath);
-	    ldhandles[plugincounts++] = handle;
-	    r = ((int (*)(void*, vmdplugin_register_cb))entptr)(NULL, register_callback);
-	    if(r != 0)
-	      fprintf(stderr, "Warning: error while registering %s\n", pluginpath);
-	  }else{
-	    fprintf(stderr, "Warning: failed to load entry point (plugin: %s)\n", pluginpath);
-	  }
+	void* initptr;
+	void* entptr;
+	initptr = dlsym(handle, "vmdplugin_init");
+	entptr = dlsym(handle, "vmdplugin_register");
+	if(initptr != NULL && entptr != NULL){
+	  int r;
+	  r = ((int (*)(void))initptr)();
+	  if(r != 0)
+	    fprintf(stderr, "Warning: error while initializing %s\n", pluginpath);
+	  ldhandles[plugincounts++] = handle;
+	  r = ((int (*)(void*, vmdplugin_register_cb))entptr)(NULL, register_callback);
+	  if(r != 0)
+	    fprintf(stderr, "Warning: error while registering %s\n", pluginpath);
+	}else{
+	  fprintf(stderr, "Warning: failed to load entry point (plugin: %s)\n", pluginpath);
 	}
       }
     }
