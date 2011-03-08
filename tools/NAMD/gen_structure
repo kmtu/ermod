@@ -154,9 +154,13 @@ def get_topology_info():
     l = fh.next() # single dummy line after each block
 
     # make list of segment names
-    segnames = {}
+    segnames = []
+    segname_set = {}
     for a in atoms:
-        segnames[a[1]] = None
+        segname = a[1]
+        if segname not in segname_set:
+            segnames.append(segname)
+            segname_set[segname] = 0
 
     if options.solute:
         solute = options.solute.split(',')
