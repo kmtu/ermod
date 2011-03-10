@@ -43,23 +43,23 @@ def log(x):
     if options.verbose:
         print >> sys.stderr, x
 
-def warn_or_error(x):
+def warn_or_error(x, col):
     prefix = ""
     suffix = ""
     if os.isatty(sys.stderr.fileno()):
-        prefix = "\x1b[31;1m"
+        prefix = "\x1b[" + str(col) + ";1m"
         suffix = "\x1b[0m"
     print >> sys.stderr, prefix + x + suffix
 
 def warn(x):
-    warn_or_error(x)
+    warn_or_error("Warning: " + x, 33)
 
 def error(x):
-    warn_or_error(x)
+    warn_or_error("Error: " + x, 31)
+    sys.exit(1)
 
 if options.topology == None:
-    error("Error: topology must be specified (try --help)")
-    sys.exit(1)
+    error("topology must be specified (try --help)")
 
 def find_luck():
     candidates = ["luck", "luck_d", "g_luck", "g_luck_d"]
