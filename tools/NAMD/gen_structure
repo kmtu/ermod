@@ -25,7 +25,30 @@ parser.add_option("-s", "--solute", dest = "solute",
                   help = "Segment name of solute molecule",
                   default = None)
 
+parser.add_option("-v", "--verbose", dest = "verbose", action="store_true",
+                  help = "Be more verbose",
+                  default = False)
+
 (options, args) = parser.parse_args()
+
+def log(x):
+    if options.verbose:
+        print >> sys.stderr, x
+
+def warn_or_error(x, col):
+    prefix = ""
+    suffix = ""
+    if os.isatty(sys.stderr.fileno()):
+        prefix = "\x1b[" + str(col) + ";1m"
+        suffix = "\x1b[0m"
+    print >> sys.stderr, prefix + x + suffix
+
+def warn(x):
+    warn_or_error("Warning: " + x, 33)
+
+def error(x):
+    warn_or_error("Error: " + x, 31)
+    sys.exit(1)
 
 if options.param == [] and options.conf == None and options.log == None:
     print >> sys.stderr, "Error: CHARMM parameter file is not specified (specify one of: --param, --log, --conf)"
