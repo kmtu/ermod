@@ -148,6 +148,8 @@ mass_table = {
   80: 'Br' }
 def atomtype_of_mass(mass):
     imass = int(round(mass))
+    if imass not in mass_table:
+        return "M" # dummy atom
     return mass_table[imass]
 
 def get_topology_info():
