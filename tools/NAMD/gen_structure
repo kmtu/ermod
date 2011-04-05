@@ -5,6 +5,8 @@ import sys
 import re
 from optparse import OptionParser
 
+sys.setrecursionlimit(20000)
+
 parser = OptionParser()
 
 # only have to specify one of three:
