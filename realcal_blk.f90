@@ -12,6 +12,11 @@ module realcal_blk
 
   integer :: block_size(3)
   real :: laxes(3), invbox(3)
+  
+  ! "straight" coordinate system
+  real :: cell_str(3, 3)
+  real, allocatable :: sitepos_str(:, :)
+
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
     use engmain, only: numsite
@@ -24,6 +29,8 @@ contains
     ! to calculate several solutes at once
     nsolu_atom = numsite(target_solu)
     nsolv_atom = count_solv(target_solu, tagpt, slvmax)
+
+    call straighten_system()
 
     call set_block_info()
 
@@ -60,6 +67,7 @@ contains
     deallocate(block_solu, belong_solu, atomno_solu, counts_solu, psum_solu)
     deallocate(block_solv, belong_solv, atomno_solv, counts_solv, psum_solv)
     deallocate(subcell_neighbour)
+    deallocate(sitepos_str)
   end subroutine realcal_proc
 
   integer function count_solv(solu, tagpt, slvmax)
@@ -102,23 +110,23 @@ contains
   end subroutine set_solv_atoms
 
   subroutine set_block_info()
-    use engmain, only: cell, block_threshold, upljcut, elecut
+    use engmain, only: block_threshold, upljcut, elecut
     real :: unit_axes(3), cut2, l
     integer :: i, j, k, bmax, ix
     real, allocatable :: grid_dist(:, :)
     real, allocatable :: box_dist(:, :)
     
-    if(abs(cell(2, 1)) > 1e-8 .or. &
-       abs(cell(3, 1)) > 1e-8 .or. &
-       abs(cell(3, 2)) > 1e-8) then
-       print *, cell
+    if(abs(cell_str(2, 1)) > 1e-8 .or. &
+       abs(cell_str(3, 1)) > 1e-8 .or. &
+       abs(cell_str(3, 2)) > 1e-8) then
+       print *, cell_str
        stop "realcal%set_box_info: assertion failed (boxvectors are not triangular)"
     endif
 
     ! get the length of axes
     ! assumes cell's 1st axis being x-axis, 2nd axis on x-y plane
     do i = 1, 3
-       laxes(i) = abs(cell(i, i))
+       laxes(i) = abs(cell_str(i, i))
     end do
     invbox(:) = 1 / laxes(:)
 
@@ -179,14 +187,14 @@ contains
   end subroutine set_block_info
 
   subroutine blockify(natom, atomlist, blk)
-    use engmain, only: sitepos, specatm
+    use engmain, only: specatm
     integer, intent(in) :: natom, atomlist(:)
     integer, intent(out) :: blk(:, :)
     integer :: i, j, a, blktmp(3)
 
     do i = 1, natom
        a = atomlist(i)
-       blktmp(:) = int(floor(sitepos(:, a) / laxes(:) * block_size(:)))
+       blktmp(:) = int(floor(sitepos_str(:, a) / laxes(:) * block_size(:)))
        do j = 1, 3
           blk(j, i) = modulo(blktmp(j), block_size(j))
           if(blk(j,i) < 0) then
@@ -295,7 +303,7 @@ contains
   end subroutine get_pair_energy
 
   subroutine get_pair_energy_block(upos, vpos, energy_mat)
-    use engmain, only: sitepos, cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge
+    use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge
     integer, intent(in) :: upos, vpos
     real, intent(out) :: energy_mat(:, :)
     integer :: ui, vi, ua, va
@@ -309,11 +317,11 @@ contains
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
        belong_u = belong_solu(ui) ! FIXME: not used in later calculation
-       crdu(:) = sitepos(:, ua)
+       crdu(:) = sitepos_str(:, ua)
        do vi = psum_solv(vpos), psum_solv(vpos + 1) - 1
           va = atomno_solv(vi)
           belong_v = belong_solv(vi)
-          crdv(:) = sitepos(:, va)
+          crdv(:) = sitepos_str(:, va)
 
           d(:) = crdv(:) - crdu(:)
           d(:) = d(:) - laxes(:) * anint(invbox(:) * d(:)) ! get nearest image
@@ -358,4 +366,61 @@ contains
        end do
     end do
   end subroutine get_pair_energy_block
+
+  ! 
+  subroutine straighten_system()
+    use engmain, only: sitepos
+    allocate(sitepos_str(size(sitepos, 1), size(sitepos, 2)))
+    sitepos_str(:, :) = sitepos(:, :)
+    call rotate_box(size(sitepos, 2))
+  end subroutine straighten_system
+
+  ! perform QR decomposition to "straighten" cell axis
+  ! (1st axis to be aligned to x-axis, 2nd axis to be within xy-plane)
+  subroutine rotate_box(n)
+    use engmain, only: cell
+    integer, intent(in) :: n
+    real :: qr(3, 3), newcell(3, 3), scale(3)
+    integer :: lwork
+    real, allocatable :: work(:)
+    integer :: info, perm(3)
+    
+    lwork = max(3 * 3 + 1, n)
+    allocate(work(lwork))
+    ! QR-factorize box vector
+    qr(:, :) = cell
+    perm(:) = 0
+#ifdef SINGLE
+    call sgeqp3(3, 3, qr, 3, perm, scale, work, lwork, info)
+#else
+    call dgeqp3(3, 3, qr, 3, perm, scale, work, lwork, info)
+#endif
+    if(info /= 0) stop "setconf%rotate_box: failed to factorize box vector"
+
+    ! reorganize R
+    ! VP = QR    <=>  Q^T VP = R
+    newcell(:, :) = cell(:, perm(:))
+#ifdef SINGLE
+    call sormqr('L', 'T', 3, 3, 3, qr, 3, scale, newcell, 3, work, lwork, info)
+#else
+    call dormqr('L', 'T', 3, 3, 3, qr, 3, scale, newcell, 3, work, lwork, info)
+#endif
+    if(info /= 0) stop "setconf%rotate_box: failed to rotate cell"
+    cell_str(:, :) = newcell(:, :)
+    if(abs(cell_str(2, 1)) > 1e-8 .or. &
+       abs(cell_str(3, 1)) > 1e-8 .or. &
+       abs(cell_str(3, 2)) > 1e-8) then
+       print *, cell
+       stop "setconf%rotate_box: assertion failed, box rotation is bugged"
+    endif
+
+    ! rotate coordinates
+    ! FIXME: get Q and multiply by intrinsic if there is a bottleneck.
+#ifdef SINGLE
+    call sormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos_str, 3, work, lwork, info)
+#else
+    call dormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos_str, 3, work, lwork, info)
+#endif
+    deallocate(work)
+  end subroutine rotate_box
 end module realcal_blk

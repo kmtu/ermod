@@ -1134,57 +1134,7 @@ c
 1014    continue
 1013  continue
       deallocate( OUTpos,OUTcell )
-      call rotate_box(OUTatm)     ! "straighten" cell axes
       return
-      end subroutine
-!
-!     perform QR decomposition to "straighten" cell axis
-!     (1st axis to be aligned to x-axis, 2nd axis to be within xy-plane)
-      subroutine rotate_box(n)
-      use engmain, only: cell, sitepos
-      integer, intent(in) :: n
-      real :: qr(3, 3), newcell(3, 3), scale(3)
-      integer :: lwork
-      real, allocatable :: work(:)
-      integer :: info, perm(3)
-
-      lwork = max(3 * 3 + 1, n)
-      allocate(work(lwork))
-!     QR-factorize box vector
-      qr(:, :) = cell
-      perm(:) = 0
-#ifdef SINGLE
-      call sgeqp3(3, 3, qr, 3, perm, scale, work, lwork, info)
-#else
-      call dgeqp3(3, 3, qr, 3, perm, scale, work, lwork, info)
-#endif
-      if(info /= 0) stop "setconf%rotate_box: failed to factorize box vector"
-
-!     reorganize R
-!     VP = QR    <=>  Q^T VP = R
-      newcell(:, :) = cell(:, perm(:))
-#ifdef SINGLE
-      call sormqr('L', 'T', 3, 3, 3, qr, 3, scale, newcell, 3, work, lwork, info)
-#else
-      call dormqr('L', 'T', 3, 3, 3, qr, 3, scale, newcell, 3, work, lwork, info)
-#endif
-      if(info /= 0) stop "setconf%rotate_box: failed to rotate cell"
-      cell(:, :) = newcell(:, :)
-      if(abs(cell(2, 1)) > 1e-8 .or. 
-     &   abs(cell(3, 1)) > 1e-8 .or.
-     &   abs(cell(3, 2)) > 1e-8) then
-        print *, cell
-        stop "setconf%rotate_box: assertion failed, box rotation is bugged"
-      endif
-
-!     rotate coordinates
-!     FIXME: get Q and multiply by intrinsic if there is a bottleneck.
-#ifdef SINGLE
-      call sormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos, 3, work, lwork, info)
-#else
-      call dormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos, 3, work, lwork, info)
-#endif
-      deallocate(work)
       end subroutine
 c
 c
