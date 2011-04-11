@@ -6,7 +6,6 @@ import shutil
 import sys
 import re
 import pickle
-import subprocess
 from optparse import OptionParser
 
 parser = OptionParser()
@@ -245,9 +244,9 @@ def convtraj(src, trunk):
         symlink(src, trunk)
         return
     try:
-        retcode = subprocess.call(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"])
-    except:
-        retcode = subprocess.call(["trjconv_d", "-f", src, "-o", trunk + ".g96", "-novel"])        
+        retcode = os.system(" ".join(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"]))
+    except OSError:
+        retcode = os.system(" ".join(["trjconv_d", "-f", src, "-o", trunk + ".g96", "-novel"]))
     assert(retcode == 0)
     symlink(trunk + ".g96", trunk)
 
@@ -284,16 +283,16 @@ elif options.pdb or options.gro:
     def get_gro_coord():
         fh = open(options.gro, "rt")
         coords = []
-        l = fh.next() # header
+        _l = fh.next() # header
         natoms = int(fh.next().strip())
-        for i in range(natoms):
+        for _i in range(natoms):
             line = fh.next()
             x = float(line[20:28].strip())
             y = float(line[28:36].strip())
             z = float(line[36:44].strip())
             uc = 10.0 # nm to angstrom
             coords.append((x*uc, y*uc, z*uc))
-        fh.close
+        fh.close()
         return coords
 
     if options.pdb:
