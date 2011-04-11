@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 
+# popen and others are used only for 2.3 compatibility
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
 import os
 import os.path
 import sys
 import pickle
+import popen2
 from optparse import OptionParser
-import subprocess
 
 parser = OptionParser()
 
@@ -64,8 +68,12 @@ if options.topology == None:
 def find_luck():
     candidates = ["luck", "luck_d", "g_luck", "g_luck_d"]
     for cmd in candidates:
-        sp = subprocess.Popen("which %s" % cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = sp.communicate()[0]
+        (stdin, stdout, stderr) = os.popen3(" ".join(["which", cmd]))
+        # May block if PIPE bufsize is extremely small, but should be enough for which(1) output
+        stdin.close()
+        output = "".join(stdout.readlines())
+        _errors = stderr.readlines()
+
         if output != "":
             return output
     return None
@@ -78,6 +86,7 @@ def where_gromacs():
             ps = [p1, p2]
         else:
             output = find_luck()
+            log("Found luck at \"%s\"" % output)
             if output == None:
                 if options.includes == []:
                     warn("Could not find luck / g_luck (1). Default search path to (gromacs-root-path)/share/gromacs/top is not set; please specify with -I")
@@ -92,7 +101,7 @@ def where_gromacs():
                 log("Found gromacs topology path %s" % p)
                 options.includes.append(p)
 
-    except OSError, e:
+    except OSError:
         pass
 
 carryover = {}
@@ -264,15 +273,17 @@ includes = ["-I" + i for i in options.includes]
 defines = ["-D" + d for d in options.defines]
 cmd = [options.cpp] + includes + defines + [options.topology]
 log("Invoking command: " + repr(cmd))
-ppw = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+
+ppw = popen2.Popen3(cmd)
+ppw.tochild.close()
 
 top = topology()
-top.parse_top(ppw.stdout)
+top.parse_top(ppw.fromchild)
 
-ppw.stdout.close()
-ppw.wait()
+ppw.fromchild.close()
+retcode = ppw.wait()
 
-if ppw.returncode != 0:
+if retcode != 0:
     warn("Warning: cpp reported an error on preprocessing. Perhaps you forgot to add gromacs default topology path (/usr/share/gromacs/top)?")
 
 mass_table = {
@@ -423,7 +434,7 @@ def gen(mode):
         if s in solutes and solute_merge:
             nmol = n
 
-        for i in range(nmol):
+        for _i in range(nmol):
             for (atype, _atom, charge, mass) in top.molecules[molno]:
                 eps = top.atom2epsilon[atype]
                 sig = top.atom2sigma[atype]
