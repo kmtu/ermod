@@ -96,6 +96,15 @@ if options.pdb:
 if options.solute:
     check_exists(options.solute)
 
+def save_parameters_fe(temp):
+    feparamf = "../parameters_fe"
+    if not os.path.exists(feparamf):
+        fh = open(feparamf, "wt")
+        print >> fh, "&fevars"
+        print >> fh, "temp=%f", temp
+        print >> fh, "/"
+        fh.close()
+
 # TODO: ljformat
 
 def parse_mdp():
@@ -123,6 +132,7 @@ def parse_mdp():
     logfh.close()
 
     params["inptemp"] = temp
+    save_parameters_fe(temp)
 
     if options.pdb:
         params['slttype'] = 2 # rigid
