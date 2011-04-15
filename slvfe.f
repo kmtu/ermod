@@ -150,6 +150,18 @@ c
       if(peread.ne.'yes') then
         cnt=ermax/numslv
         rduvmax(:)=cnt ; rduvcore(:)=pecore
+
+        ! check consistency
+        if(clcond.ne.'merge') opnfile=engfile(5)
+        if(clcond.eq.'merge') opnfile='soln/EcdInfo'
+        open(unit=71, file=opnfile, status='old', err=7899)
+        
+        ! Something is wrong ... 
+        close(71)
+        print *, 'Warning: EcdInfo file exists, but peread="no"'
+        print *, "Perhaps you forgot to set peread?"
+        
+7899    continue
       endif
       if(peread.eq.'yes') then
         open(unit=71,file=opnfile,status='old')
@@ -541,6 +553,11 @@ c
           if(k.ge.m) k=m
           idrduv(iduv)=k+j
 1703    continue
+        if((pti .eq. numslv) .and. (cnt + rduvmax(pti) - 1 .ne. ermax)) then
+          print *, "Error: The total no. of meshes does not match with input"
+          print *, "(Sum should be", ermax, " but was", cnt + rduvmax(pti) - 1, ")"
+          stop
+        endif
 1701  continue
 c
       allocate( uvcrd(gemax),edist(gemax),edens(gemax),uvspec(gemax) )
