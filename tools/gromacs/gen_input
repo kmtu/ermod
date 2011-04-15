@@ -62,19 +62,20 @@ def log(x):
     if options.verbose:
         print >> sys.stderr, x
 
-def warn_or_error(x):
+
+def warn_or_error(x, col):
     prefix = ""
     suffix = ""
     if os.isatty(sys.stderr.fileno()):
-        prefix = "\x1b[31;1m"
+        prefix = "\x1b[" + str(col) + ";1m"
         suffix = "\x1b[0m"
     print >> sys.stderr, prefix + x + suffix
 
 def warn(x):
-    warn_or_error("Warning: " + x)
+    warn_or_error("Warning: " + x, 33)
 
 def error(x):
-    warn_or_error("Error: " + x)
+    warn_or_error("Error: " + x, 31)
     sys.exit(1)
 
 if options.log == None:
@@ -91,10 +92,25 @@ check_exists("MDinfo")
 check_exists("SltInfo")
 check_exists(options.traj)
 check_exists(options.log)
-if options.pdb:
+if options.pdb != None:
     check_exists(options.pdb)
-if options.solute:
+if options.gro != None:
+    check_exists(options.gro)
+
+if options.solute != None:
     check_exists(options.solute)
+
+if (options.pdb != None or options.gro != None) and options.solute != None:
+    error("fixed structure (--pdb / --gro) and flexible structure (--solute) cannot be specified simultaneously")
+
+if options.pdb != None or options.gro != None or options.solute != None:
+    # insertion
+    if os.path.basename(os.getcwd()) != "refs":
+        warn("The option is specified for insertion (reference system), but current directory name does not match")
+else:
+    # solution
+    if os.path.basename(os.getcwd()) != "soln":
+        warn("The option is specified for solution system, but current directory name does not match")
 
 def save_parameters_fe(temp):
     feparamf = "../parameters_fe"
@@ -253,11 +269,13 @@ def convtraj(src, trunk):
     if trunk == "HISTORY":
         symlink(src, trunk)
         return
+    logfile = "conv.log"
     try:
-        retcode = os.system(" ".join(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel"]))
+        retcode = os.system(" ".join(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel", ">", logfile, "2>&1"]))
     except OSError:
-        retcode = os.system(" ".join(["trjconv_d", "-f", src, "-o", trunk + ".g96", "-novel"]))
-    assert(retcode == 0)
+        retcode = os.system(" ".join(["trjconv_d", "-f", src, "-o", trunk + ".g96", "-novel", ">", logfile, "2>&1"]))
+    if retcode != 0:
+        error("Error while converting trajectory: see " + logfile +  " for details")
     symlink(trunk + ".g96", trunk)
 
 # link or generate trajectory
