@@ -158,7 +158,7 @@ c
         
         ! Something is wrong ... 
         close(71)
-        print *, 'Warning: EcdInfo file exists, but peread="no"'
+        print *, 'Warning: EcdInfo file exists, but peread is not "yes"'
         print *, "Perhaps you forgot to set peread?"
         
 7899    continue
