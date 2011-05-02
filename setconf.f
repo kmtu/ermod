@@ -905,7 +905,8 @@ c
      #                   OUTntype,OUTnmol,OUTsite,OUTnrun,      ! from outside
      #                   OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
       integer, parameter :: large=1000000
-      real, parameter :: sgmcnv=2.0e0**(5.0e0/6.0e0) ! from Rmin/2 to sigma
+      ! only integer power is allowed as the initialization expression (7.1.6.1)
+      real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
       real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
       real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
       integer pti,stmax,uvtype,rftype,cmin,cmax,sid,i,ati,m
