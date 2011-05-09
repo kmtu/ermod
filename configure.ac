@@ -19,6 +19,16 @@ ACX_MPI_MY
 AC_LANG(Fortran)
 ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
+AC_OPENMP
+
+AC_DEFUN([MY_CHECK_BLAS], [
+  AC_LANG_PUSH(Fortran 77)
+  AC_MSG_CHECKING([for link with $1])
+  AC_CHECK_FUNC(sgemm, [blas_ok=yes], [blas_ok=no], [$2])
+  AC_MSG_CHECKING([$blas_ok])
+  AC_LANG_POP
+])
+
 AC_ARG_WITH([mkl],
   AS_HELP_STRING([--with-mkl[[=(MKL version)]]],
     [Automatically set environmental variables for MKL; for a specific version, use this option like --with-mkl=10.2.3]))
@@ -39,7 +49,20 @@ AS_IF([test "x$with_mkl" != "x"],
       [AC_MSG_FAILURE([could not get MKL version; set MKLROOT or use --with-mkl=(version number)])],
       mklroot="$MKLROOT"),
     mklroot="/opt/intel/mkl/$with_mkl")
+  # Here comes super-duper crazily dirty MKL versioning checker
+  # check 10.0 - 10.2
   with_blas="-L$mklroot/lib/$mkl_plat -lmkl_solver_lp64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group -lguide -lpthread"
+  MY_CHECK_BLAS([MKL 10.0-10.2], 
+                [$with_blas])
+  AS_IF([test "x$blas_ok" = "xyes"],
+        [],
+	# check for 10.3
+	[with_blas="-L$mklroot/lib/$mkl_plat -lmkl_rt $OPENMP_FCFLAGS -lpthread"
+         MY_CHECK_BLAS([MKL 10.3+],
+                       [$with_blas])
+         AS_IF([test "x$blas_ok" = "xyes"],
+               [],
+               [AC_MSG_WARN([Failed to find appropriate MKL. If you are using old mkl, please update])])])
   with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"
   FCFLAGS="-I$mklroot/include $FCFLAGS"
 ])
