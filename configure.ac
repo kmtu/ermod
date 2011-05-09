@@ -80,11 +80,13 @@ AC_CACHE_CHECK([how to extend column width],
 my_f77_extend_source_cv_flag,
 [AC_LANG_PUSH(Fortran 77)
 save_FFLAGS=$FFLAGS
-for flag in "" "-ffixed-line-length-132" "-extend-source"; do
+# following switches for: default, gfortran, ifort, xlf, Fujitsu f90
+for flag in "" "-ffixed-line-length-132" "-extend-source" "-qfixed=132" "-w"; do
 FFLAGS="$save_FFLAGS $flag"
   AC_COMPILE_IFELSE([      program main
-                                                                                test
-      end program], [my_check_f77_extend=no], [my_check_f77_extend=yes])
+      integer :: foo
+                                                                               foo=1
+      end program], [my_check_f77_extend=yes], [my_check_f77_extend=no])
   if test $my_check_f77_extend = yes; then
     break
   fi
@@ -104,7 +106,8 @@ AC_CACHE_CHECK([how to read real as real(8) as default],
 my_fc_real_double_cv_flag,
 [AC_LANG_PUSH(Fortran)
 save_FCFLAGS=$FCFLAGS
-for flag in "" "-fdefault-real-8" "-autodouble"; do
+# for default, gfortran, ifort, xlf, Fujitsu f90
+for flag in "" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-A d"; do
 FCFLAGS="$save_FCFLAGS $flag"
   AC_RUN_IFELSE(
     [AC_LANG_PROGRAM([], [dnl
