@@ -2,7 +2,7 @@
 
 AC_PREREQ([2.59])
 #AC_INIT(enerepr, 0.1.%rev%, Matubayasi Laboratory)
-AC_INIT(enerepr, 0.1.91, Matubayasi Laboratory)
+AC_INIT(enerepr, 0.1.221, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
@@ -19,6 +19,20 @@ ACX_MPI_MY
 AC_LANG(Fortran)
 ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
+AC_OPENMP
+
+AC_DEFUN([MY_CHECK_BLAS], [
+  AC_LANG_PUSH(Fortran 77)
+  AC_MSG_CHECKING([whether $1 is available])
+  save_FFLAGS=$FFLAGS
+  FFLAGS="$FFLAGS $2"
+  AC_LINK_IFELSE([AC_LANG_CALL([], [sgemm])],
+                 [blas_ok=yes], [blas_ok=no])
+  FFLAGS=$save_FFLAGS
+  AC_MSG_RESULT([$blas_ok])
+  AC_LANG_POP
+])
+
 AC_ARG_WITH([mkl],
   AS_HELP_STRING([--with-mkl[[=(MKL version)]]],
     [Automatically set environmental variables for MKL; for a specific version, use this option like --with-mkl=10.2.3]))
@@ -27,9 +41,11 @@ AS_IF([test "x$with_mkl" != "x"],
   [case x`uname -m` in # (
   xx86_64) :
   mkl_plat=em64t
+  mkl_platnew=intel64
   ;; # (
   xi386) :
   mkl_plat=32
+  mkl_platnew=ia32
   ;; # (
   *) :
   ;;
@@ -39,7 +55,20 @@ AS_IF([test "x$with_mkl" != "x"],
       [AC_MSG_FAILURE([could not get MKL version; set MKLROOT or use --with-mkl=(version number)])],
       mklroot="$MKLROOT"),
     mklroot="/opt/intel/mkl/$with_mkl")
+  # Here comes super-duper crazily dirty MKL versioning checker
+  # check 10.0 - 10.2
   with_blas="-L$mklroot/lib/$mkl_plat -lmkl_solver_lp64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group -lguide -lpthread"
+  MY_CHECK_BLAS([MKL 10.0-10.2], 
+                [$with_blas])
+  AS_IF([test "x$blas_ok" = "xyes"],
+        [],
+	# check for 10.3
+	[with_blas="-L$mklroot/lib/$mkl_platnew -lmkl_rt $OPENMP_FCFLAGS -lpthread"
+         MY_CHECK_BLAS([MKL 10.3+],
+                       [$with_blas])
+         AS_IF([test "x$blas_ok" = "xyes"],
+               [],
+               [AC_MSG_WARN([Failed to find appropriate MKL. If you are using old mkl, please update])])])
   with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"
   FCFLAGS="-I$mklroot/include $FCFLAGS"
 ])
@@ -83,9 +112,11 @@ save_FFLAGS=$FFLAGS
 # following switches for: default, gfortran, ifort, xlf, Fujitsu f90
 for flag in "" "-ffixed-line-length-132" "-extend-source" "-qfixed=132" "-w"; do
 FFLAGS="$save_FFLAGS $flag"
+  # some compiler cuts line in 72 column, others 80 column
   AC_COMPILE_IFELSE([      program main
-      integer :: foo
-                                                                               foo=1
+      implicit none
+      integer :: foobarbazbaaz
+                                                                      foobarbazbaaz=1
       end program], [my_check_f77_extend=yes], [my_check_f77_extend=no])
   if test $my_check_f77_extend = yes; then
     break

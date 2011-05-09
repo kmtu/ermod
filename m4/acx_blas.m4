@@ -80,11 +80,14 @@ case $with_blas in
 esac
 
 # Get fortran linker names of BLAS functions to check for.
-AC_F77_FUNC(sgemm)
-AC_F77_FUNC(dgemm)
+#AC_F77_FUNC(sgemm)
+#AC_F77_FUNC(dgemm)
+AC_LANG_PUSH(Fortran 77)
+sgemm=sgemm
+dgemm=dgemm
 
 acx_blas_save_LIBS="$LIBS"
-LIBS="$LIBS $FLIBS"
+#LIBS="$LIBS $FLIBS"
 
 # First, check BLAS_LIBS environment variable
 if test $acx_blas_ok = no; then
@@ -106,13 +109,16 @@ fi
 
 # BLAS in ATLAS library? (http://math-atlas.sourceforge.net/)
 if test $acx_blas_ok = no; then
+        AC_LANG_PUSH(C)
 	AC_CHECK_LIB(atlas, ATL_xerbla,
-		[AC_CHECK_LIB(f77blas, $sgemm,
-		[AC_CHECK_LIB(cblas, cblas_dgemm,
+		[AC_LANG_PUSH(Fortran 77)
+                 AC_CHECK_LIB(f77blas, $sgemm,
 			[acx_blas_ok=yes
-			 BLAS_LIBS="-lcblas -lf77blas -latlas"],
-			[], [-lf77blas -latlas])],
-			[], [-latlas])])
+			 BLAS_LIBS="-lf77blas -latlas"],
+			[], [-lf77blas -latlas])
+                 AC_LANG_POP],
+		[], [-latlas])
+        AC_LANG_POP
 fi
 
 # BLAS in PhiPACK libraries? (requires generic BLAS lib, too)
@@ -182,6 +188,8 @@ if test $acx_blas_ok = no; then
 fi
 
 AC_SUBST(BLAS_LIBS)
+
+AC_LANG_POP
 
 LIBS="$acx_blas_save_LIBS"
 

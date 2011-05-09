@@ -78,7 +78,10 @@ case $with_lapack in
 esac
 
 # Get fortran linker name of LAPACK function to check for.
-AC_F77_FUNC(cheev)
+#AC_F77_FUNC(cheev)
+cheev=cheev
+
+AC_LANG_PUSH(Fortran 77)
 
 # We cannot use LAPACK if BLAS is not found
 if test "x$acx_blas_ok" != xyes; then
@@ -116,6 +119,8 @@ for lapack in lapack lapack_rs6k; do
 done
 
 AC_SUBST(LAPACK_LIBS)
+
+AC_LANG_POP
 
 # Finally, execute ACTION-IF-FOUND/ACTION-IF-NOT-FOUND:
 if test x"$acx_lapack_ok" = xyes; then
