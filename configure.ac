@@ -24,11 +24,11 @@ AC_OPENMP
 AC_DEFUN([MY_CHECK_BLAS], [
   AC_LANG_PUSH(Fortran 77)
   AC_MSG_CHECKING([whether $1 is available])
-  save_FFLAGS=$FFLAGS
-  FFLAGS="$FFLAGS $2"
+  save_LIBS=$LIBS
+  LIBS="$LIBS $2"
   AC_LINK_IFELSE([AC_LANG_CALL([], [sgemm])],
                  [blas_ok=yes], [blas_ok=no])
-  FFLAGS=$save_FFLAGS
+  LIBS=$save_LIBS
   AC_MSG_RESULT([$blas_ok])
   AC_LANG_POP
 ])
