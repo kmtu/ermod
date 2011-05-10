@@ -226,9 +226,15 @@ AC_ARG_ENABLE([mpi],
 # Checks for library functions.
 
 # FIXME: check cpp flags
+
+AC_ARG_ENABLE([defaults],
+	AS_HELP_STRING([--disable-defaults],
+		[Disable deafult flags]))
+
+AS_IF([test x$enable_defaults != xno],
 CFLAGS="$CFLAGS -g"
 FFLAGS="$FFLAGS -g -cpp -Dtrjctry"
-FCFLAGS="$FCFLAGS -g -cpp -Dtrjctry"
+FCFLAGS="$FCFLAGS -g -cpp -Dtrjctry")
 
 AC_ARG_ENABLE([perf],
 	AS_HELP_STRING([--enable-perf],
