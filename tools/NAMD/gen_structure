@@ -213,7 +213,7 @@ def read_psf(fname):
                 l = fh.next() # single dummy line after each block
                 if options.verbose:
                     print >> sys.stderr, "Finished reading atoms section"
-            elif section[1] == "!NBOND:":
+            elif section[1].rstrip(":") == "!NBOND":
                 nbs = int(section[0].strip())
                 while True:
                     l = fh.next()
