@@ -193,6 +193,9 @@ def read_psf(fname):
             section = fh.next().split()
             if section == []:
                 continue
+            if len(section) <= 1:
+                error("Unknown PSF file format")
+            section[1] = section[1].rstrip(":")
             if section[1] == "!NTITLE":
                 title_lines = int(section[0].strip())
                 for i in range(title_lines):
@@ -213,7 +216,7 @@ def read_psf(fname):
                 l = fh.next() # single dummy line after each block
                 if options.verbose:
                     print >> sys.stderr, "Finished reading atoms section"
-            elif section[1].rstrip(":") == "!NBOND":
+            elif section[1] == "!NBOND":
                 nbs = int(section[0].strip())
                 while True:
                     l = fh.next()
