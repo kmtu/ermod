@@ -10,14 +10,21 @@ AC_CONFIG_MACRO_DIR(m4)
 AC_PROG_CPP
 AC_PROG_CC([icc gcc cc fcc])
 AC_PROG_CC_C_O
-AC_PROG_F77([ifort gfortran xlf f90 g77 xlf90])
-AC_PROG_FC([ifort gfortran xlf f77 g95 xlf77])
+AC_PROG_F77([ifort gfortran xlf f77 frt g77 xlf77])
+AC_PROG_FC([ifort gfortran xlf f95 f90 g95 xlf90])
 
 # modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran 77)
 ACX_MPI_MY
 AC_LANG(Fortran)
 ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
+
+AS_IF([test "x$F77" = "x"],
+      [AC_MSG_ERROR("Failed to find Fortran Compiler (Fortran 77). Set environment variable F77 to work around")]
+      [])
+AS_IF([test "x$FC" = "x"],
+      [AC_MSG_ERROR("Failed to find Fortran Compiler (Fortran 90). Set environment variable FC to work around")]
+      [])
 
 AC_OPENMP
 
