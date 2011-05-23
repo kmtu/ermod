@@ -117,7 +117,7 @@ def save_parameters_fe(temp):
     if not os.path.exists(feparamf):
         fh = open(feparamf, "wt")
         print >> fh, "&fevars"
-        print >> fh, "temp=%f", temp
+        print >> fh, "inptemp=%f" % temp
         print >> fh, "/"
         fh.close()
 
