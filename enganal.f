@@ -821,8 +821,8 @@ c
          endif
          dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
          rst=sqrt(dis2)
-         if((rst.gt.upljcut).or.(i.eq.j)) eplj=0.0e0
-         if((rst.le.upljcut).and.(i.ne.j)) then
+         if((i.eq.j).or.(rst.gt.upljcut)) eplj=0.0e0
+         if((i.ne.j).and.(rst.le.upljcut)) then
            ljeps=sqrt(ljene(ati)*ljene(atj))
            if(cmbrule.eq.0) ljsgm=(ljlen(ati)+ljlen(atj))/2.0e0
            if(cmbrule.eq.1) ljsgm=sqrt(ljlen(ati)*ljlen(atj))
