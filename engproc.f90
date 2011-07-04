@@ -827,7 +827,6 @@ contains
     integer is,js,ismax,ati,atj,m,k
     real reelcut,chr2,rst,dis2,rtp1
     real epcl,xst(3),clm(3),swth
-    real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
     pairep=0.0e0
     ismax=numsite(i)
@@ -845,22 +844,15 @@ contains
 
        do js=is+1,ismax
           atj=specatm(js,i)
-          do m=1,3
-             xst(m)=sitepos(m,ati)-sitepos(m,atj)
-          enddo
+          xst(:)=sitepos(:,ati)-sitepos(:,atj)
+
           if(boxshp.ne.0) then  ! when the system is periodic
              do k=1,3
-                rst=0.0e0
-                do m=1,3
-                   rst=rst+invcl(k,m)*xst(m)
-                enddo
+                rst=dot_product(invcl(k,:), xst(:))
                 clm(k)=real(nint(rst))
              enddo
              do m=1,3
-                rst=0.0e0
-                do k=1,3
-                   rst=rst+cell(m,k)*clm(k)
-                enddo
+                rst=dot_product(cell(m,:), clm(:))
                 xst(m)=xst(m)-rst ! get the nearest distance between i,j
              enddo
           endif
