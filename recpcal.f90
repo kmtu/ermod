@@ -241,7 +241,6 @@ contains
     implicit none
     integer, intent(in) :: slvmax, tagpt(slvmax)
     integer :: m, k, rci, rcimax, spi
-    real :: chr, factor, cosk, sink, rtp2
     complex :: rcpi
     integer :: gridsize(3), ptrnk
 
@@ -265,31 +264,9 @@ contains
     ! initialize spline table for all axes
     allocate( splfc1(rc1min:rc1max),splfc2(rc2min:rc2max),&
          splfc3(rc3min:rc3max) )
-    do m=1,3
-       if(m.eq.1) then
-          k=rc1min ; rcimax=rc1max
-       endif
-       if(m.eq.2) then
-          k=rc2min ; rcimax=rc2max
-       endif
-       if(m.eq.3) then
-          k=rc3min ; rcimax=rc3max
-       endif
-       do rci=k,rcimax
-          rcpi=(0.0e0,0.0e0)
-          do spi=0,splodr-2
-             chr=spline_value(real(spi+1))
-             rtp2=2.0e0*pi*real(spi*rci)/real(rcimax+1)
-             cosk=chr*cos(rtp2)
-             sink=chr*sin(rtp2)
-             rcpi=rcpi+cmplx(cosk,sink)
-          end do
-          factor=real(rcpi*conjg(rcpi))
-          if(m.eq.1) splfc1(rci)=factor
-          if(m.eq.2) splfc2(rci)=factor
-          if(m.eq.3) splfc3(rci)=factor
-       end do
-    end do
+    call init_spline_axis(rc1min, rc1max, splfc1)
+    call init_spline_axis(rc2min, rc2max, splfc2)
+    call init_spline_axis(rc3min, rc3max, splfc3)
     ! allocate fft-buffers
     allocate( fft_buf(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
     gridsize(1) = ms1max
@@ -302,6 +279,34 @@ contains
     call fft_init_inplace(rcpslt)
     call fft_init_ctc(fft_buf, cnvslt)
   end subroutine recpcal_init
+
+  subroutine init_spline_axis(imin, imax, splfc)
+    use engmain, only: splodr, pi
+    use spline, only: spline_value
+    implicit none
+    integer, intent(in) :: imin, imax
+    real, intent(out) :: splfc(imin:imax)
+    real :: chr, factor,rtp2
+    real :: cosk, sink
+    integer :: k, m
+    integer :: rci
+    integer :: rcimax
+    complex :: rcpi
+    integer :: spi
+    do rci=imin,imax
+       rcpi=(0.0e0,0.0e0)
+       do spi=0,splodr-2
+          chr=spline_value(real(spi+1))
+          rtp2=2.0e0*pi*real(spi*rci)/real(imax+1)
+          cosk=chr*cos(rtp2)
+          sink=chr*sin(rtp2)
+          rcpi=rcpi+cmplx(cosk,sink)
+       end do
+       factor=real(rcpi*conjg(rcpi))
+       splfc1(rci)=factor
+    end do
+  end subroutine
+
 
   ! FIXME
   subroutine eng_stop(type)
