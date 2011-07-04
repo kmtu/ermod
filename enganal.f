@@ -68,11 +68,11 @@ c
       subroutine enginit
 c
       use engmain, only: numtype,nummol,engdiv,corrcal,slttype,
-     #                   moltype,sluvid,
-     #                   ermax,numslv,uvmax,uvsoft,esmax,uvspec,
-     #                   uvcrd,edens,ecorr,escrd,eself,
-     #                   aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,
-     #                   ene_param, ene_confname
+     &                   moltype,sluvid,
+     &                   ermax,numslv,uvmax,uvsoft,esmax,uvspec,
+     &                   uvcrd,edens,ecorr,escrd,eself,
+     &                   aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,
+     &                   ene_param, ene_confname
 c
       implicit real(a-h,k-z)
       implicit integer(i,j)
@@ -94,8 +94,8 @@ c
       integer, parameter :: paramfile_io=191
       integer :: param_err
       namelist /hist/ ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,
-     #                eclbin, ecfbin, ec0bin, finfac, ectmvl, 
-     #                peread, pemax, pesoft, pecore
+     &                eclbin, ecfbin, ec0bin, finfac, ectmvl,
+     &                peread, pemax, pesoft, pecore
 c
       allocate( tplst(nummol) )
       numslt=0
@@ -285,7 +285,7 @@ c
 c
       subroutine engclear
       use engmain, only: corrcal,slttype,ermax,numslv,esmax,
-     #                   edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl
+     &                   edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl
       integer iduv,iduvp,pti
       do 3501 iduv=1,ermax
         edens(iduv)=0.0e0
@@ -315,12 +315,12 @@ c
       subroutine engconst(stnum)
 c
       use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,
-     #                   estype,sluvid,temp,volume,plmode,
-     #                   maxins,ermax,numslv,esmax,uvspec,
-     #                   edens,ecorr,eself,
-     #                   slnuv,avslf,minuv,maxuv,numslt,sltlist,
-     #                   engnorm,engsmpl,voffset,
-     #                   boxshp, cltype, cell
+     &                   estype,sluvid,temp,volume,plmode,
+     &                   maxins,ermax,numslv,esmax,uvspec,
+     &                   edens,ecorr,eself,
+     &                   slnuv,avslf,minuv,maxuv,numslt,sltlist,
+     &                   engnorm,engsmpl,voffset,
+     &                   boxshp, cltype, cell
       use ptinsrt, only: instslt
       use realcal_blk, only: realcal_proc
       use mpiproc                                                      ! MPI
@@ -358,7 +358,7 @@ c
       slvmax=0
       do 3001 i=1+ptinit,nummol,ptskip
          if((slttype.eq.1) .or. 
-     #      ((slttype.ge.2).and.(sluvid(i).eq.0))) then
+     &      ((slttype.ge.2).and.(sluvid(i).eq.0))) then
             slvmax=slvmax+1
             tplst(slvmax)=i ! which particle is treated by this node?
         endif
@@ -463,7 +463,7 @@ c
             if(dsinit.eq.0) voffset=factor
 #ifndef noMPI
             if(plmode.eq.1) call mpi_bcast(voffset,1,                  ! MPI
-     #                mpi_double_precision,0,mpi_comm_world,ierror)    ! MPI
+     &                mpi_double_precision,0,mpi_comm_world,ierror)    ! MPI
 #endif
           endif
           factor=factor-voffset               ! shifted by offset
@@ -507,9 +507,9 @@ c
 #ifndef noMPI
         if(plmode.eq.0) then
           call mpi_allreduce(insdst,engdst,ermax,                      ! MPI
-     #                mpi_integer,mpi_sum,mpi_comm_world,ierror)       ! MPI
+     &                mpi_integer,mpi_sum,mpi_comm_world,ierror)       ! MPI
           call mpi_allreduce(flceng,svfl,numslv,mpi_double_precision,  ! MPI
-     #                mpi_sum,mpi_comm_world,ierror)                   ! MPI
+     &                mpi_sum,mpi_comm_world,ierror)                   ! MPI
           do 1331 iduv=1,ermax                                         ! MPI
             insdst(iduv)=engdst(iduv)                                  ! MPI
 1331      continue                                                     ! MPI
@@ -569,10 +569,10 @@ c
       subroutine engstore(stnum)
 c
       use engmain, only: nummol,maxcnf,engdiv,corrcal,slttype,wgtslf,
-     #                   plmode,ermax,numslv,esmax,temp,
-     #                   edens,ecorr,eself,
-     #                   aveuv,slnuv,avediv,avslf,minuv,maxuv,
-     #                   engnorm,engsmpl,voffset
+     &                   plmode,ermax,numslv,esmax,temp,
+     &                   edens,ecorr,eself,
+     &                   aveuv,slnuv,avediv,avslf,minuv,maxuv,
+     &                   engnorm,engsmpl,voffset
       use mpiproc                                                      ! MPI
       integer stnum,i,pti,j,iduv,iduvp,k,q,cntdst
       character*10, parameter :: numbers='0123456789'
@@ -586,20 +586,20 @@ c
 #ifndef noMPI
       if(plmode.eq.1) then                                             ! MPI
         call mpi_reduce(avslf,factor,1,                                ! MPI
-     #       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
+     &       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
         avslf=factor                                                   ! MPI
         call mpi_reduce(engnorm,factor,1,                              ! MPI
-     #       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
+     &       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
         engnorm=factor                                                 ! MPI
         call mpi_reduce(engsmpl,factor,1,                              ! MPI
-     #       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
+     &       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
         engsmpl=factor                                                 ! MPI
         allocate( sve1(esmax) )                                        ! MPI
         do 7701 iduv=1,esmax                                           ! MPI
           sve1(iduv)=eself(iduv)                                       ! MPI
 7701    continue                                                       ! MPI
         call mpi_reduce(sve1,eself,esmax,                              ! MPI
-     #       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
+     &       mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
         deallocate( sve1 )                                             ! MPI
       endif                                                            ! MPI
       allocate( sve1(0:numslv),sve2(0:numslv) )                        ! MPI
@@ -608,16 +608,16 @@ c
         sve2(pti)=maxuv(pti)                                           ! MPI
 7731  continue                                                         ! MPI
       call mpi_reduce(sve1,minuv,numslv+1,                             ! MPI
-     #     mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)       ! MPI
+     &     mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)       ! MPI
       call mpi_reduce(sve2,maxuv,numslv+1,                             ! MPI
-     #     mpi_double_precision,mpi_max,0,mpi_comm_world,ierror)       ! MPI
+     &     mpi_double_precision,mpi_max,0,mpi_comm_world,ierror)       ! MPI
       deallocate( sve1,sve2 )                                          ! MPI
       allocate( sve1(ermax) )                                          ! MPI
       do 7502 iduv=1,ermax                                             ! MPI
         sve1(iduv)=edens(iduv)                                         ! MPI
 7502  continue                                                         ! MPI
       call mpi_reduce(sve1,edens,ermax,                                ! MPI
-     #     mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)       ! MPI
+     &     mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)       ! MPI
       deallocate( sve1 )                                               ! MPI
 #endif
       do 7501 iduv=1,ermax
@@ -631,7 +631,7 @@ c
             sve1(iduvp)=ecorr(iduvp,iduv)                              ! MPI
 7513      continue                                                     ! MPI
           call mpi_reduce(sve1,sve2,ermax,                             ! MPI
-     #         mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)   ! MPI
+     &         mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)   ! MPI
           do 7514 iduvp=1,ermax                                        ! MPI
             ecorr(iduvp,iduv)=sve2(iduvp)                              ! MPI
 7514      continue                                                     ! MPI
@@ -773,9 +773,9 @@ c
       subroutine realcal(i,j,pairep)
 c
       use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,
-     #                    elecut,lwljcut,upljcut,cmbrule,cltype,screen,
-     #                    charge,ljene,ljlen,specatm,sitepos,
-     #                    cell,invcl,volume
+     &                    elecut,lwljcut,upljcut,cmbrule,cltype,screen,
+     &                    charge,ljene,ljlen,specatm,sitepos,
+     &                    cell,invcl,volume
       integer i,j,is,js,ismax,jsmax,ati,atj,m,k
       real pi,reelcut,pairep,ljeps,ljsgm,chr2,rst,dis2,rtp1,rtp2
       real eplj,epcl,xst(3),clm(3),swth
@@ -833,7 +833,7 @@ c
              rtp1=lwljcut*lwljcut
              rtp2=upljcut*upljcut
              swth=(2.0e0*dis2+rtp2-3.0e0*rtp1)*(dis2-rtp2)*(dis2-rtp2)
-     #           /(rtp2-rtp1)/(rtp2-rtp1)/(rtp2-rtp1)
+     &           /(rtp2-rtp1)/(rtp2-rtp1)/(rtp2-rtp1)
              eplj=swth*eplj
            endif
          endif
@@ -892,7 +892,7 @@ c
 c
       subroutine volcorrect(engnmfc)
       use engmain, only:  nummol,maxsite,numatm,temp,numsite,sluvid,
-     #                    cltype,screen,charge,specatm,volume
+     &                    cltype,screen,charge,specatm,volume
       integer i,ati,sid,stmax
       real pi,factor,engnmfc
       engnmfc=volume*engnmfc
@@ -919,9 +919,9 @@ c
       use engmain, only:  cell,invcl,volume
       integer m,k
       volume=cell(1,1)*cell(2,2)*cell(3,3)
-     #      +cell(1,2)*cell(2,3)*cell(3,1)+cell(1,3)*cell(2,1)*cell(3,2)
-     #      -cell(1,3)*cell(2,2)*cell(3,1)
-     #      -cell(1,2)*cell(2,1)*cell(3,3)-cell(1,1)*cell(2,3)*cell(3,2)
+     &      +cell(1,2)*cell(2,3)*cell(3,1)+cell(1,3)*cell(2,1)*cell(3,2)
+     &      -cell(1,3)*cell(2,2)*cell(3,1)
+     &      -cell(1,2)*cell(2,1)*cell(3,3)-cell(1,1)*cell(2,3)*cell(3,2)
       invcl(1,1)=cell(2,2)*cell(3,3)-cell(2,3)*cell(3,2)
       invcl(1,2)=cell(1,3)*cell(3,2)-cell(1,2)*cell(3,3)
       invcl(1,3)=cell(1,2)*cell(2,3)-cell(1,3)*cell(2,2)
@@ -943,13 +943,13 @@ c
       subroutine recpcal(tagslt,i,pairep,slvmax,tagpt,scheme)
 c
       use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,
-     #                    cltype,screen,splodr,charge,
-     #                    ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
-     #                    specatm,sitepos,invcl,volume
+     &                    cltype,screen,splodr,charge,
+     &                    ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
+     &                    specatm,sitepos,invcl,volume
       use spline, only: spline_init, spline_value
       use fft_iface, only: fft_init_ctc, fft_init_inplace, 
-     #                     fft_ctc, fft_inplace,
-     #                     fft_set_size
+     &                     fft_ctc, fft_inplace,
+     &                     fft_set_size
       integer tagslt,i,ptrnk,slvmax,tagpt(slvmax)
       integer svi,uvi,ati,sid,stmax,m,k
       integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3,grid1
@@ -996,7 +996,7 @@ c
           rc2min=-ew2max ; rc2max=ew2max
           rc3min=-ew3max ; rc3max=ew3max
           allocate( rcpslv(rc1min:rc1max,rc2min:rc2max,
-     #                                   rc3min:rc3max,ptrnk) )
+     &                                   rc3min:rc3max,ptrnk) )
         endif
         if(cltype.eq.2) then                                 ! PME
           rc1min=0 ; rc1max=ms1max-1
@@ -1007,7 +1007,7 @@ c
           allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
           ! initialize spline table for all axes
           allocate( splfc1(rc1min:rc1max),splfc2(rc2min:rc2max),
-     #                                    splfc3(rc3min:rc3max) )
+     &                                    splfc3(rc3min:rc3max) )
           do 3251 m=1,3
             if(m.eq.1) then ; k=rc1min ; rcimax=rc1max ; endif
             if(m.eq.2) then ; k=rc2min ; rcimax=rc2max ; endif
@@ -1183,7 +1183,7 @@ c
                   rc2=modulo(grdval(2,sid)-cg2,ms2max)
                   rc3=modulo(grdval(3,sid)-cg3,ms3max)
                   factor=chr*splval(cg1,1,sid)*splval(cg2,2,sid)
-     #                                        *splval(cg3,3,sid)
+     &                                        *splval(cg3,3,sid)
                   rcpi=cmplx(factor,0.0e0)
                   rcpslt(rc1,rc2,rc3)=rcpslt(rc1,rc2,rc3)+rcpi
 5233            continue
