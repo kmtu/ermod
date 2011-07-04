@@ -271,6 +271,12 @@ contains
     deallocate( splval,grdval )
   end subroutine recpcal_prepare
 
+  subroutine recpcal_self_energy(pairep)
+    implicit none
+    real, intent(out) :: pairep
+
+    pairep = 0.5 * sum(engfac(:, :, :) * real(rcpslt(:, :, :) * conjg(rcpslt(:, :, :))))
+  end subroutine recpcal_self_energy
 
   subroutine recpcal_energy(tagslt, i, pairep)
     use engmain, only: ms1max, ms2max, ms3max, splodr, numsite, specatm, sluvid, charge
@@ -287,15 +293,7 @@ contains
     k=sluvid(tagslt)
     if(k.eq.0) call eng_stop('fst')
     if(tagslt.eq.i) then              ! solute self-energy
-       do rc3=rc3min,rc3max
-          do rc2=rc2min,rc2max
-             do rc1=rc1min,rc1max
-                rcpt=rcpslt(rc1,rc2,rc3)
-                pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpt))
-             end do
-          end do
-       end do
-       pairep=pairep/2.0e0
+       call recpcal_self_energy(pairep)
     endif
 
     if(tagslt.ne.i) then              ! solute-solvent pair interaction
