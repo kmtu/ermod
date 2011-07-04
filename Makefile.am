@@ -32,7 +32,7 @@ ermod_gromacs-engproc.$(OBJEXT): engproc.f90 param_eng ermod_gromacs-insertion.$
 ermod_gromacs-enganal.$(OBJEXT): enganal.f stranal.f param_eng ermod_gromacs-engproc.$(OBJEXT)
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DGROMACS -DVMDPLUGINS $(extra_flags) -c -o $@ $<
 
-ermod_gromacs-insertion.$(OBJEXT): insertion.f param_eng
+ermod_gromacs-insertion.$(OBJEXT): insertion.f param_eng ermod_gromacs-setconf.$(OBJEXT)
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DGROMACS -DVMDPLUGINS $(extra_flags) -c -o $@ $<
 
 ermod_gromacs-setconf.$(OBJEXT): setconf.f param_eng
@@ -47,7 +47,7 @@ ermod_namd-engproc.$(OBJEXT): engproc.f90 param_eng ermod_namd-insertion.$(OBJEX
 ermod_namd-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng ermod_namd-engproc.$(OBJEXT)
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DNAMD -c -o $@ $<
 
-ermod_namd-insertion.$(OBJEXT): insertion.f param_eng
+ermod_namd-insertion.$(OBJEXT): insertion.f param_eng ermod_namd-setconf.$(OBJEXT)
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DNAMD -c -o $@ $<
 
 ermod_namd-setconf.$(OBJEXT): setconf.f param_eng
