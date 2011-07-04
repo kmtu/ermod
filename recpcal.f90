@@ -12,55 +12,6 @@ module reciprocal
   complex, allocatable :: fft_buf(:, :, :)
 
 contains
-  subroutine recpcal(tagslt,i,pairep,slvmax,tagpt,scheme)
-    !
-    use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
-         cltype,screen,splodr,charge,&
-         ms1max,ms2max,ms3max,&
-         specatm,sitepos,invcl,volume
-    use spline, only: spline_init, spline_value
-    use fft_iface, only: fft_init_ctc, fft_init_inplace, &
-         fft_ctc, fft_inplace,&
-         fft_set_size
-    implicit none
-    integer, intent(in) :: tagslt, i, slvmax, tagpt(slvmax)
-    real, intent(inout) :: pairep
-    character(len=6), intent(in) :: scheme
-    integer ptrnk
-    integer svi,uvi,ati,sid,stmax,m,k
-    integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3,grid1
-    real pi,chr,xst(3),inm(3),rtp2,cosk,sink,factor,fac1,fac2,fac3
-    complex rcpi,rcpt
-    !
-    integer :: si, gridsize(3)
-    !
-    if(cltype.eq.0) then                                   ! bare Coulomb
-       pairep=0.0e0
-       return
-    endif
-    if(cltype == 1) stop "recpcal.f90: Ewald force is no longer supported"
-    !
-    pi=real(4)*atan(real(1))
-    !
-    if(scheme.eq.'alloct') then
-       call recpcal_init(slvmax, tagpt)
-    endif
-    !
-    if(scheme.eq.'preeng') then
-       call recpcal_spline_greenfunc()
-    endif
-    !
-    if((scheme.eq.'slvenv').or.(scheme.eq.'sltsys')) then
-       call recpcal_prepare(tagslt, i, scheme)
-    endif
-    !
-    if(scheme.eq.'energy') then
-       call recpcal_energy(tagslt, i, pairep)
-    endif
-    !
-    return
-  end subroutine recpcal
-
   subroutine recpcal_init(slvmax, tagpt)
     use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
          cltype,screen,splodr,charge,&

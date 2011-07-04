@@ -265,7 +265,7 @@ contains
          boxshp, cltype, cell
     use ptinsrt, only: instslt
     use realcal_blk, only: realcal_proc
-    use reciprocal, only: recpcal, &
+    use reciprocal, only: &
          recpcal_init, recpcal_prepare, recpcal_energy, recpcal_spline_greenfunc
     use mpiproc                                                      ! MPI
     integer, parameter :: flcio=91                    ! IO unit for flcuv
@@ -316,7 +316,7 @@ contains
     !
     call cellinfo
     !
-    if(stnum.eq.skpcnf) then                ! Ewald and PME initialization
+    if(stnum.eq.skpcnf) then                ! PME initialization
        call recpcal_init(slvmax,tagpt)
     endif
 
@@ -378,25 +378,30 @@ contains
           call realcal_proc(tagslt, tagpt, slvmax, uvengy)
        endif
 
-       do k=0,slvmax
-          if(k.eq.0) i=tagslt   ! solute self
-          if(k.gt.0) then       ! solute-solvent pair
-             i=tagpt(k)
-             if(i.eq.tagslt) cycle
-          endif
+       ! solute-solute self energy
+       i = tagslt
+       if(slttype.eq.2) then ! rigid solute == never changed
+          pairep=usreal
+       else
+          call realcal(tagslt, tagslt, pairep) ! calculate self-interaction
+       endif
+       call recpcal_energy(tagslt, tagslt, factor)
+       uvengy(0) = uvengy(0) + factor
+       
+       ! solute-solvent pair
+       do k=1,slvmax
+          i=tagpt(k)
+          if(i.eq.tagslt) cycle
 
-          if(cltype /= 0 .and. k /= 0) then ! called only when ewald-type, pair interaction
-             pairep = 0
+          pairep = 0
+          factor = 0
+          if(cltype == 2) then ! called only when PME, non-self interaction
              call residual_ene(tagslt, i, pairep)
+             call recpcal_energy(tagslt, i, factor)
+             pairep = pairep + factor
           else
-             if((slttype.eq.2).and.(k.eq.0)) then ! rigid solute self real part
-                pairep=usreal
-             else
-                call realcal(tagslt,i,pairep) ! usual case or self-interaction
-             endif
+             call realcal(tagslt,i,pairep) ! usual case or self-interaction
           endif
-          if(cltype == 2) call recpcal_energy(tagslt, i, factor)
-          pairep = pairep + factor
           uvengy(k) = uvengy(k) + pairep
        enddo
        !

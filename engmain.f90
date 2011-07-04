@@ -185,6 +185,11 @@ module engmain
 
   real :: lwreg,upreg
 
+  ! numeric constants reference
+  integer, parameter :: SYS_NONPERIODIC = 0, SYS_PERIODIC = 1
+  integer, parameter :: EL_COULOMB = 0, EL_PME = 2
+  integer, parameter :: CAL_SOLN = 1, CAL_REFS_RIGID = 2, CAL_REFS_FLEX = 3
+
   character(len=*), parameter :: ene_confname = "parameters_er"
 
   namelist /ene_param/ iseed, &
