@@ -28,7 +28,6 @@ extra_flags =
 
 # extra dependencies added
 ermod_gromacs-engproc.$(OBJEXT): engproc.f90 param_eng ermod_gromacs-insertion.$(OBJEXT)
-	$(FC) $(AM_FCFLAGS) $(FCFLAGS) $(FFTFLAGS) -DGROMACS -DVMDPLUGINS $(extra_flags) -c -o $@ $<
 
 ermod_gromacs-enganal.$(OBJEXT): enganal.f stranal.f param_eng ermod_gromacs-engproc.$(OBJEXT)
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DGROMACS -DVMDPLUGINS $(extra_flags) -c -o $@ $<
@@ -44,7 +43,6 @@ ermod_namd_FCFLAGS = $(FFTFLAGS)
 ermod_namd_LDADD = ermod_namd-enganal.$(OBJEXT) ermod_namd-insertion.$(OBJEXT) ermod_namd-setconf.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS)
 
 ermod_namd-engproc.$(OBJEXT): engproc.f90 param_eng ermod_namd-insertion.$(OBJEXT)
-	$(FC) $(AM_FCFLAGS) $(FCFLAGS) $(FFTFLAGS) -DNAMD -c -o $@ $<
 
 ermod_namd-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng ermod_namd-engproc.$(OBJEXT)
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DNAMD -c -o $@ $<
