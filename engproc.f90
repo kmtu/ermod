@@ -364,7 +364,7 @@ contains
           endif
           if(slttype.eq.2) then               ! rigid solute
              if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then   ! initialization
-                if(cltype == 2) call realcal(tagslt,tagslt,usreal)           ! self real part
+                if(cltype == 2) call realcal_self(tagslt,usreal)           ! self real part
              endif
           endif
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
@@ -732,14 +732,16 @@ contains
     real eplj,epcl,xst(3),clm(3),swth
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
-    if(i.eq.j) reelcut=infty             ! no cutoff for self-interaction
-    if(i.ne.j) then
-       if(cltype.eq.0) then                  ! bare Coulomb
-          if(boxshp.eq.0) reelcut=infty
-          if(boxshp.ne.0) reelcut=elecut
-       endif
-       if(cltype.ne.0) reelcut=elecut        ! Ewald and PME
+    if(i.eq.j) then
+       call realcal_self(i, pairep)
+       return
     endif
+
+    if(cltype.eq.0) then                  ! bare Coulomb
+       if(boxshp.eq.0) reelcut=infty
+       if(boxshp.ne.0) reelcut=elecut
+    endif
+    if(cltype.ne.0) reelcut=elecut        ! Ewald and PME
     !
     pairep=0.0e0
     ismax=numsite(i)
@@ -747,7 +749,6 @@ contains
     !
     do is=1,ismax
        do js=1,jsmax
-          if((i.eq.j).and.(is.gt.js)) go to 1599
           ati=specatm(is,i)
           atj=specatm(js,j)
           do m=1,3
@@ -771,15 +772,18 @@ contains
           endif
           dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
           rst=sqrt(dis2)
-          if((i.eq.j).or.(rst.gt.upljcut)) eplj=0.0e0
-          if((i.ne.j).and.(rst.le.upljcut)) then
+          if(rst > upljcut) then
+             eplj=0.0e0
+          else
              ljeps=sqrt(ljene(ati)*ljene(atj))
+
              if(cmbrule.eq.0) ljsgm=(ljlen(ati)+ljlen(atj))/2.0e0
              if(cmbrule.eq.1) ljsgm=sqrt(ljlen(ati)*ljlen(atj))
+
              rtp1=ljsgm*ljsgm/dis2
              rtp2=rtp1*rtp1*rtp1
              eplj=4.0e0*ljeps*rtp2*(rtp2-1.0e0)
-             if(rst.gt.lwljcut) then    ! CHARMM form of switching function
+             if(rst > lwljcut) then    ! CHARMM form of switching function
                 rtp1=lwljcut*lwljcut
                 rtp2=upljcut*upljcut
                 swth=(2.0e0*dis2+rtp2-3.0e0*rtp1)*(dis2-rtp2)*(dis2-rtp2)&
@@ -787,26 +791,18 @@ contains
                 eplj=swth*eplj
              endif
           endif
-          if(rst.ge.reelcut) epcl=0.0e0
-          if(rst.lt.reelcut) then
+          if(rst >= reelcut) then
+             epcl=0.0e0
+          else
              chr2=charge(ati)*charge(atj)
-             if((i.eq.j).and.(is.eq.js)) then
-                if(cltype.eq.0) rtp1=real(0)                  ! bare Coulomb
-                if(cltype.ne.0) rtp1=screen                   ! Ewald and PME
-                epcl=-chr2*rtp1/sqrt(pi)
-             endif
-             if((i.ne.j).or.(is.ne.js)) then
-                if(cltype.eq.0) rtp1=real(0)                  ! bare Coulomb
-                if(cltype.ne.0) rtp1=screen*rst               ! Ewald and PME
-                if(i.eq.j) epcl=-chr2*derf(rtp1)/rst
-                if(i.ne.j) epcl=chr2*(1.0e0-derf(rtp1))/rst
-             endif
+
+             if(cltype.eq.0) rtp1=real(0)                  ! bare Coulomb
+             if(cltype.ne.0) rtp1=screen*rst               ! Ewald and PME
+             if(i.eq.j) epcl=-chr2*derf(rtp1)/rst
+             if(i.ne.j) epcl=chr2*(1.0e0-derf(rtp1))/rst
           endif
-          pairep=pairep+(eplj+epcl)
-1599      continue
-1502      continue
+          pairep = pairep + (eplj + epcl)
        end do
-1501   continue
     end do
     !
     if(cltype.ne.0) then                                 ! Ewald and PME
