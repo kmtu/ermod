@@ -55,6 +55,7 @@ contains
     endif
     !
     if(scheme.eq.'energy') then
+       call recpcal_energy(tagslt, i, pairep)
     endif
     !
     return
