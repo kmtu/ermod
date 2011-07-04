@@ -384,11 +384,11 @@ contains
        if(slttype.eq.2) then ! rigid solute == never changed
           pairep=usreal
        else
-          call realcal(tagslt, tagslt, pairep) ! calculate self-interaction
+          call realcal_self(tagslt, pairep) ! calculate self-interaction
        endif
        call recpcal_energy(tagslt, tagslt, factor)
        uvengy(0) = uvengy(0) + pairep + factor
-       
+
        ! solute-solvent pair
        do k=1,slvmax
           i=tagpt(k)
@@ -401,7 +401,7 @@ contains
              call recpcal_energy(tagslt, i, factor)
              pairep = pairep + factor
           else
-             call realcal(tagslt,i,pairep) ! usual case or self-interaction
+             call realcal(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
           endif
           uvengy(k) = uvengy(k) + pairep
        enddo
@@ -722,17 +722,16 @@ contains
   !
   !
   subroutine realcal(i,j,pairep)
-    !
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
          charge,ljene,ljlen,specatm,sitepos,&
-         cell,invcl,volume
+         cell,invcl,volume,pi
+    implicit none
     integer i,j,is,js,ismax,jsmax,ati,atj,m,k
-    real pi,reelcut,pairep,ljeps,ljsgm,chr2,rst,dis2,rtp1,rtp2
+    real reelcut,pairep,ljeps,ljsgm,chr2,rst,dis2,rtp1,rtp2
     real eplj,epcl,xst(3),clm(3),swth
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
-    pi=real(4)*atan(real(1))
     if(i.eq.j) reelcut=infty             ! no cutoff for self-interaction
     if(i.ne.j) then
        if(cltype.eq.0) then                  ! bare Coulomb
@@ -816,6 +815,71 @@ contains
     !
     return
   end subroutine realcal
+
+  subroutine realcal_self(i, pairep)
+    use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
+         screen,cltype,&
+         charge,specatm,sitepos,&
+         cell,invcl,pi
+    implicit none
+    integer, intent(in) :: i
+    real, intent(inout) :: pairep
+    integer is,js,ismax,ati,atj,m,k
+    real reelcut,chr2,rst,dis2,rtp1
+    real epcl,xst(3),clm(3),swth
+    real, parameter :: infty=1.0e50      ! essentially equal to infinity
+    !
+    pairep=0.0e0
+    ismax=numsite(i)
+    !
+    do is=1,ismax
+       ati=specatm(is,i)
+
+       ! Atom residual
+       chr2=charge(ati)*charge(ati)
+       if(cltype.eq.0) rtp1=real(0) ! bare Coulomb
+       if(cltype.ne.0) rtp1=screen ! Ewald and PME
+       epcl=-chr2*rtp1/sqrt(pi)
+
+       pairep = pairep + epcl
+
+       do js=is+1,ismax
+          atj=specatm(js,i)
+          do m=1,3
+             xst(m)=sitepos(m,ati)-sitepos(m,atj)
+          enddo
+          if(boxshp.ne.0) then  ! when the system is periodic
+             do k=1,3
+                rst=0.0e0
+                do m=1,3
+                   rst=rst+invcl(k,m)*xst(m)
+                enddo
+                clm(k)=real(nint(rst))
+             enddo
+             do m=1,3
+                rst=0.0e0
+                do k=1,3
+                   rst=rst+cell(m,k)*clm(k)
+                enddo
+                xst(m)=xst(m)-rst ! get the nearest distance between i,j
+             enddo
+          endif
+          dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
+          rst=sqrt(dis2)
+          chr2=charge(ati)*charge(atj)
+
+          if(cltype.eq.0) rtp1=real(0) ! bare Coulomb
+          if(cltype.ne.0) rtp1=screen*rst ! Ewald and PME
+          epcl=-chr2*derf(rtp1)/rst
+
+          pairep=pairep+epcl
+       enddo
+    enddo
+    !
+    if(cltype.ne.0) then                                 ! Ewald and PME
+       call residual_ene(i, i, pairep)
+    endif
+  end subroutine realcal_self
   !
   subroutine residual_ene(i, j, pairep)
     use engmain, only: screen, volume, specatm, numsite, charge, cltype
