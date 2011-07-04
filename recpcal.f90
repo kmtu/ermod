@@ -300,7 +300,7 @@ contains
           rcpi=rcpi+cmplx(cosk,sink)
        end do
        factor=real(rcpi*conjg(rcpi))
-       splfc1(rci)=factor
+       splfc(rci)=factor
     end do
   end subroutine
 
