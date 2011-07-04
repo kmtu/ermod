@@ -119,7 +119,7 @@ contains
                 ecdcen=ecpmrd(7) ; eccore=ecpmrd(8)
                 if(eccore.lt.tiny) pecore=0
                 if(pecore.eq.1) call eng_stop('ecd')
-                goto 3109
+                exit
              endif
           end do
 3109      continue
@@ -435,7 +435,7 @@ contains
           if(k.eq.0) pti=0                    ! solute self
           if(k.gt.0) then                     ! solute-solvent pair
              i=tagpt(k)
-             if(i.eq.tagslt) goto 1099
+             if(i.eq.tagslt) cycle
              pti=uvspec(i)
              if(pti.le.0) call eng_stop('eng')
           endif
@@ -448,8 +448,6 @@ contains
           endif
           if(pairep.lt.minuv(pti)) minuv(pti)=pairep        ! minimum energy
           if(pairep.gt.maxuv(pti)) maxuv(pti)=pairep        ! maximum energy
-1099      continue
-1001      continue
        end do
        !
 #ifndef noMPI
@@ -460,18 +458,15 @@ contains
                mpi_sum,mpi_comm_world,ierror)                   ! MPI
           do iduv=1,ermax                                         ! MPI
              insdst(iduv)=engdst(iduv)                                  ! MPI
-1331         continue                                                     ! MPI
           end do
           do pti=1,numslv                                         ! MPI
              flceng(pti)=svfl(pti)                                      ! MPI
-1332         continue                                                     ! MPI
           end do
        endif
 #endif
        if(slttype.eq.1) then
           do pti=1,numslv
              slnuv(pti)=slnuv(pti)+flceng(pti)*engnmfc
-1151         continue
           end do
           if(myrank.eq.0) then
              if(maxdst.eq.1) then
@@ -499,10 +494,8 @@ contains
                       factor=engnmfc*real(k)*real(q)
                       ecorr(iduvp,iduv)=ecorr(iduvp,iduv)+factor
                    endif
-1702               continue
                 end do
              endif
-1701         continue
           end do
        endif
        !
@@ -551,7 +544,6 @@ contains
        allocate( sve1(esmax) )                                        ! MPI
        do iduv=1,esmax                                           ! MPI
           sve1(iduv)=eself(iduv)                                       ! MPI
-7701      continue                                                       ! MPI
        end do
        call mpi_reduce(sve1,eself,esmax,&
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
@@ -561,7 +553,6 @@ contains
     do pti=0,numslv                                             ! MPI
        sve1(pti)=minuv(pti)                                           ! MPI
        sve2(pti)=maxuv(pti)                                           ! MPI
-7731   continue                                                         ! MPI
     end do
     call mpi_reduce(sve1,minuv,numslv+1,&                             ! MPI
          mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)       ! MPI
@@ -571,7 +562,6 @@ contains
     allocate( sve1(ermax) )                                          ! MPI
     do iduv=1,ermax                                             ! MPI
        sve1(iduv)=edens(iduv)                                         ! MPI
-7502   continue                                                         ! MPI
     end do
     call mpi_reduce(sve1,edens,ermax,&                                ! MPI
          mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)       ! MPI
@@ -579,7 +569,6 @@ contains
 #endif
     do iduv=1,ermax
        edens(iduv)=edens(iduv)/engnorm
-7501   continue
     end do
     if(corrcal.eq.1) then
        do iduv=1,ermax
@@ -587,26 +576,21 @@ contains
           allocate( sve1(ermax),sve2(ermax) )                          ! MPI
           do iduvp=1,ermax                                        ! MPI
              sve1(iduvp)=ecorr(iduvp,iduv)                              ! MPI
-7513         continue                                                     ! MPI
           end do
           call mpi_reduce(sve1,sve2,ermax,&                             ! MPI
                mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)   ! MPI
           do iduvp=1,ermax                                        ! MPI
              ecorr(iduvp,iduv)=sve2(iduvp)                              ! MPI
-7514         continue                                                     ! MPI
           end do
           deallocate( sve1,sve2 )                                      ! MPI
 #endif
           do iduvp=1,ermax
              ecorr(iduvp,iduv)=ecorr(iduvp,iduv)/engnorm
-7512         continue
           end do
-7511      continue
        end do
     endif
     do iduv=1,esmax
        eself(iduv)=eself(iduv)/engnorm
-7521   continue
     end do
     avslf=avslf/engnorm
     !
@@ -615,7 +599,6 @@ contains
     if(slttype.eq.1) then
        do pti=1,numslv
           aveuv(i,pti)=slnuv(pti)/engnorm
-7551      continue
        end do
     endif
     avediv(i,1)=engnorm/engsmpl
@@ -627,7 +610,6 @@ contains
           open(unit=75,file='aveuv.tt',status='new')
           do k=1,engdiv
              write(75,751) k,(aveuv(k,pti), pti=1,numslv)
-7553         continue
           end do
           endfile(75)
           close(75)
@@ -638,7 +620,6 @@ contains
        do k=1,engdiv
           if(wgtslf.eq.0) write(73,731) k,avediv(k,1)
           if(wgtslf.eq.1) write(73,732) k,avediv(k,1),avediv(k,2)
-7311      continue
        end do
        endfile(73)
        close(73)
@@ -650,7 +631,6 @@ contains
           factor=maxuv(pti)
           if(factor.lt.1.0e5) write(77,772) pti,minuv(pti),factor
           if(factor.ge.1.0e5) write(77,773) pti,minuv(pti),factor
-7711      continue
        end do
        endfile(77)
        close(77)
@@ -687,16 +667,13 @@ contains
                 factor=ecorr(iduvp,iduv)
                 if(factor.gt.tiny) write(71,'(g25.15)') factor
                 if(factor.le.tiny) write(71,'(i1)') 0
-7112            continue
              end do
-7111         continue
           end do
        endif
        if(cntdst.eq.3) then
           do iduv=1,esmax
              call repval(iduv,factor,pti,'self')
              write(71,'(g15.7,g25.15)') factor,eself(iduv)
-7151         continue
           end do
        endif
        endfile(71)
@@ -773,26 +750,21 @@ contains
           atj=specatm(js,j)
           do m=1,3
              xst(m)=sitepos(m,ati)-sitepos(m,atj)
-5501         continue
           end do
           if(boxshp.ne.0) then              ! when the system is periodic
              do k=1,3
                 rst=0.0e0
                 do m=1,3
                    rst=rst+invcl(k,m)*xst(m)
-5552               continue
                 end do
                 clm(k)=real(nint(rst))
-5551            continue
              end do
              do m=1,3
                 rst=0.0e0
                 do k=1,3
                    rst=rst+cell(m,k)*clm(k)
-5554               continue
                 end do
                 xst(m)=xst(m)-rst             ! get the nearest distance between i,j
-5553            continue
              end do
           endif
           dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
@@ -883,10 +855,8 @@ contains
              do sid=1,stmax
                 ati=specatm(sid,i)
                 factor=factor+charge(ati)
-1012            continue
              end do
           endif
-1011      continue
        end do
        factor=pi*factor*factor/screen/screen/volume/2.0e0
        engnmfc=engnmfc*exp(factor/temp)
@@ -914,9 +884,7 @@ contains
     do m=1,3
        do k=1,3
           invcl(k,m)=invcl(k,m)/volume
-3112      continue
        end do
-3111   continue
     end do
     return
   end subroutine cellinfo
@@ -1008,15 +976,12 @@ contains
                    cosk=chr*cos(rtp2)
                    sink=chr*sin(rtp2)
                    rcpi=rcpi+cmplx(cosk,sink)
-3253               continue
                 end do
                 factor=real(rcpi*conjg(rcpi))
                 if(m.eq.1) splfc1(rci)=factor
                 if(m.eq.2) splfc2(rci)=factor
                 if(m.eq.3) splfc3(rci)=factor
-3252            continue
              end do
-3251         continue
           end do
           ! allocate fft-buffers
           allocate( fft_buf(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
@@ -1040,10 +1005,10 @@ contains
              do rc1=rc1min,rc1max
                 factor=0.0e0
                 m=rc1*rc1+rc2*rc2+rc3*rc3
-                if(m.eq.0) go to 3219
+                if(m.eq.0) cycle
                 if(cltype.eq.1) then                             ! Ewald
                    rcimax=min(ew1max,ew2max,ew3max)
-                   if(m.gt.rcimax*rcimax) go to 3219
+                   if(m.gt.rcimax*rcimax) cycle
                 endif
                 do m=1,3
                    if(m.eq.1) rci=rc1
@@ -1060,16 +1025,13 @@ contains
                       if(rci.le.rcimax/2) inm(m)=real(rci)
                       if(rci.gt.rcimax/2) inm(m)=real(rci-rcimax)
                    endif
-3211               continue
                 end do
                 do m=1,3
                    factor=0.0e0
                    do k=1,3
                       factor=factor+invcl(k,m)*inm(k)
-3222                  continue
                    end do
                    xst(m)=factor
-3221               continue
                 end do
                 rtp2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
                 chr=pi*pi*rtp2/screen/screen
@@ -1080,11 +1042,8 @@ contains
                 endif
 3219            continue
                 engfac(rc1,rc2,rc3)=factor
-3203            continue
              end do
-3202         continue
           end do
-3201      continue
        end do
     endif
     !
@@ -1105,31 +1064,24 @@ contains
                       ati=specatm(sid,i)
                       do m=1,3
                          xst(m)=sitepos(m,ati)
-5112                     continue
                       end do
                       do k=1,3
                          factor=0.0e0
                          do m=1,3
                             factor=factor+invcl(k,m)*xst(m)
-5114                        continue
                          end do
                          inm(k)=factor
-5113                     continue
                       end do
                       rtp2=real(rc1)*inm(1)+real(rc2)*inm(2)+real(rc3)*inm(3)
                       rtp2=2.0e0*pi*rtp2
                       cosk=cosk+charge(ati)*cos(rtp2)
                       sink=sink-charge(ati)*sin(rtp2)
-5111                  continue
                    end do
                    rcpi=cmplx(cosk,sink)
                    if(uvi.eq.0) rcpslv(rc1,rc2,rc3,svi)=rcpi
                    if(uvi.gt.0) rcpslt(rc1,rc2,rc3)=rcpi
-5103               continue
                 end do
-5102            continue
              end do
-5101         continue
           end do
        endif
        if(cltype.eq.2) then                                 ! PME
@@ -1138,13 +1090,11 @@ contains
              ati=specatm(sid,i)
              do m=1,3
                 xst(m)=sitepos(m,ati)
-5202            continue
              end do
              do k=1,3
                 factor=0.0e0
                 do m=1,3
                    factor=factor+invcl(k,m)*xst(m)
-5204               continue
                 end do
                 if(factor.lt.0.0e0) factor=factor+1.0e0
                 if(factor.gt.1.0e0) factor=factor-1.0e0
@@ -1152,7 +1102,6 @@ contains
                    call eng_stop('crd')
                 endif
                 inm(k)=factor
-5203            continue
              end do
              do m=1,3
                 if(m.eq.1) rcimax=ms1max
@@ -1163,12 +1112,9 @@ contains
                 do spi=0,splodr-1
                    rtp2=factor-real(rci-spi)
                    splval(spi,m,sid)=spline_value(rtp2)
-5206               continue
                 end do
                 grdval(m,sid)=rci
-5205            continue
              end do
-5201         continue
           end do
           if(uvi.eq.0) then
              do sid=1,stmax
@@ -1176,12 +1122,9 @@ contains
                 do m=1,3
                    do spi=0,splodr-1
                       splslv(spi,m,ptrnk)=splval(spi,m,sid)
-5213                  continue
                    end do
                    grdslv(m,ptrnk)=grdval(m,sid)
-5212               continue
                 end do
-5211            continue
              end do
           endif
           if(uvi.gt.0) then
@@ -1199,13 +1142,9 @@ contains
                               *splval(cg3,3,sid)
                          rcpi=cmplx(factor,0.0e0)
                          rcpslt(rc1,rc2,rc3)=rcpslt(rc1,rc2,rc3)+rcpi
-5233                     continue
                       end do
-5232                  continue
                    end do
-5231               continue
                 end do
-5251            continue
              end do
              ! FIXME: rewrite to real-to-complex transform
              call fft_inplace(rcpslt)                         ! 3D-FFT
@@ -1214,11 +1153,8 @@ contains
                    do rc1=rc1min,rc1max
                       rcpi=cmplx(engfac(rc1,rc2,rc3),0.0e0)
                       fft_buf(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
-5243                  continue
                    end do
-5242               continue
                 end do
-5241            continue
              end do
              call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
           endif
@@ -1236,11 +1172,8 @@ contains
                 do rc1=rc1min,rc1max
                    rcpt=rcpslt(rc1,rc2,rc3)
                    pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpt))
-7103               continue
                 end do
-7102            continue
              end do
-7101         continue
           end do
           pairep=pairep/2.0e0
        endif
@@ -1254,11 +1187,8 @@ contains
                       rcpt=rcpslt(rc1,rc2,rc3)
                       rcpi=rcpslv(rc1,rc2,rc3,svi)
                       pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpi))
-7203                  continue
                    end do
-7202               continue
                 end do
-7201            continue
              end do
           endif
           if(cltype.eq.2) then                               ! PME
@@ -1285,14 +1215,10 @@ contains
                             fac3 = fac2 * splslv(cg1,1,ptrnk)
                             rc1=mod(grid1+ms1max-cg1,ms1max) ! speedhack
                             pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
-7273                        continue
                          end do
                       endif
-7272                  continue
                    end do
-7271               continue
                 end do
-7251            continue
              end do
           endif
        endif
@@ -1342,7 +1268,6 @@ contains
     if(pti.gt.1) then
        do k=1,pti-1
           idpick=idpick+uvmax(k)
-1051      continue
        end do
     endif
     iduv=idpick
@@ -1400,9 +1325,8 @@ contains
        idpick=0
        do cnt=1,numslv
           idpick=idpick+uvmax(cnt)
-          if(iduv.le.idpick) goto 3339
+          if(iduv.le.idpick) exit
        enddo
-3339   continue
        pti=cnt
        idpick=idpick-uvmax(pti)
        idsoft=uvsoft(pti)
