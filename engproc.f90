@@ -265,7 +265,8 @@ contains
          boxshp, cltype, cell
     use ptinsrt, only: instslt
     use realcal_blk, only: realcal_proc
-    use reciprocal, only: recpcal
+    use reciprocal, only: recpcal, &
+         recpcal_init, recpcal_prepare, recpcal_energy, recpcal_spline_greenfunc
     use mpiproc                                                      ! MPI
     integer, parameter :: flcio=91                    ! IO unit for flcuv
     integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
@@ -316,7 +317,7 @@ contains
     call cellinfo
     !
     if(stnum.eq.skpcnf) then                ! Ewald and PME initialization
-       call recpcal(0,0,factor,slvmax,tagpt,'alloct')
+       call recpcal_init(slvmax,tagpt)
     endif
 
     ! check whether cell size changes
@@ -338,11 +339,11 @@ contains
        end do
     end do
     ! recpcal is called only when cell size differ
-    if(q.eq.0) call recpcal(0,0,factor,slvmax,tagpt,'preeng')
+    if(q.eq.0) call recpcal_spline_greenfunc()
     !
     do k=1,slvmax
        i=tagpt(k)
-       call recpcal(i,i,factor,slvmax,tagpt,'slvenv')
+       call recpcal_prepare(i,i,'slvenv')
     end do
     !
     do cntdst=1,maxdst
@@ -369,7 +370,7 @@ contains
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
        endif
        !
-       call recpcal(tagslt,tagslt,factor,slvmax,tagpt,'sltsys')
+       call recpcal_prepare(tagslt,tagslt,'sltsys')
 
        uvengy(:) = 0
        if(cltype /= 0) then ! called only when ewald-type real part
@@ -394,7 +395,7 @@ contains
                 call realcal(tagslt,i,pairep) ! usual case or self-interaction
              endif
           endif
-          call recpcal(tagslt,i,factor,slvmax,tagpt,'energy')
+          call recpcal_energy(tagslt, i, factor)
           pairep = pairep + factor
           uvengy(k) = uvengy(k) + pairep
        enddo
