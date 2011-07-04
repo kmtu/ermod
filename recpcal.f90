@@ -264,9 +264,9 @@ contains
     ! initialize spline table for all axes
     allocate( splfc1(rc1min:rc1max),splfc2(rc2min:rc2max),&
          splfc3(rc3min:rc3max) )
-    call init_spline_axis(rc1min, rc1max, splfc1)
-    call init_spline_axis(rc2min, rc2max, splfc2)
-    call init_spline_axis(rc3min, rc3max, splfc3)
+    call init_spline_axis(rc1min, rc1max, splfc1(rc1min:rc1max))
+    call init_spline_axis(rc2min, rc2max, splfc2(rc2min:rc2max))
+    call init_spline_axis(rc3min, rc3max, splfc3(rc3min:rc3max))
     ! allocate fft-buffers
     allocate( fft_buf(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
     gridsize(1) = ms1max
@@ -286,13 +286,10 @@ contains
     implicit none
     integer, intent(in) :: imin, imax
     real, intent(out) :: splfc(imin:imax)
-    real :: chr, factor,rtp2
+    real :: chr, factor, rtp2
     real :: cosk, sink
-    integer :: k, m
-    integer :: rci
-    integer :: rcimax
     complex :: rcpi
-    integer :: spi
+    integer :: rci, spi
     do rci=imin,imax
        rcpi=(0.0e0,0.0e0)
        do spi=0,splodr-2
