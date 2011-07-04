@@ -751,9 +751,7 @@ contains
        do js=1,jsmax
           ati=specatm(is,i)
           atj=specatm(js,j)
-          do m=1,3
-             xst(m)=sitepos(m,ati)-sitepos(m,atj)
-          end do
+          xst(:) = sitepos(:,ati) - sitepos(:,atj)
           if(boxshp.ne.0) then              ! when the system is periodic
              do k=1,3
                 rst=dot_product(invcl(k,:), xst(:))
