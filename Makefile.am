@@ -22,20 +22,33 @@ endif
 ermod_gromacs_SOURCES = $(ersources) vmdfio.c
 ermod_gromacs_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
 ermod_gromacs_FCFLAGS = $(FFTFLAGS)
-ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm
+ermod_gromacs_LDADD = ermod_gromacs-enganal.$(OBJEXT) ermod_gromacs-insertion.$(OBJEXT) ermod_gromacs-setconf.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm
 
 extra_flags = 
 
 # extra dependencies added
-ermod_gromacs-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
+ermod_gromacs-enganal.$(OBJEXT): enganal.f stranal.f param_eng
+	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DGROMACS -DVMDPLUGINS $(extra_flags) -c -o $@ $<
+
+ermod_gromacs-insertion.$(OBJEXT): insertion.f param_eng
+	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DGROMACS -DVMDPLUGINS $(extra_flags) -c -o $@ $<
+
+ermod_gromacs-setconf.$(OBJEXT): setconf.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DGROMACS -DVMDPLUGINS $(extra_flags) -c -o $@ $<
 
 ermod_namd_SOURCES = $(ersources)
 ermod_namd_FCFLAGS = $(FFTFLAGS)
-ermod_namd_LDADD = ermod_namd-enganal.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS)
+ermod_namd_LDADD = ermod_namd-enganal.$(OBJEXT) ermod_namd-insertion.$(OBJEXT) ermod_namd-setconf.$(OBJEXT) $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS)
 
 ermod_namd-enganal.$(OBJEXT): enganal.f insertion.f setconf.f stranal.f param_eng
 	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DNAMD -c -o $@ $<
+
+ermod_namd-insertion.$(OBJEXT): insertion.f param_eng
+	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DNAMD -c -o $@ $<
+
+ermod_namd-setconf.$(OBJEXT): setconf.f param_eng
+	$(F77) $(AM_FFLAGS) $(FFLAGS) $(FFTFLAGS) -DNAMD -c -o $@ $<
+
 
 
 slvfe_SOURCES = slvfe.f

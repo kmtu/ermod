@@ -4,9 +4,6 @@ c
 c
 c
 c
-#     include "setconf.f"
-#     include "insertion.f"
-c
 c
       module engproc
       implicit none
