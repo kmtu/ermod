@@ -7,7 +7,7 @@ c  renaming global variables in package program
 #ifdef DLPOLY
       contains
       subroutine DLglobal(nstinit,nstrun,ntpmls,keyens,imcon,keyfce,
-     #                    temp,rcut,rvdw,alpha,nospl,kmax1,kmax2,kmax3)
+     &                    temp,rcut,rvdw,alpha,nospl,kmax1,kmax2,kmax3)
       integer nstinit,nstrun,ntpmls,keyens,imcon,keyfce,nospl
       real temp,rcut,rvdw,alpha
       integer kmax1,kmax2,kmax3
@@ -29,7 +29,7 @@ c
 #ifndef trjctry
 #ifdef MPDyn
       use CommonBlocks, only: QPBC,QBarostat,QSwitch,           ! MPDyn
-     #                        cCOULOMB,ForceField               ! MPDyn
+     &                        cCOULOMB,ForceField               ! MPDyn
       use BathParam, only: Temp_o                               ! MPDyn
       use TimeParam, only : Nstep                               ! MPDyn
       use Numbers, only: NumSpec,NumMol,NumAtm                  ! MPDyn
@@ -66,12 +66,12 @@ c
       use CoulombEnergy_M, only: nfelec,alpha,mszrec            ! Toray
       use VDWEnergy_M, only: nfvdw,parvdw                       ! Toray
       use EnergyRep_M, only: nmoltype,nlstmol,natmmol,          ! Toray
-     #                       latm_sort,mstepEnergyRep           ! Toray
+     &                       latm_sort,mstepEnergyRep           ! Toray
 #endif
 #ifdef DLPOLY
       use site_module, only: nummols,numsit                     ! DL_POLY
       use config_module, only: weight,chge,ltype,               ! DL_POLY
-     #                         cell,xxx,yyy,zzz                 ! DL_POLY
+     &                         cell,xxx,yyy,zzz                 ! DL_POLY
       use vdw_module, only: ltpvdw,lstvdw,prmvdw                ! DL_POLY
 #endif
 #endif
@@ -179,7 +179,7 @@ c
       if(.not.(use_mdlib)) then
         if(iofmt.eq.'yes') open(unit=iotrj,file=trjfile,status='old')
         if(iofmt.eq.'not') open(unit=iotrj,file=trjfile,status='old',
-     #                                          form='unformatted')
+     &                                          form='unformatted')
       endif
       if(cltrd.eq.'yes') open(unit=cltrj,file=celfile,status='old')
       if(mdird.eq.'yes') open(unit=mdinf,file=inffile,status='old')
@@ -434,7 +434,7 @@ c
       if(oEnsemble(2:2).eq.'V') OUTens=1                           ! Toray
       if(oEnsemble(2:2).eq.'P') OUTens=2                           ! Toray
       if((nflxyz(1).eq.0).and.(nflxyz(2).eq.0)                     ! Toray
-     #                   .and.(nflxyz(3).eq.0)) then               ! Toray
+     &                   .and.(nflxyz(3).eq.0)) then               ! Toray
         OUTbxs=1                                                   ! Toray
       else                                                         ! Toray
         OUTbxs=0                                                   ! Toray
@@ -743,23 +743,23 @@ c  setting molecular simulation parameters
 c
       subroutine iniparam
       use engmain, only: init_params,
-     #                   iseed,
-     #                   skpcnf,corrcal,
-     #                   slttype,sltpick,refpick,wgtslf,wgtins,
-     #                   estype,boxshp,inscnd,inscfg,hostspec,ljformat,
-     #                   inptemp,temp,
-     #                   engdiv,maxins,
-     #                   lwreg,upreg,
-     #                   intprm,elecut,lwljcut,upljcut,
-     #                   cmbrule,cltype,screen,ewtoler,splodr,plmode,
-     #                   ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
-     #                   block_threshold
+     &                   iseed,
+     &                   skpcnf,corrcal,
+     &                   slttype,sltpick,refpick,wgtslf,wgtins,
+     &                   estype,boxshp,inscnd,inscfg,hostspec,ljformat,
+     &                   inptemp,temp,
+     &                   engdiv,maxins,
+     &                   lwreg,upreg,
+     &                   intprm,elecut,lwljcut,upljcut,
+     &                   cmbrule,cltype,screen,ewtoler,splodr,plmode,
+     &                   ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
+     &                   block_threshold
       use OUTname, only: OUTintprm,                             ! from outside
-     #                   OUTens,OUTbxs,OUTtemp,                 ! from outside
-     #                   OUTelc,OUTlwl,OUTupl,                  ! from outside
-     #                   OUTcmb,OUTclt,OUTscr,OUTspo,           ! from outside
-     #                   OUTew1,OUTew2,OUTew3,                  ! from outside
-     #                   OUTms1,OUTms2,OUTms3                   ! from outside
+     &                   OUTens,OUTbxs,OUTtemp,                 ! from outside
+     &                   OUTelc,OUTlwl,OUTupl,                  ! from outside
+     &                   OUTcmb,OUTclt,OUTscr,OUTspo,           ! from outside
+     &                   OUTew1,OUTew2,OUTew3,                  ! from outside
+     &                   OUTms1,OUTms2,OUTms3                   ! from outside
       use mpiproc                                                      ! MPI
       real, parameter :: tiny=1.0e-20
       real :: real_seed
@@ -897,13 +897,13 @@ c
       subroutine setparam
 c
       use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,
-     #                   slttype,sltpick,refpick,inscfg,ljformat,
-     #                   moltype,numsite,sluvid,refmlid,
-     #                   bfcoord,sitemass,charge,ljene,ljlen,
-     #                   specatm,sitepos
+     &                   slttype,sltpick,refpick,inscfg,ljformat,
+     &                   moltype,numsite,sluvid,refmlid,
+     &                   bfcoord,sitemass,charge,ljene,ljlen,
+     &                   specatm,sitepos
       use OUTname, only: OUTinitial,OUTrename,                  ! from outside
-     #                   OUTntype,OUTnmol,OUTsite,OUTnrun,      ! from outside
-     #                   OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
+     &                   OUTntype,OUTnmol,OUTsite,OUTnrun,      ! from outside
+     &                   OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
       integer, parameter :: large=1000000
       ! only integer power is allowed as the initialization expression (7.1.6.1)
       real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
@@ -966,9 +966,9 @@ c
           stmax=0
           do 1211 sid=1,large
             if(slttype.eq.2) read(sltio,*,END=1219) m,atmtype,
-     #                                 (xst(m), m=1,3),(xst(m), m=1,3)
+     &                                 (xst(m), m=1,3),(xst(m), m=1,3)
             if(slttype.eq.3) read(sltio,*,END=1219) m,atmtype,
-     #                                                 (xst(m), m=1,3)
+     &                                                 (xst(m), m=1,3)
             stmax=stmax+1
 1211      continue
 1219      continue
@@ -1064,7 +1064,7 @@ c
           open(unit=molio,file=molfile,status='old')
           do 7111 sid=1,stmax
             if(uvtype.eq.2) read(molio,*) m,atmtype,(xst(m), m=1,3),
-     #                                    (psite(m,sid), m=1,3)
+     &                                    (psite(m,sid), m=1,3)
             if(uvtype.ne.2) read(molio,*) m,atmtype,(xst(m), m=1,3)
             call getmass(factor,atmtype)
             ati=specatm(sid,i)
@@ -1108,7 +1108,7 @@ c
 c
       subroutine getconf
       use engmain, only: nummol,numatm,boxshp,
-     #                   numsite,sluvid,sitepos,cell
+     &                   numsite,sluvid,sitepos,cell
       use OUTname, only: OUTconfig                     ! from outside
       real, dimension(:,:), allocatable :: OUTpos,OUTcell
       integer i,m,k,OUTatm

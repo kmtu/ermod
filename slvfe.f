@@ -45,10 +45,10 @@ c
       real, dimension(:),     allocatable :: wgtsln,wgtref
 
       namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, 
-     #                  peread, uvread, slfslt, zerosft, wgtfnform, refmerge, extsln,
-     #                  wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl,
-     #                  inptemp, pickgr, maxmesh, large, itrmax, error, tiny,
-     #                  wgtslnfl, wgtreffl, slndnspf, slncorpf, refdnspf, refcorpf
+     &                  peread, uvread, slfslt, zerosft, wgtfnform, refmerge, extsln,
+     &                  wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl,
+     &                  inptemp, pickgr, maxmesh, large, itrmax, error, tiny,
+     &                  wgtslnfl, wgtreffl, slndnspf, slncorpf, refdnspf, refcorpf
 
       contains
 
@@ -72,28 +72,28 @@ c
 c
       module sysread
       use sysvars, only: clcond,uvread,slfslt,slncor,
-     #                   maxsln,maxref,numrun,
-     #                   numslv,ermax,slfeng,nummol,
-     #                   rdcrd,rddst,rddns,rdslc,rdcor,rdspec,
-     #                   aveuv,uvene,blkuv,wgtsln,wgtref
+     &                   maxsln,maxref,numrun,
+     &                   numslv,ermax,slfeng,nummol,
+     &                   rdcrd,rddst,rddns,rdslc,rdcor,rdspec,
+     &                   aveuv,uvene,blkuv,wgtsln,wgtref
       character*85 engfile(5)
       contains
 c
       subroutine defcond
 c
       use sysvars, only: peread,readwgtfl,wgtslnfl,wgtreffl,
-     #                   numprm,prmmax,numsln,numref,numdiv,
-     #                   inptemp,temp,kT,
-     #                   pecore,maxmesh,large,
-     #                   rduvmax,rduvcore,
-     #                   chmpt,svgrp,svinf
+     &                   numprm,prmmax,numsln,numref,numdiv,
+     &                   inptemp,temp,kT,
+     &                   pecore,maxmesh,large,
+     &                   rduvmax,rduvcore,
+     &                   chmpt,svgrp,svinf
 c
       integer group,inft,prmcnt,iduv,i,j,k,m,pti,cnt
       real factor
       character*85 opnfile
 c
       if((clcond.ne.'basic').and.(clcond.ne.'range')
-     #                      .and.(clcond.ne.'merge')) then
+     &                      .and.(clcond.ne.'merge')) then
         write(6,*) ' The clcond parameter is incrrect ' ; stop
       endif
 c
@@ -310,7 +310,7 @@ c
       subroutine datread(cntrun)
 c
       use sysvars, only: refmerge,zero,tiny,
-     #                   slndnspf,slncorpf,refdnspf,refcorpf,numbers
+     &                   slndnspf,slncorpf,refdnspf,refcorpf,numbers
       integer cntrun,slnini,slnfin,refini,reffin,ecmin,ecmax
       integer iduv,iduvp,i,k,m,pti,cnt
       real factor,ampl
@@ -351,7 +351,7 @@ c
       do 7100 cnt=1,4
         if((cnt.eq.2).and.(slncor.ne.'yes')) goto 7100
         if((cnt.ge.3).and.(cntrun.gt.1)
-     #               .and.(refmerge.eq.'yes')) goto 7899
+     &               .and.(refmerge.eq.'yes')) goto 7899
 c
         if(cnt.le.2) ecmin=slnini
         if(cnt.le.2) ecmax=slnfin
@@ -465,7 +465,7 @@ c
 c
       module sfecalc
       use sysvars, only: zerosft,wgtfnform,extsln,slncor,
-     #                   numslv,ermax,nummol,kT,itrmax,zero,error
+     &                   numslv,ermax,nummol,kT,itrmax,zero,error
       integer, dimension(:), allocatable :: idrduv,uvmax
       real, dimension(:),    allocatable :: uvcrd,edist,edens
       real, dimension(:,:),  allocatable :: edscr,ecorr
@@ -497,8 +497,8 @@ c
       liwork = 10 * n
       allocate(iwork(liwork))
       call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr,
-     #            dummyi, dummyi, abstol, dummyi, eigval, 
-     #            z, n, isuppz, worktmp, lwork, iwork, liwork, info)
+     &            dummyi, dummyi, abstol, dummyi, eigval,
+     &            z, n, isuppz, worktmp, lwork, iwork, liwork, info)
       if (info /= 0) then
         deallocate(isuppz)
         deallocate(z)
@@ -509,8 +509,8 @@ c
       lwork = worktmp
       allocate(work(lwork))
       call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr,
-     #            dummyi, dummyi, abstol, dummyi, eigval, 
-     #            z, n, isuppz, work, lwork, iwork, liwork, info)
+     &            dummyi, dummyi, abstol, dummyi, eigval,
+     &            z, n, isuppz, work, lwork, iwork, liwork, info)
 
       mat(:, :) = z(:, :)
       
@@ -523,10 +523,10 @@ c
       subroutine chmpot(prmcnt,cntrun)
 c
       use sysvars, only: uvread,slfslt,
-     #                   normalize,showdst,wrtzrsft,slfeng,
-     #                   rduvmax,rduvcore,
-     #                   rdcrd,rddst,rddns,rdslc,rdcor,rdspec,
-     #                   chmpt,aveuv,svgrp,svinf
+     &                   normalize,showdst,wrtzrsft,slfeng,
+     &                   rduvmax,rduvcore,
+     &                   rdcrd,rddst,rddns,rdslc,rdcor,rdspec,
+     &                   chmpt,aveuv,svgrp,svinf
 c
       integer prmcnt,cntrun,group,inft
       integer iduv,iduvp,pti,cnt,j,k,m
@@ -626,17 +626,17 @@ c
             slvfe=slvfe-kT*(edist(iduv)-edens(iduv))
             factor=-(slncv(iduv)+zrsln(pti)+uvcrd(iduv))
             if((slncor.eq.'yes').and.
-     #         (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
+     &         (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
               ampl=factor*edens(iduv)/edist(iduv)
               factor=ampl-(zrsln(pti)+uvcrd(iduv))
-     #                   *(1.0e0-edens(iduv)/edist(iduv))
+     &                   *(1.0e0-edens(iduv)/edist(iduv))
             endif
             slvfe=slvfe+factor*edist(iduv)
             do 5005 cnt=1,2
               if(cnt.eq.1) lcsln=pyhnc(slncv(iduv),cnt)
               if(cnt.eq.2) lcref=pyhnc(inscv(iduv),cnt)
               if((slncor.eq.'yes').and.(cnt.eq.1).and.
-     #           (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
+     &           (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
                 lcsln=pyhnc(sdrcv(iduv)+zrsdr(pti),3)
               endif
 5005        continue
@@ -700,13 +700,13 @@ c
           m=1 ; k=gemax
           do 3212 iduvp=1,iduv-1
             if((uvspec(iduvp).eq.pti).and.(m.lt.iduvp).and.
-     #         (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
+     &         (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
               m=iduvp
             endif
 3212      continue
           do 3213 iduvp=gemax,iduv+1,-1
             if((uvspec(iduvp).eq.pti).and.(k.gt.iduvp).and.
-     #         (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
+     &         (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
               k=iduvp
             endif
 3213      continue
@@ -722,7 +722,7 @@ c
             allocate( work(gemax) ) ; work(:)=0.0e0
             do 3221 iduvp=1,gemax
               if((uvspec(iduvp).eq.pti).and.
-     #           (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
+     &           (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
                 if(iduvp.eq.iduv) then
                   write(6,*) ' A bug in program or data' ; stop
                 endif
@@ -824,7 +824,7 @@ c
             if(cnt.eq.1) ampl=edist(iduvp)
             if(cnt.eq.2) ampl=edens(iduvp)
             if(ampl.gt.zero) factor=factor+(edist(iduvp)-edens(iduvp))
-     #                                    *edmcr(iduvp,iduv)
+     &                                    *edmcr(iduvp,iduv)
 1162      continue
           work(iduv)=factor/egnvl(iduv)
 1161    continue
@@ -1219,8 +1219,8 @@ c
 c
       module opwrite
       use sysvars, only: clcond,uvread,slfslt,prmmax,numrun,numslv,
-     #                   pickgr,msemin,msemax,mesherr,
-     #                   slfeng,chmpt,aveuv,blkuv,svgrp,svinf
+     &                   pickgr,msemin,msemax,mesherr,
+     &                   slfeng,chmpt,aveuv,blkuv,svgrp,svinf
       integer grref
       real, dimension(:), allocatable :: mshdif
       contains
@@ -1299,7 +1299,7 @@ c
           write(6,571) factor,mesherr
         endif
 571     format(' Warning: mesh error is ',f8.3,' kcal/mol and is larger'
-     #         ' than the recommended value of ',g12.3,' kcal/mol')
+     &         ' than the recommended value of ',g12.3,' kcal/mol')
         deallocate( mshdif )
       endif
 c
@@ -1346,13 +1346,13 @@ c
           factor=real(numrun)
           avecp=avecp/factor
           stdcp=sqrt(factor/(factor-1.0e0))
-     #         *sqrt(stdcp/factor-avecp*avecp)
+     &         *sqrt(stdcp/factor-avecp*avecp)
           stdcp=2.0e0*stdcp/sqrt(factor)
           if(prmcnt.eq.1) then
             write(6,*)
             if(pti.eq.0) write(6,670)
 670         format(' group  inft  solvation free energy     error',
-     #             '          difference')
+     &             '          difference')
             if(numslv.gt.1) then
               if(pti.eq.0) write(6,661)
               if(pti.ge.1) write(6,662) pti
@@ -1387,9 +1387,9 @@ c
             endif
 667         format(' group  inft   Estimated free energy (kcal/mol)')
 681         format(' group  inft   Estimated free energy:',
-     #             ' total (kcal/mol)')
+     &             ' total (kcal/mol)')
 682         format(' group  inft   Estimated free energy:',
-     #               i2,'-th solvent contribution (kcal/mol)')
+     &               i2,'-th solvent contribution (kcal/mol)')
           endif
           k=(numrun-1)/5
           if(k.eq.0) write(6,121) group,inft,(shcp(m), m=1,numrun)
@@ -1418,7 +1418,7 @@ c
 9911  continue
       write(6,*) ; write(6,*) ; write(6,770)
 770   format(' cumulative average & 95% error ',
-     #       'for solvation free energy')
+     &       'for solvation free energy')
       call wrtcumu(wrtdata)
       deallocate( wrtdata )
 c
@@ -1434,7 +1434,7 @@ c
       allocate( runcp(0:numslv),runer(0:numslv) )
       if(numslv.eq.2) write(6,771)
 771   format('              total             1st component',
-     #       '         2nd component')
+     &       '         2nd component')
       do 7773 pti=0,numslv
         runcp(pti)=0.0e0 ; runer(pti)=0.0e0
 7773  continue
@@ -1449,7 +1449,7 @@ c
             slvfe=runer(pti)/factor-avecp*avecp
             if(slvfe.le.zero) shcp(2*pti+2)=0.0e0
             if(slvfe.gt.zero) shcp(2*pti+2)=(2.0e0/sqrt(factor))
-     #                          *sqrt(factor/(factor-1.0e0))*sqrt(slvfe)
+     &                          *sqrt(factor/(factor-1.0e0))*sqrt(slvfe)
           endif
 7774    continue
         if(cntrun.eq.1) then
@@ -1458,12 +1458,12 @@ c
 7777      continue
           if(numslv.eq.1) write(6,772) cntrun,shcp(1)
           if(numslv.gt.1) write(6,773) cntrun,shcp(1),
-     #                                 (shcp(pti), pti=2,numslv+1)
+     &                                 (shcp(pti), pti=2,numslv+1)
         endif
         if(cntrun.gt.1) then
           if(numslv.eq.1) write(6,774) cntrun,(shcp(pti), pti=1,2)
           if(numslv.gt.1) write(6,775) cntrun,
-     #                                 (shcp(pti), pti=1,2*numslv+2)
+     &                                 (shcp(pti), pti=1,2*numslv+2)
         endif
 7771  continue
 772   format(i3,f11.4)

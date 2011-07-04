@@ -3,10 +3,10 @@
       subroutine spacedst(stnum)
 c
       use engmain, only: nummol,maxsite,numatm,
-     #                   maxcnf,slttype,skpcnf,
-     #                   estype,boxshp,inscnd,hostspec,
-     #                   moltype,numsite,sluvid,refmlid,
-     #                   specatm,sitepos,invcl,volume
+     &                   maxcnf,slttype,skpcnf,
+     &                   estype,boxshp,inscnd,hostspec,
+     &                   moltype,numsite,sluvid,refmlid,
+     &                   specatm,sitepos,invcl,volume
       use engproc, only: volcorrect
       use ptinsrt, only: getcen,refsdev
       use mpiproc                                                      ! MPI
@@ -248,7 +248,7 @@ c
 2703        continue
 #ifndef noMPI
             call mpi_reduce(svg,rcg,(dstmax-dstmin+1),                 ! MPI
-     #           mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror) ! MPI
+     &           mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror) ! MPI
             do 2705 iddst=dstmin,dstmax                                ! MPI
               svg(iddst)=rcg(iddst)                                    ! MPI
 2705        continue                                                   ! MPI
@@ -268,7 +268,7 @@ c
             if(inscnd.eq.1) then
               rst=(real(iddst)-0.50e0)*dstbin
               dis=4.1887902e0*dstbin*dstbin*dstbin
-     #                       *real(3*iddst*(iddst-1)+1)
+     &                       *real(3*iddst*(iddst-1)+1)
             endif
             if(inscnd.eq.2) then
               rst=real(iddst)*dstbin
@@ -277,7 +277,7 @@ c
             if(inscnd.eq.3) then
               rst=(real(iddst)-0.50e0)*dstbin
               if(m.eq.2) dis=4.1887902e0*dstbin*dstbin*dstbin
-     #                                  *real(3*iddst*(iddst-1)+1)
+     &                                  *real(3*iddst*(iddst-1)+1)
               if(m.eq.3) dis=dstbin
             endif
             do 2712 idtyp=1,stmax

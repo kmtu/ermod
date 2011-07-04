@@ -42,7 +42,7 @@ c
       subroutine instslt(wgtslcf,caltype)
 c
       use engmain, only: nummol,slttype,inscnd,inscfg,numslt,sltlist,
-     #                   iseed
+     &                   iseed
       integer insml,m
       real wgtslcf,pcom(3),qrtn(0:3)
       character*4 caltype
@@ -86,9 +86,9 @@ c
       subroutine sltpstn(sltstat,pcom,type,tagslt)
 c
       use engmain, only: nummol,maxsite,numatm,
-     #                   boxshp,inscnd,inscfg,hostspec,
-     #                   moltype,numsite,specatm,sitepos,cell,invcl,
-     #                   lwreg,upreg
+     &                   boxshp,inscnd,inscfg,hostspec,
+     &                   moltype,numsite,specatm,sitepos,cell,invcl,
+     &                   lwreg,upreg
       integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
       real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen
       character*6 type
@@ -268,7 +268,7 @@ c
 c
       subroutine coordinate(i,pcom,qrtn)
       use engmain, only: nummol,maxsite,numatm,inscfg,
-     #                   numsite,bfcoord,specatm,sitepos
+     &                   numsite,bfcoord,specatm,sitepos
       integer stmax,sid,ati,m,k,i
       real pcom(3),qrtn(0:3),rotmat(3,3),rst
       stmax=numsite(i)
@@ -295,11 +295,11 @@ c
       subroutine getrot(qrtn,rotmat)
       real qrtn(0:3),rotmat(3,3)
       rotmat(1,1)=qrtn(0)*qrtn(0)+qrtn(1)*qrtn(1)
-     #                           -qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
+     &                           -qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
       rotmat(2,2)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)
-     #                           +qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
+     &                           +qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
       rotmat(3,3)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)
-     #                           -qrtn(2)*qrtn(2)+qrtn(3)*qrtn(3)
+     &                           -qrtn(2)*qrtn(2)+qrtn(3)*qrtn(3)
       rotmat(1,2)=2.0e0*(qrtn(1)*qrtn(2)+qrtn(0)*qrtn(3))
       rotmat(2,1)=2.0e0*(qrtn(1)*qrtn(2)-qrtn(0)*qrtn(3))
       rotmat(1,3)=2.0e0*(qrtn(1)*qrtn(3)-qrtn(0)*qrtn(2))
@@ -351,7 +351,7 @@ c
 ! FIXME: move this entire section into setconf.f
         if(iofmt.eq.'yes') open(unit=slcnf,file=slttrj,status='old')
         if(iofmt.eq.'not') open(unit=slcnf,file=slttrj,status='old',
-     #                                           form='unformatted')
+     &                                           form='unformatted')
         call OUTskip(slcnf,iofmt,skpio)
         return
       endif
@@ -442,7 +442,7 @@ c
       subroutine refmc(caltype)
 c
       use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,
-     #                   lwreg,upreg,bfcoord,specatm,sitepos
+     &                   lwreg,upreg,bfcoord,specatm,sitepos
       integer i,k,m,q,ati,rfi,sid,stmax
       real xst(3),centg(3),cenrf(3)
       real factor,bfqrn(0:3),rtmbf(3,3),sltsite(3,maxsite)
@@ -471,7 +471,7 @@ c  read the reference structure
             stmax=numsite(i)
             do 1011 sid=1,stmax
               read(refio,*) dump,k,atmtype,dump,q,
-     #                      (xst(m), m=1,3),factor,factor
+     &                      (xst(m), m=1,3),factor,factor
               eletype=atmtype(1:1)
               if(eletype.eq.'H') refsatm(sid,i)=0      ! hydrogen atom
               if(eletype.ne.'H') refsatm(sid,i)=rfi    ! heavy atom
@@ -578,7 +578,7 @@ c
 c
       subroutine sltmove(pcen,qrtn,rtmbf,mvtype)
       use engmain, only: nummol,maxsite,numatm,
-     #                   numsite,bfcoord,specatm,sitepos
+     &                   numsite,bfcoord,specatm,sitepos
       integer m,k,q,ati,sid,stmax,ax1,ax2
       real pcen(3),qrtn(0:3),rtmbf(3,3)
       real rdum,factor,rotmat(3,3),rtmmov(3,3),axis(3)
