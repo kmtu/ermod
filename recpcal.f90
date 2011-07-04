@@ -43,65 +43,7 @@ contains
     pi=real(4)*atan(real(1))
     !
     if(scheme.eq.'alloct') then
-       allocate( slvtag(nummol) )
-       do m=1,nummol
-          slvtag(m)=-1
-       enddo
-       ptrnk=0
-       do k=1,slvmax
-          m=tagpt(k)
-          slvtag(m)=ptrnk+1
-          if(cltype.eq.2) ptrnk=ptrnk+numsite(m)             ! PME
-       enddo
-       if(cltype.eq.2) then                                  ! PME
-          rc1min=0 ; rc1max=ms1max-1
-          rc2min=0 ; rc2max=ms2max-1
-          rc3min=0 ; rc3max=ms3max-1
-          call spline_init(splodr)
-          allocate( splslv(0:splodr-1,3,ptrnk),grdslv(3,ptrnk) )
-          allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
-          ! initialize spline table for all axes
-          allocate( splfc1(rc1min:rc1max),splfc2(rc2min:rc2max),&
-               splfc3(rc3min:rc3max) )
-          do m=1,3
-             if(m.eq.1) then
-                k=rc1min ; rcimax=rc1max
-             endif
-             if(m.eq.2) then
-                k=rc2min ; rcimax=rc2max
-             endif
-             if(m.eq.3) then
-                k=rc3min ; rcimax=rc3max
-             endif
-             do rci=k,rcimax
-                rcpi=(0.0e0,0.0e0)
-                do spi=0,splodr-2
-                   chr=spline_value(real(spi+1))
-                   rtp2=2.0e0*pi*real(spi*rci)/real(rcimax+1)
-                   cosk=chr*cos(rtp2)
-                   sink=chr*sin(rtp2)
-                   rcpi=rcpi+cmplx(cosk,sink)
-                end do
-                factor=real(rcpi*conjg(rcpi))
-                if(m.eq.1) splfc1(rci)=factor
-                if(m.eq.2) splfc2(rci)=factor
-                if(m.eq.3) splfc3(rci)=factor
-             end do
-          end do
-          ! allocate fft-buffers
-          allocate( fft_buf(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
-          gridsize(1) = ms1max
-          gridsize(2) = ms2max
-          gridsize(3) = ms3max
-          call fft_set_size(gridsize)
-       endif
-       allocate( engfac(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
-       allocate( rcpslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
-       if(cltype == 2) then
-          ! init fft
-          call fft_init_inplace(rcpslt)
-          call fft_init_ctc(fft_buf, cnvslt)
-       endif
+       call recpcal_init(slvmax, tagpt)
     endif
     !
     if(scheme.eq.'preeng') then
@@ -285,6 +227,81 @@ contains
     !
     return
   end subroutine recpcal
+
+  subroutine recpcal_init(slvmax, tagpt)
+    use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
+         cltype,screen,splodr,charge,&
+         ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,&
+         specatm,sitepos,invcl,volume,&
+         pi
+    use spline, only: spline_init, spline_value
+    use fft_iface, only: fft_init_ctc, fft_init_inplace, &
+         fft_ctc, fft_inplace,&
+         fft_set_size
+    implicit none
+    integer, intent(in) :: slvmax, tagpt(slvmax)
+    integer :: m, k, rci, rcimax, spi
+    real :: chr, factor, cosk, sink, rtp2
+    complex :: rcpi
+    integer :: gridsize(3), ptrnk
+
+    allocate( slvtag(nummol) )
+    do m=1,nummol
+       slvtag(m)=-1
+    enddo
+    ptrnk=0
+    do k=1,slvmax
+       m=tagpt(k)
+       slvtag(m)=ptrnk+1
+       ptrnk=ptrnk+numsite(m)
+    enddo
+
+    rc1min=0 ; rc1max=ms1max-1
+    rc2min=0 ; rc2max=ms2max-1
+    rc3min=0 ; rc3max=ms3max-1
+    call spline_init(splodr)
+    allocate( splslv(0:splodr-1,3,ptrnk),grdslv(3,ptrnk) )
+    allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+    ! initialize spline table for all axes
+    allocate( splfc1(rc1min:rc1max),splfc2(rc2min:rc2max),&
+         splfc3(rc3min:rc3max) )
+    do m=1,3
+       if(m.eq.1) then
+          k=rc1min ; rcimax=rc1max
+       endif
+       if(m.eq.2) then
+          k=rc2min ; rcimax=rc2max
+       endif
+       if(m.eq.3) then
+          k=rc3min ; rcimax=rc3max
+       endif
+       do rci=k,rcimax
+          rcpi=(0.0e0,0.0e0)
+          do spi=0,splodr-2
+             chr=spline_value(real(spi+1))
+             rtp2=2.0e0*pi*real(spi*rci)/real(rcimax+1)
+             cosk=chr*cos(rtp2)
+             sink=chr*sin(rtp2)
+             rcpi=rcpi+cmplx(cosk,sink)
+          end do
+          factor=real(rcpi*conjg(rcpi))
+          if(m.eq.1) splfc1(rci)=factor
+          if(m.eq.2) splfc2(rci)=factor
+          if(m.eq.3) splfc3(rci)=factor
+       end do
+    end do
+    ! allocate fft-buffers
+    allocate( fft_buf(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+    gridsize(1) = ms1max
+    gridsize(2) = ms2max
+    gridsize(3) = ms3max
+    call fft_set_size(gridsize)
+    allocate( engfac(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+    allocate( rcpslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+    ! init fft
+    call fft_init_inplace(rcpslt)
+    call fft_init_ctc(fft_buf, cnvslt)
+  end subroutine recpcal_init
 
   ! FIXME
   subroutine eng_stop(type)

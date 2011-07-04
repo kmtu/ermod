@@ -145,6 +145,8 @@
 module engmain
 !
   implicit none
+  ! mathematical & physical constants
+  real, parameter :: pi = 3.1415926535897932
 !
   integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
   integer :: slttype,sltpick,refpick,wgtslf,wgtins
