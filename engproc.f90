@@ -379,14 +379,15 @@ contains
        endif
 
        ! solute-solute self energy
-       i = tagslt
+       pairep = 0.0
+       factor = 0.0
        if(slttype.eq.2) then ! rigid solute == never changed
           pairep=usreal
        else
           call realcal(tagslt, tagslt, pairep) ! calculate self-interaction
        endif
        call recpcal_energy(tagslt, tagslt, factor)
-       uvengy(0) = uvengy(0) + factor
+       uvengy(0) = uvengy(0) + pairep + factor
        
        ! solute-solvent pair
        do k=1,slvmax
