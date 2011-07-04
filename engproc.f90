@@ -339,11 +339,11 @@ contains
        end do
     end do
     ! recpcal is called only when cell size differ
-    if(q.eq.0) call recpcal_spline_greenfunc()
+    if(q == 0 .and. cltype == 2) call recpcal_spline_greenfunc()
     !
     do k=1,slvmax
        i=tagpt(k)
-       call recpcal_prepare(i,i,'slvenv')
+       if(cltype == 2) call recpcal_prepare(i,i,'slvenv')
     end do
     !
     do cntdst=1,maxdst
@@ -364,16 +364,16 @@ contains
           endif
           if(slttype.eq.2) then               ! rigid solute
              if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then   ! initialization
-                call realcal(tagslt,tagslt,usreal)           ! self real part
+                if(cltype == 2) call realcal(tagslt,tagslt,usreal)           ! self real part
              endif
           endif
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
        endif
        !
-       call recpcal_prepare(tagslt,tagslt,'sltsys')
+       if(cltype == 2) call recpcal_prepare(tagslt,tagslt,'sltsys')
 
        uvengy(:) = 0
-       if(cltype /= 0) then ! called only when ewald-type real part
+       if(cltype == 2) then ! called only when PME
           if(boxshp == 0) stop "Ewald / PME is selected, but box is not periodic!"
           call realcal_proc(tagslt, tagpt, slvmax, uvengy)
        endif
@@ -395,7 +395,7 @@ contains
                 call realcal(tagslt,i,pairep) ! usual case or self-interaction
              endif
           endif
-          call recpcal_energy(tagslt, i, factor)
+          if(cltype == 2) call recpcal_energy(tagslt, i, factor)
           pairep = pairep + factor
           uvengy(k) = uvengy(k) + pairep
        enddo
