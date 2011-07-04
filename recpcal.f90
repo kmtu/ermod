@@ -55,54 +55,6 @@ contains
     endif
     !
     if(scheme.eq.'energy') then
-       pairep=0.0e0
-       k=sluvid(tagslt)
-       if(k.eq.0) call eng_stop('fst')
-       if(tagslt.eq.i) then              ! solute self-energy
-          do rc3=rc3min,rc3max
-             do rc2=rc2min,rc2max
-                do rc1=rc1min,rc1max
-                   rcpt=rcpslt(rc1,rc2,rc3)
-                   pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpt))
-                end do
-             end do
-          end do
-          pairep=pairep/2.0e0
-       endif
-       if(tagslt.ne.i) then              ! solute-solvent pair interaction
-          svi=slvtag(i)
-          if(svi.le.0) call eng_stop('eng')
-          if(cltype.eq.2) then                               ! PME
-             stmax=numsite(i)
-             do sid=1,stmax
-                ptrnk=svi+sid-1
-                ati=specatm(sid,i)
-                chr=charge(ati)
-                do cg3=0,splodr-1
-                   fac1 = chr * splslv(cg3,3,ptrnk)
-                   rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
-                   do cg2=0,splodr-1
-                      fac2 = fac1 * splslv(cg2,2,ptrnk)
-                      rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
-                      grid1=grdslv(1,ptrnk)
-                      if(grid1 >= splodr-1) then
-                         do cg1=0,splodr-1
-                            fac3 = fac2 * splslv(cg1,1,ptrnk)
-                            rc1=grid1-cg1
-                            pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
-                         enddo
-                      else
-                         do cg1=0,splodr-1
-                            fac3 = fac2 * splslv(cg1,1,ptrnk)
-                            rc1=mod(grid1+ms1max-cg1,ms1max) ! speedhack
-                            pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
-                         end do
-                      endif
-                   end do
-                end do
-             end do
-          endif
-       endif
     endif
     !
     return
@@ -240,83 +192,144 @@ contains
     complex :: rcpi
     real, allocatable :: splval(:,:,:)
     integer, allocatable :: grdval(:,:)
-    
-       if(tagslt.ne.i) call eng_stop('eng')
-       if(scheme.eq.'slvenv') uvi=0                         ! solvent
-       if(scheme.eq.'sltsys') uvi=1                         ! solute
-       if(uvi.eq.0) svi=slvtag(i)
-       if((uvi.eq.0).and.(svi.le.0)) call eng_stop('eng')
-       stmax=numsite(i)
-       allocate( splval(0:splodr-1,3,stmax),grdval(3,stmax) )
-       do sid=1,stmax
-          ati=specatm(sid,i)
-          xst(:) = sitepos(:,ati)
-          do k=1,3
-             factor = dot_product(invcl(k,:),xst(:))
-             if(factor.lt.0.0e0) factor=factor+1.0e0
-             if(factor.gt.1.0e0) factor=factor-1.0e0
-             if((factor.lt.0.0e0).or.(factor.gt.1.0e0)) then
-                call eng_stop('crd')
-             endif
-             inm(k)=factor
+
+    if(tagslt.ne.i) call eng_stop('eng')
+    if(scheme.eq.'slvenv') uvi=0                         ! solvent
+    if(scheme.eq.'sltsys') uvi=1                         ! solute
+    if(uvi.eq.0) svi=slvtag(i)
+    if((uvi.eq.0).and.(svi.le.0)) call eng_stop('eng')
+    stmax=numsite(i)
+    allocate( splval(0:splodr-1,3,stmax),grdval(3,stmax) )
+    do sid=1,stmax
+       ati=specatm(sid,i)
+       xst(:) = sitepos(:,ati)
+       do k=1,3
+          factor = dot_product(invcl(k,:),xst(:))
+          if(factor.lt.0.0e0) factor=factor+1.0e0
+          if(factor.gt.1.0e0) factor=factor-1.0e0
+          if((factor.lt.0.0e0).or.(factor.gt.1.0e0)) then
+             call eng_stop('crd')
+          endif
+          inm(k)=factor
+       end do
+       do m=1,3
+          if(m.eq.1) rcimax=ms1max
+          if(m.eq.2) rcimax=ms2max
+          if(m.eq.3) rcimax=ms3max
+          factor=inm(m)*real(rcimax)
+          rci=int(factor)
+          do spi=0,splodr-1
+             rtp2=factor-real(rci-spi)
+             splval(spi,m,sid)=spline_value(rtp2)
           end do
+          grdval(m,sid)=rci
+       end do
+    end do
+    if(uvi.eq.0) then
+       do sid=1,stmax
+          ptrnk=svi+sid-1
           do m=1,3
-             if(m.eq.1) rcimax=ms1max
-             if(m.eq.2) rcimax=ms2max
-             if(m.eq.3) rcimax=ms3max
-             factor=inm(m)*real(rcimax)
-             rci=int(factor)
              do spi=0,splodr-1
-                rtp2=factor-real(rci-spi)
-                splval(spi,m,sid)=spline_value(rtp2)
+                splslv(spi,m,ptrnk)=splval(spi,m,sid)
              end do
-             grdval(m,sid)=rci
+             grdslv(m,ptrnk)=grdval(m,sid)
           end do
        end do
-       if(uvi.eq.0) then
-          do sid=1,stmax
-             ptrnk=svi+sid-1
-             do m=1,3
-                do spi=0,splodr-1
-                   splslv(spi,m,ptrnk)=splval(spi,m,sid)
+    endif
+    if(uvi.gt.0) then
+       rcpslt(:, :, :)=(0.0e0,0.0e0)
+       do sid=1,stmax
+          ati=specatm(sid,i)
+          chr=charge(ati)
+          do cg3=0,splodr-1
+             do cg2=0,splodr-1
+                do cg1=0,splodr-1
+                   rc1=modulo(grdval(1,sid)-cg1,ms1max)
+                   rc2=modulo(grdval(2,sid)-cg2,ms2max)
+                   rc3=modulo(grdval(3,sid)-cg3,ms3max)
+                   factor=chr*splval(cg1,1,sid)*splval(cg2,2,sid)&
+                        *splval(cg3,3,sid)
+                   rcpi=cmplx(factor,0.0e0)
+                   rcpslt(rc1,rc2,rc3)=rcpslt(rc1,rc2,rc3)+rcpi
                 end do
-                grdslv(m,ptrnk)=grdval(m,sid)
              end do
           end do
-       endif
-       if(uvi.gt.0) then
-          rcpslt(:, :, :)=(0.0e0,0.0e0)
-          do sid=1,stmax
-             ati=specatm(sid,i)
-             chr=charge(ati)
-             do cg3=0,splodr-1
-                do cg2=0,splodr-1
+       end do
+       ! FIXME: rewrite to real-to-complex transform
+       call fft_inplace(rcpslt)                         ! 3D-FFT
+       do rc3=rc3min,rc3max
+          do rc2=rc2min,rc2max
+             do rc1=rc1min,rc1max
+                rcpi=cmplx(engfac(rc1,rc2,rc3),0.0e0)
+                fft_buf(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
+             end do
+          end do
+       end do
+       call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
+    endif
+    deallocate( splval,grdval )
+  end subroutine recpcal_prepare
+
+
+  subroutine recpcal_energy(tagslt, i, pairep)
+    use engmain, only: ms1max, ms2max, ms3max, splodr, numsite, specatm, sluvid, charge
+    implicit none
+    integer, intent(in) :: tagslt, i
+    real, intent(inout) :: pairep
+    integer :: cg1, cg2, cg3, k
+    integer :: rc1, rc2, rc3, ptrnk, sid, chr, ati, svi, stmax
+    real :: fac1, fac2, fac3
+    integer :: grid1
+    complex :: rcpt
+
+    pairep=0.0e0
+    k=sluvid(tagslt)
+    if(k.eq.0) call eng_stop('fst')
+    if(tagslt.eq.i) then              ! solute self-energy
+       do rc3=rc3min,rc3max
+          do rc2=rc2min,rc2max
+             do rc1=rc1min,rc1max
+                rcpt=rcpslt(rc1,rc2,rc3)
+                pairep=pairep+engfac(rc1,rc2,rc3)*real(rcpt*conjg(rcpt))
+             end do
+          end do
+       end do
+       pairep=pairep/2.0e0
+    endif
+
+    if(tagslt.ne.i) then              ! solute-solvent pair interaction
+       svi=slvtag(i)
+       if(svi.le.0) call eng_stop('eng')
+       stmax=numsite(i)
+       do sid=1,stmax
+          ptrnk=svi+sid-1
+          ati=specatm(sid,i)
+          chr=charge(ati)
+          do cg3=0,splodr-1
+             fac1 = chr * splslv(cg3,3,ptrnk)
+             rc3=modulo(grdslv(3,ptrnk)-cg3,ms3max)
+             do cg2=0,splodr-1
+                fac2 = fac1 * splslv(cg2,2,ptrnk)
+                rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
+                grid1=grdslv(1,ptrnk)
+                if(grid1 >= splodr-1) then
                    do cg1=0,splodr-1
-                      rc1=modulo(grdval(1,sid)-cg1,ms1max)
-                      rc2=modulo(grdval(2,sid)-cg2,ms2max)
-                      rc3=modulo(grdval(3,sid)-cg3,ms3max)
-                      factor=chr*splval(cg1,1,sid)*splval(cg2,2,sid)&
-                           *splval(cg3,3,sid)
-                      rcpi=cmplx(factor,0.0e0)
-                      rcpslt(rc1,rc2,rc3)=rcpslt(rc1,rc2,rc3)+rcpi
+                      fac3 = fac2 * splslv(cg1,1,ptrnk)
+                      rc1=grid1-cg1
+                      pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
+                   enddo
+                else
+                   do cg1=0,splodr-1
+                      fac3 = fac2 * splslv(cg1,1,ptrnk)
+                      rc1=mod(grid1+ms1max-cg1,ms1max) ! speedhack
+                      pairep=pairep+fac3*real(cnvslt(rc1,rc2,rc3))
                    end do
-                end do
+                endif
              end do
           end do
-          ! FIXME: rewrite to real-to-complex transform
-          call fft_inplace(rcpslt)                         ! 3D-FFT
-          do rc3=rc3min,rc3max
-             do rc2=rc2min,rc2max
-                do rc1=rc1min,rc1max
-                   rcpi=cmplx(engfac(rc1,rc2,rc3),0.0e0)
-                   fft_buf(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
-                end do
-             end do
-          end do
-          call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
-       endif
-       deallocate( splval,grdval )
-     end subroutine recpcal_prepare
+       end do
+    endif
+  end subroutine recpcal_energy
 
   ! FIXME
   subroutine eng_stop(type)
