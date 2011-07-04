@@ -737,11 +737,10 @@ contains
        return
     endif
 
-    if(cltype.eq.0) then                  ! bare Coulomb
-       if(boxshp.eq.0) reelcut=infty
-       if(boxshp.ne.0) reelcut=elecut
-    endif
-    if(cltype.ne.0) reelcut=elecut        ! Ewald and PME
+    if(cltype /= 0) stop "cannot happen: realcal() is called only when cltype is 'bare coulomb'."
+
+    if(boxshp.eq.0) reelcut=infty
+    if(boxshp.ne.0) reelcut=elecut
     !
     pairep=0.0e0
     ismax=numsite(i)
@@ -788,10 +787,7 @@ contains
           else
              chr2=charge(ati)*charge(atj)
 
-             if(cltype.eq.0) rtp1=real(0)                  ! bare Coulomb
-             if(cltype.ne.0) rtp1=screen*rst               ! Ewald and PME
-             if(i.eq.j) epcl=-chr2*derf(rtp1)/rst
-             if(i.ne.j) epcl=chr2*(1.0e0-derf(rtp1))/rst
+             epcl=chr2 / rst
           endif
           pairep = pairep + (eplj + epcl)
        end do
