@@ -16,19 +16,21 @@ contains
     !
     use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
          cltype,screen,splodr,charge,&
-         ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,&
+         ms1max,ms2max,ms3max,&
          specatm,sitepos,invcl,volume
     use spline, only: spline_init, spline_value
     use fft_iface, only: fft_init_ctc, fft_init_inplace, &
          fft_ctc, fft_inplace,&
          fft_set_size
     implicit none
-    integer tagslt,i,ptrnk,slvmax,tagpt(slvmax)
+    integer, intent(in) :: tagslt, i, slvmax, tagpt(slvmax)
+    real, intent(inout) :: pairep
+    character(len=6), intent(in) :: scheme
+    integer ptrnk
     integer svi,uvi,ati,sid,stmax,m,k
     integer rc1,rc2,rc3,rci,rcimax,spi,cg1,cg2,cg3,grid1
-    real pi,pairep,chr,xst(3),inm(3),rtp2,cosk,sink,factor,fac1,fac2,fac3
+    real pi,chr,xst(3),inm(3),rtp2,cosk,sink,factor,fac1,fac2,fac3
     complex rcpi,rcpt
-    character(len=6), intent(in) :: scheme
     !
     real, dimension(:,:,:),      allocatable :: splval
     integer, dimension(:,:),     allocatable :: grdval
@@ -47,46 +49,7 @@ contains
     endif
     !
     if(scheme.eq.'preeng') then
-       do rc3=rc3min,rc3max
-          do rc2=rc2min,rc2max
-             do rc1=rc1min,rc1max
-                factor=0.0e0
-                m=rc1*rc1+rc2*rc2+rc3*rc3
-                if(m.eq.0) cycle
-                do m=1,3
-                   if(m.eq.1) rci=rc1
-                   if(m.eq.2) rci=rc2
-                   if(m.eq.3) rci=rc3
-                   if(cltype.eq.2) then                           ! PME
-                      if(m.eq.1) rcimax=ms1max
-                      if(m.eq.2) rcimax=ms2max
-                      if(m.eq.3) rcimax=ms3max
-                      if((mod(splodr,2).eq.1).and.(2*abs(rci).eq.rcimax)) then
-                         go to 3219
-                      endif
-                      if(rci.le.rcimax/2) inm(m)=real(rci)
-                      if(rci.gt.rcimax/2) inm(m)=real(rci-rcimax)
-                   endif
-                end do
-                do m=1,3
-                   factor=0.0e0
-                   do k=1,3
-                      factor=factor+invcl(k,m)*inm(k)
-                   end do
-                   xst(m)=factor
-                end do
-                rtp2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
-                chr=pi*pi*rtp2/screen/screen
-                factor=exp(-chr)/rtp2/pi/volume
-                if(cltype.eq.2) then                             ! PME
-                   rtp2=splfc1(rc1)*splfc2(rc2)*splfc3(rc3)
-                   factor=factor/rtp2
-                endif
-3219            continue
-                engfac(rc1,rc2,rc3)=factor
-             end do
-          end do
-       end do
+       call recpcal_spline_greenfunc()
     endif
     !
     if((scheme.eq.'slvenv').or.(scheme.eq.'sltsys')) then
@@ -231,10 +194,10 @@ contains
   subroutine recpcal_init(slvmax, tagpt)
     use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
          cltype,screen,splodr,charge,&
-         ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,&
+         ms1max,ms2max,ms3max,&
          specatm,sitepos,invcl,volume,&
          pi
-    use spline, only: spline_init, spline_value
+    use spline, only: spline_init
     use fft_iface, only: fft_init_ctc, fft_init_inplace, &
          fft_ctc, fft_inplace,&
          fft_set_size
@@ -262,8 +225,9 @@ contains
     allocate( splslv(0:splodr-1,3,ptrnk),grdslv(3,ptrnk) )
     allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
     ! initialize spline table for all axes
-    allocate( splfc1(rc1min:rc1max),splfc2(rc2min:rc2max),&
-         splfc3(rc3min:rc3max) )
+    allocate( splfc1(rc1min:rc1max) )
+    allocate( splfc2(rc2min:rc2max) )
+    allocate( splfc3(rc3min:rc3max) )
     call init_spline_axis(rc1min, rc1max, splfc1(rc1min:rc1max))
     call init_spline_axis(rc2min, rc2max, splfc2(rc2min:rc2max))
     call init_spline_axis(rc3min, rc3max, splfc3(rc3min:rc3max))
@@ -302,8 +266,48 @@ contains
        factor=real(rcpi*conjg(rcpi))
        splfc(rci)=factor
     end do
-  end subroutine
+  end subroutine init_spline_axis
 
+  subroutine recpcal_spline_greenfunc()
+    use engmain, only: invcl, ms1max, ms2max, ms3max, splodr, volume, screen, pi
+    implicit none
+    integer :: rc1, rc2, rc3, rci, m, rcimax
+    real :: factor, rtp2, chr
+    real :: inm(3), xst(3)
+    do rc3 = rc3min, rc3max
+       do rc2 = rc2min, rc2max
+          do rc1 = rc1min, rc1max
+             factor=0.0e0
+             if(rc1 == 0 .and. rc2 == 0 .and. rc3 == 0) cycle
+             do m=1,3
+                if(m.eq.1) rci = rc1
+                if(m.eq.2) rci = rc2
+                if(m.eq.3) rci = rc3
+
+                if(m.eq.1) rcimax=ms1max
+                if(m.eq.2) rcimax=ms2max
+                if(m.eq.3) rcimax=ms3max
+                if((mod(splodr,2).eq.1).and.(2*abs(rci).eq.rcimax)) then
+                   go to 3219
+                endif
+                if(rci.le.rcimax/2) inm(m)=real(rci)
+                if(rci.gt.rcimax/2) inm(m)=real(rci-rcimax)
+             end do
+             do m=1,3
+                xst(m)=dot_product(invcl(:, m), inm(:))
+             end do
+             rtp2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
+             chr=pi*pi*rtp2/screen/screen
+             factor=exp(-chr)/rtp2/pi/volume
+             rtp2=splfc1(rc1)*splfc2(rc2)*splfc3(rc3)
+             factor=factor/rtp2
+3219         continue
+             engfac(rc1,rc2,rc3)=factor
+          end do
+       end do
+    end do
+    engfac(0, 0, 0) = 0.0
+  end subroutine recpcal_spline_greenfunc
 
   ! FIXME
   subroutine eng_stop(type)
