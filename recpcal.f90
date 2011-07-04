@@ -278,8 +278,8 @@ contains
     integer, intent(in) :: tagslt, i
     real, intent(inout) :: pairep
     integer :: cg1, cg2, cg3, k
-    integer :: rc1, rc2, rc3, ptrnk, sid, chr, ati, svi, stmax
-    real :: fac1, fac2, fac3
+    integer :: rc1, rc2, rc3, ptrnk, sid, ati, svi, stmax
+    real :: fac1, fac2, fac3, chr
     integer :: grid1
     complex :: rcpt
 
