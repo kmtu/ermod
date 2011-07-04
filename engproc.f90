@@ -756,17 +756,11 @@ contains
           end do
           if(boxshp.ne.0) then              ! when the system is periodic
              do k=1,3
-                rst=0.0e0
-                do m=1,3
-                   rst=rst+invcl(k,m)*xst(m)
-                end do
+                rst=dot_product(invcl(k,:), xst(:))
                 clm(k)=real(nint(rst))
              end do
              do m=1,3
-                rst=0.0e0
-                do k=1,3
-                   rst=rst+cell(m,k)*clm(k)
-                end do
+                rst=dot_product(cell(m,:), clm(:))
                 xst(m)=xst(m)-rst             ! get the nearest distance between i,j
              end do
           endif
