@@ -262,7 +262,10 @@ contains
          edens,ecorr,eself,&
          slnuv,avslf,minuv,maxuv,numslt,sltlist,&
          engnorm,engsmpl,voffset,&
-         boxshp, cltype, cell
+         boxshp, cltype, cell, &
+         SYS_NONPERIODIC, SYS_PERIODIC, &
+         EL_COULOMB, EL_PME, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use ptinsrt, only: instslt
     use realcal_blk, only: realcal_proc
     use reciprocal, only: &
@@ -339,21 +342,21 @@ contains
        end do
     end do
     ! recpcal is called only when cell size differ
-    if(q == 0 .and. cltype == 2) call recpcal_spline_greenfunc()
+    if(q == 0 .and. cltype == EL_PME) call recpcal_spline_greenfunc()
     !
     do k=1,slvmax
        i=tagpt(k)
-       if(cltype == 2) call recpcal_prepare(i,i,'slvenv')
+       if(cltype == EL_PME) call recpcal_prepare(i,i,'slvenv')
     end do
     !
     do cntdst=1,maxdst
-       if(slttype.eq.1) then                 ! solution system
+       if(slttype == CAL_SOLN) then
           tagslt=sltlist(cntdst)
           call sltcnd(q,tagslt,'pos')
           if(q.eq.0) go to 99999
           if((q.ne.0).and.(q.ne.1)) call eng_stop('slt')
        endif
-       if(slttype.ge.2) then                 ! solute insertion
+       if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) then
           tagslt=sltlist(1)
           if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then
              call instslt(wgtslcf,'init')
@@ -362,26 +365,26 @@ contains
           if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
              call instslt(wgtslcf,'last')
           endif
-          if(slttype.eq.2) then               ! rigid solute
+          if(slttype == CAL_REFS_RIGID) then
              if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then   ! initialization
-                if(cltype == 2) call realcal_self(tagslt,usreal)           ! self real part
+                if(cltype == EL_PME) call realcal_self(tagslt,usreal)
              endif
           endif
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
        endif
        !
-       if(cltype == 2) call recpcal_prepare(tagslt,tagslt,'sltsys')
+       if(cltype == EL_PME) call recpcal_prepare(tagslt,tagslt,'sltsys')
 
        uvengy(:) = 0
-       if(cltype == 2) then ! called only when PME
-          if(boxshp == 0) stop "Ewald / PME is selected, but box is not periodic!"
+       if(cltype == EL_PME) then ! called only when PME
+          if(boxshp == SYS_NONPERIODIC) stop "Ewald / PME is selected, but box is not periodic!"
           call realcal_proc(tagslt, tagpt, slvmax, uvengy)
        endif
 
        ! solute-solute self energy
        pairep = 0.0
        factor = 0.0
-       if(slttype.eq.2) then ! rigid solute == never changed
+       if(slttype == CAL_REFS_RIGID) then ! rigid solute: self energy never changes
           pairep=usreal
        else
           call realcal_self(tagslt, pairep) ! calculate self-interaction
@@ -396,7 +399,7 @@ contains
 
           pairep = 0
           factor = 0
-          if(cltype == 2) then ! called only when PME, non-self interaction
+          if(cltype == EL_PME) then ! called only when PME, non-self interaction
              call residual_ene(tagslt, i, pairep)
              call recpcal_energy(tagslt, i, factor)
              pairep = pairep + factor
@@ -792,10 +795,6 @@ contains
           pairep = pairep + (eplj + epcl)
        end do
     end do
-    !
-    if(cltype.ne.0) then                                 ! Ewald and PME
-       call residual_ene(i, j, pairep)
-    endif
     !
     return
   end subroutine realcal

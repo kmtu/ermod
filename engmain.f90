@@ -145,6 +145,7 @@
 module engmain
 !
   implicit none
+  ! Note for optimization: any major compilers shall inline expand "parameter"s
   ! mathematical & physical constants
   real, parameter :: pi = 3.1415926535897932
 !
