@@ -323,32 +323,25 @@ contains
        call recpcal_init(slvmax,tagpt)
     endif
 
-    ! check whether cell size changes
-    q=1
-    if(stnum.eq.skpcnf) q=0
-    if(stnum.gt.skpcnf) then
-       factor=0.0e0
-       do i=1,3
-          do k=1,3
-             pairep=abs(prevcl(k,i)-cell(k,i))
-             if(factor.lt.pairep) factor=pairep
-          end do
+    ! Initialize reciprocal space - grid and charges
+    if(cltype == EL_PME) then
+
+       ! check whether cell size changes
+       q=1
+       if(stnum.eq.skpcnf) q = 0
+       if(any(prevcl(:,:) /= cell(:,:))) q = 0
+       prevcl(:, :) = cell(:, :)
+
+       ! recpcal is called only when cell size differ
+       if(q == 0) call recpcal_spline_greenfunc()
+
+       !
+       do k=1,slvmax
+          i=tagpt(k)
+          call recpcal_prepare(i,i,'slvenv')
        end do
-       if(factor.gt.tiny) q=0
     endif
-    do i=1,3
-       do k=1,3
-          prevcl(k,i)=cell(k,i)
-       end do
-    end do
-    ! recpcal is called only when cell size differ
-    if(q == 0 .and. cltype == EL_PME) call recpcal_spline_greenfunc()
-    !
-    do k=1,slvmax
-       i=tagpt(k)
-       if(cltype == EL_PME) call recpcal_prepare(i,i,'slvenv')
-    end do
-    !
+
     do cntdst=1,maxdst
        if(slttype == CAL_SOLN) then
           tagslt=sltlist(cntdst)
