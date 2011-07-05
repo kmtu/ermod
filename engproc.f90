@@ -365,8 +365,8 @@ contains
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
        endif
        !
+       uvengy(:) = 0
        if(cltype == EL_PME) then
-          uvengy(:) = 0
           call recpcal_prepare_solute(tagslt)
           call realcal_proc(tagslt, tagpt, slvmax, uvengy)
        endif
