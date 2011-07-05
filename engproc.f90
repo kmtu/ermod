@@ -268,8 +268,8 @@ contains
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use ptinsrt, only: instslt
     use realcal_blk, only: realcal_proc
-    use reciprocal, only: &
-         recpcal_init, recpcal_prepare, recpcal_energy, recpcal_spline_greenfunc
+    use reciprocal, only: recpcal_init, &
+         recpcal_prepare, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc
     use mpiproc                                                      ! MPI
     integer, parameter :: flcio=91                    ! IO unit for flcuv
     integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
@@ -335,10 +335,9 @@ contains
        ! recpcal is called only when cell size differ
        if(q == 0) call recpcal_spline_greenfunc()
 
-       !
        do k=1,slvmax
           i=tagpt(k)
-          call recpcal_prepare(i,'slvenv')
+          call recpcal_prepare_solvent(i)
        end do
     endif
 
