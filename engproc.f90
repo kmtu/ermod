@@ -338,7 +338,7 @@ contains
        !
        do k=1,slvmax
           i=tagpt(k)
-          call recpcal_prepare(i,i,'slvenv')
+          call recpcal_prepare(i,'slvenv')
        end do
     endif
 
@@ -366,13 +366,10 @@ contains
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
        endif
        !
-       if(cltype == EL_PME) call recpcal_prepare(tagslt,tagslt,'sltsys')
+       if(cltype == EL_PME) call recpcal_prepare(tagslt,'sltsys')
 
        uvengy(:) = 0
-       if(cltype == EL_PME) then ! called only when PME
-          if(boxshp == SYS_NONPERIODIC) stop "Ewald / PME is selected, but box is not periodic!"
-          call realcal_proc(tagslt, tagpt, slvmax, uvengy)
-       endif
+       if(cltype == EL_PME) call realcal_proc(tagslt, tagpt, slvmax, uvengy)
 
        ! solute-solute self energy
        pairep = 0.0

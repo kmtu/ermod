@@ -130,12 +130,12 @@ contains
     engfac(0, 0, 0) = 0.0
   end subroutine recpcal_spline_greenfunc
 
-  subroutine recpcal_prepare(tagslt, i, scheme)
+  subroutine recpcal_prepare(i, scheme)
     use engmain, only: ms1max, ms2max, ms3max, sitepos, invcl, numsite, splodr, specatm, charge
     use spline, only: spline_value
     use fft_iface, only: fft_ctc, fft_inplace
     implicit none
-    integer, intent(in) :: tagslt, i
+    integer, intent(in) :: i
     character(len=6), intent(in) :: scheme
     real :: xst(3), inm(3)
     integer :: rc1, rc2, rc3, rci, sid, m, k, ati, cg1, cg2, cg3, &
@@ -145,47 +145,20 @@ contains
     real, allocatable :: splval(:,:,:)
     integer, allocatable :: grdval(:,:)
 
-    if(tagslt.ne.i) call eng_stop('eng')
-    if(scheme.eq.'slvenv') uvi=0                         ! solvent
+    if(scheme.eq.'slvenv') then ! solvent
+       uvi=0
+       svi=slvtag(i)
+       if(svi <= 0) call eng_stop('eng')
+    endif
     if(scheme.eq.'sltsys') uvi=1                         ! solute
-    if(uvi.eq.0) svi=slvtag(i)
-    if((uvi.eq.0).and.(svi.le.0)) call eng_stop('eng')
     stmax=numsite(i)
     allocate( splval(0:splodr-1,3,stmax),grdval(3,stmax) )
-    do sid=1,stmax
-       ati=specatm(sid,i)
-       xst(:) = sitepos(:,ati)
-       do k=1,3
-          factor = dot_product(invcl(k,:),xst(:))
-          if(factor.lt.0.0e0) factor=factor+1.0e0
-          if(factor.gt.1.0e0) factor=factor-1.0e0
-          if((factor.lt.0.0e0).or.(factor.gt.1.0e0)) then
-             call eng_stop('crd')
-          endif
-          inm(k)=factor
-       end do
-       do m=1,3
-          if(m.eq.1) rcimax=ms1max
-          if(m.eq.2) rcimax=ms2max
-          if(m.eq.3) rcimax=ms3max
-          factor=inm(m)*real(rcimax)
-          rci=int(factor)
-          do spi=0,splodr-1
-             rtp2=factor-real(rci-spi)
-             splval(spi,m,sid)=spline_value(rtp2)
-          end do
-          grdval(m,sid)=rci
-       end do
-    end do
+    call calc_spline_molecule(i, stmax, splval(:,:,1:stmax), grdval(:,1:stmax))
     if(uvi.eq.0) then
        do sid=1,stmax
           ptrnk=svi+sid-1
-          do m=1,3
-             do spi=0,splodr-1
-                splslv(spi,m,ptrnk)=splval(spi,m,sid)
-             end do
-             grdslv(m,ptrnk)=grdval(m,sid)
-          end do
+          splslv(:,:,ptrnk)=splval(:,:,sid)
+          grdslv(:,ptrnk)=grdval(:,sid)
        end do
     endif
     if(uvi.gt.0) then
@@ -221,6 +194,46 @@ contains
     endif
     deallocate( splval,grdval )
   end subroutine recpcal_prepare
+
+  subroutine calc_spline_molecule(imol, stmax, store_spline, store_grid)
+    use engmain, only: ms1max, ms2max, ms3max, splodr, specatm, sitepos, invcl
+    use spline, only: spline_value
+    implicit none
+
+    integer, intent(in) :: imol, stmax
+    real, intent(out) :: store_spline(0:splodr-1, 3, 1:stmax)
+    integer, intent(out) :: store_grid(3, 1:stmax)
+    
+    integer :: sid, ati, rcimax, m, k, rci, spi
+    real :: xst(3), inm(3)
+    real :: factor, rtp2
+
+    do sid=1,stmax
+       ati=specatm(sid,imol)
+       xst(:) = sitepos(:,ati)
+       do k=1,3
+          factor = dot_product(invcl(k,:),xst(:))
+          if(factor.lt.0.0e0) factor=factor+1.0e0
+          if(factor.gt.1.0e0) factor=factor-1.0e0
+          if((factor.lt.0.0e0).or.(factor.gt.1.0e0)) then
+             call eng_stop('crd')
+          endif
+          inm(k)=factor
+       end do
+       do m=1,3
+          if(m.eq.1) rcimax=ms1max
+          if(m.eq.2) rcimax=ms2max
+          if(m.eq.3) rcimax=ms3max
+          factor=inm(m)*real(rcimax)
+          rci=int(factor)
+          do spi=0,splodr-1
+             rtp2=factor-real(rci-spi)
+             store_spline(spi,m,sid)=spline_value(rtp2)
+          end do
+          store_grid(m,sid)=rci
+       end do
+    end do
+  end subroutine calc_spline_molecule
 
   subroutine recpcal_self_energy(pairep)
     implicit none
