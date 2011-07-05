@@ -143,12 +143,11 @@ contains
     call calc_spline_molecule(i, stmax, splslv(:,:,svi:svi+stmax-1), grdslv(:,svi:svi+stmax-1))
   end subroutine recpcal_prepare_solvent
 
-  subroutine recpcal_prepare(i, scheme)
+  subroutine recpcal_prepare_solute(tagslt)
     use engmain, only: ms1max, ms2max, ms3max, sitepos, invcl, numsite, splodr, specatm, charge
     use fft_iface, only: fft_ctc, fft_inplace
     implicit none
-    integer, intent(in) :: i
-    character(len=6), intent(in) :: scheme
+    integer, intent(in) :: tagslt
     real :: xst(3), inm(3)
     integer :: rc1, rc2, rc3, rci, sid, m, k, ati, cg1, cg2, cg3, &
          stmax, ptrnk, rcimax, svi, uvi, spi
@@ -157,17 +156,12 @@ contains
     real, allocatable :: splval(:,:,:)
     integer, allocatable :: grdval(:,:)
 
-    if(scheme.eq.'slvenv') then ! solvent
-       call recpcal_prepare_solvent(i)
-       return
-    endif
-    if(scheme.eq.'sltsys') uvi=1                         ! solute
-    stmax=numsite(i)
+    stmax=numsite(tagslt)
     allocate( splval(0:splodr-1,3,stmax),grdval(3,stmax) )
-    call calc_spline_molecule(i, stmax, splval(:,:,1:stmax), grdval(:,1:stmax))
+    call calc_spline_molecule(tagslt, stmax, splval(:,:,1:stmax), grdval(:,1:stmax))
     rcpslt(:, :, :)=(0.0e0,0.0e0)
     do sid=1,stmax
-       ati=specatm(sid,i)
+       ati=specatm(sid,tagslt)
        chr=charge(ati)
        do cg3=0,splodr-1
           do cg2=0,splodr-1
@@ -195,7 +189,7 @@ contains
     end do
     call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
     deallocate( splval,grdval )
-  end subroutine recpcal_prepare
+  end subroutine recpcal_prepare_solute
 
   subroutine calc_spline_molecule(imol, stmax, store_spline, store_grid)
     use engmain, only: ms1max, ms2max, ms3max, splodr, specatm, sitepos, invcl

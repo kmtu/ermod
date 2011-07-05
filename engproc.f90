@@ -269,7 +269,7 @@ contains
     use ptinsrt, only: instslt
     use realcal_blk, only: realcal_proc
     use reciprocal, only: recpcal_init, &
-         recpcal_prepare, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc
+         recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc
     use mpiproc                                                      ! MPI
     integer, parameter :: flcio=91                    ! IO unit for flcuv
     integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
@@ -365,10 +365,11 @@ contains
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
        endif
        !
-       if(cltype == EL_PME) call recpcal_prepare(tagslt,'sltsys')
-
-       uvengy(:) = 0
-       if(cltype == EL_PME) call realcal_proc(tagslt, tagpt, slvmax, uvengy)
+       if(cltype == EL_PME) then
+          uvengy(:) = 0
+          call recpcal_prepare_solute(tagslt)
+          call realcal_proc(tagslt, tagpt, slvmax, uvengy)
+       endif
 
        ! solute-solute self energy
        pairep = 0.0
