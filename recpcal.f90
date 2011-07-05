@@ -130,9 +130,21 @@ contains
     engfac(0, 0, 0) = 0.0
   end subroutine recpcal_spline_greenfunc
 
+  subroutine recpcal_prepare_solvent(i)
+    use engmain, only: numsite
+    implicit none
+    integer, intent(in) :: i
+    integer :: svi, stmax
+
+    svi=slvtag(i)
+    if(svi <= 0) call eng_stop('eng')
+
+    stmax=numsite(i)
+    call calc_spline_molecule(i, stmax, splslv(:,:,svi:svi+stmax-1), grdslv(:,svi:svi+stmax-1))
+  end subroutine recpcal_prepare_solvent
+
   subroutine recpcal_prepare(i, scheme)
     use engmain, only: ms1max, ms2max, ms3max, sitepos, invcl, numsite, splodr, specatm, charge
-    use spline, only: spline_value
     use fft_iface, only: fft_ctc, fft_inplace
     implicit none
     integer, intent(in) :: i
@@ -146,52 +158,42 @@ contains
     integer, allocatable :: grdval(:,:)
 
     if(scheme.eq.'slvenv') then ! solvent
-       uvi=0
-       svi=slvtag(i)
-       if(svi <= 0) call eng_stop('eng')
+       call recpcal_prepare_solvent(i)
+       return
     endif
     if(scheme.eq.'sltsys') uvi=1                         ! solute
     stmax=numsite(i)
     allocate( splval(0:splodr-1,3,stmax),grdval(3,stmax) )
     call calc_spline_molecule(i, stmax, splval(:,:,1:stmax), grdval(:,1:stmax))
-    if(uvi.eq.0) then
-       do sid=1,stmax
-          ptrnk=svi+sid-1
-          splslv(:,:,ptrnk)=splval(:,:,sid)
-          grdslv(:,ptrnk)=grdval(:,sid)
-       end do
-    endif
-    if(uvi.gt.0) then
-       rcpslt(:, :, :)=(0.0e0,0.0e0)
-       do sid=1,stmax
-          ati=specatm(sid,i)
-          chr=charge(ati)
-          do cg3=0,splodr-1
-             do cg2=0,splodr-1
-                do cg1=0,splodr-1
-                   rc1=modulo(grdval(1,sid)-cg1,ms1max)
-                   rc2=modulo(grdval(2,sid)-cg2,ms2max)
-                   rc3=modulo(grdval(3,sid)-cg3,ms3max)
-                   factor=chr*splval(cg1,1,sid)*splval(cg2,2,sid)&
-                        *splval(cg3,3,sid)
-                   rcpi=cmplx(factor,0.0e0)
-                   rcpslt(rc1,rc2,rc3)=rcpslt(rc1,rc2,rc3)+rcpi
-                end do
+    rcpslt(:, :, :)=(0.0e0,0.0e0)
+    do sid=1,stmax
+       ati=specatm(sid,i)
+       chr=charge(ati)
+       do cg3=0,splodr-1
+          do cg2=0,splodr-1
+             do cg1=0,splodr-1
+                rc1=modulo(grdval(1,sid)-cg1,ms1max)
+                rc2=modulo(grdval(2,sid)-cg2,ms2max)
+                rc3=modulo(grdval(3,sid)-cg3,ms3max)
+                factor=chr*splval(cg1,1,sid)*splval(cg2,2,sid)&
+                     *splval(cg3,3,sid)
+                rcpi=cmplx(factor,0.0e0)
+                rcpslt(rc1,rc2,rc3)=rcpslt(rc1,rc2,rc3)+rcpi
              end do
           end do
        end do
-       ! FIXME: rewrite to real-to-complex transform
-       call fft_inplace(rcpslt)                         ! 3D-FFT
-       do rc3=rc3min,rc3max
-          do rc2=rc2min,rc2max
-             do rc1=rc1min,rc1max
-                rcpi=cmplx(engfac(rc1,rc2,rc3),0.0e0)
-                fft_buf(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
-             end do
+    end do
+    ! FIXME: rewrite to real-to-complex transform
+    call fft_inplace(rcpslt)                         ! 3D-FFT
+    do rc3=rc3min,rc3max
+       do rc2=rc2min,rc2max
+          do rc1=rc1min,rc1max
+             rcpi=cmplx(engfac(rc1,rc2,rc3),0.0e0)
+             fft_buf(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
           end do
        end do
-       call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
-    endif
+    end do
+    call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
     deallocate( splval,grdval )
   end subroutine recpcal_prepare
 
