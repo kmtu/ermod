@@ -304,8 +304,8 @@ contains
     allocate( tplst(nummol) )
     slvmax=0
     do i=1+ptinit,nummol,ptskip
-       if((slttype.eq.1) .or. &
-            ((slttype.ge.2).and.(sluvid(i).eq.0))) then
+       if(slttype == CAL_SOLN) .or. &
+            ((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. (sluvid(i) == 0))) then
           slvmax=slvmax+1
           tplst(slvmax)=i ! which particle is treated by this node?
        end if
@@ -333,12 +333,14 @@ contains
        endif
        prevcl(:, :) = cell(:, :)
 
+       ! calculate recpcal for all molecules (including possible solute)
        do k=1,slvmax
           i=tagpt(k)
           call recpcal_prepare_solvent(i)
        end do
     endif
 
+    ! turn one of solvents into solute (for mutiple solute)
     do cntdst=1,maxdst
        select case(slttype)
        case (CAL_SOLN)
