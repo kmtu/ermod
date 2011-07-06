@@ -319,19 +319,21 @@ contains
     !
     call cellinfo
     !
+    if(stnum.eq.skpcnf) then                ! PME initialization
+       call recpcal_init(slvmax,tagpt)
+    endif
+
     ! Initialize reciprocal space - grid and charges
     if(cltype == EL_PME) then
-       if(stnum == skpcnf) then                ! PME initialization
-          call recpcal_init(slvmax,tagpt)
-          prevcl(:, :) = 0.0
-       endif
 
        ! check whether cell size changes
-       if(stnum == skpcnf .or. any(prevcl(:,:) /= cell(:,:))) then
-          ! Green function is rebuilt only when cell size differ
-          call recpcal_spline_greenfunc()
-       endif
+       q=1
+       if(stnum.eq.skpcnf) q = 0
+       if(any(prevcl(:,:) /= cell(:,:))) q = 0
        prevcl(:, :) = cell(:, :)
+
+       ! recpcal is called only when cell size differ
+       if(q == 0) call recpcal_spline_greenfunc()
 
        do k=1,slvmax
           i=tagpt(k)
@@ -340,13 +342,13 @@ contains
     endif
 
     do cntdst=1,maxdst
-       select case(slttype)
-       case (CAL_SOLN)
+       if(slttype == CAL_SOLN) then
           tagslt=sltlist(cntdst)
           call sltcnd(q,tagslt,'pos')
           if(q.eq.0) go to 99999
           if((q.ne.0).and.(q.ne.1)) call eng_stop('slt')
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       endif
+       if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) then
           tagslt=sltlist(1)
           if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then
              call instslt(wgtslcf,'init')
@@ -361,7 +363,7 @@ contains
              endif
           endif
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
-       end select
+       endif
        !
        uvengy(:) = 0
        if(cltype == EL_PME) then
