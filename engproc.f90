@@ -380,7 +380,7 @@ contains
           call realcal_self(tagslt, pairep) ! calculate self-interaction
        endif
        call recpcal_energy(tagslt, tagslt, factor)
-       uvengy(0) = uvengy(0) + pairep + factor
+       uvengy(0) = pairep + factor
 
        ! solute-solvent pair
        do k=1,slvmax
