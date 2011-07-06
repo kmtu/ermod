@@ -130,6 +130,7 @@ contains
     engfac(0, 0, 0) = 0.0
   end subroutine recpcal_spline_greenfunc
 
+  ! FIXME: this routine is named as "solvent", but may include solute molecule, when mutiple solute is used.
   subroutine recpcal_prepare_solvent(i)
     use engmain, only: numsite
     implicit none
