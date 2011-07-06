@@ -339,6 +339,8 @@ contains
        end do
     endif
 
+    ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
+    ! cntdst is the iteration no. of insertion (refs)
     do cntdst=1,maxdst
        select case(slttype) 
        case(CAL_SOLN)
@@ -367,18 +369,17 @@ contains
        if(cltype == EL_PME) then
           call recpcal_prepare_solute(tagslt)
           call realcal_proc(tagslt, tagpt, slvmax, uvengy)
+          call recpcal_self_energy(uvengy(0))
        endif
 
        ! solute-solute self energy
        pairep = 0.0
-       factor = 0.0
        if(slttype == CAL_REFS_RIGID) then ! rigid solute: self energy never changes
           pairep=usreal
        else
           call realcal_self(tagslt, pairep) ! calculate self-interaction
        endif
-       if (cltype == EL_PME) call recpcal_self_energy(factor)
-       uvengy(0) = pairep + factor
+       uvengy(0) = uvengy(0) + pairep
 
        ! solute-solvent pair
        do k=1,slvmax
@@ -396,7 +397,7 @@ contains
           endif
           uvengy(k) = uvengy(k) + pairep
        enddo
-       !
+
        if(wgtslf.eq.0) engnmfc=1.0e0
        if(wgtslf.eq.1) then
           factor=uvengy(0)
@@ -408,11 +409,15 @@ contains
 #endif
           endif
           factor=factor-voffset               ! shifted by offset
-          if(slttype.eq.1) engnmfc=exp(factor/temp)
-          if(slttype.ge.2) engnmfc=exp(-factor/temp)
+          select case(slttype)
+          case (CAL_SOLN)
+             engnmfc=exp(factor/temp)
+          case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+             engnmfc=exp(-factor/temp)
+          end select
        endif
        if(estype.eq.2) call volcorrect(engnmfc)
-       if(slttype.ge.2) engnmfc=engnmfc*wgtslcf
+       if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc=engnmfc*wgtslcf
        !
        engnorm=engnorm+engnmfc               ! normalization factor
        engsmpl=engsmpl+1.0e0                 ! number of sampling
@@ -422,9 +427,8 @@ contains
        do iduv=1,ermax
           insdst(iduv)=0
        enddo
-       do pti=1,numslv
-          flceng(pti)=0.0e0                   ! sum of solute-solvent energy
-       enddo
+
+       flceng(:)=0.0e0                        ! sum of solute-solvent energy
        do k=0,slvmax
           if(k.eq.0) pti=0                    ! solute self
           if(k.gt.0) then                     ! solute-solvent pair
@@ -458,7 +462,7 @@ contains
           end do
        endif
 #endif
-       if(slttype.eq.1) then
+       if(slttype == CAL_SOLN) then
           do pti=1,numslv
              slnuv(pti)=slnuv(pti)+flceng(pti)*engnmfc
           end do
@@ -494,7 +498,6 @@ contains
        endif
        !
 99999  continue
-90000  continue
     end do
     !
     if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.maxcnf)) then
