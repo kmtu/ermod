@@ -342,13 +342,13 @@ contains
     endif
 
     do cntdst=1,maxdst
-       if(slttype == CAL_SOLN) then
+       select case(slttype) 
+       case(CAL_SOLN)
           tagslt=sltlist(cntdst)
           call sltcnd(q,tagslt,'pos')
           if(q.eq.0) go to 99999
           if((q.ne.0).and.(q.ne.1)) call eng_stop('slt')
-       endif
-       if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) then
+       case(CAL_REFS_RIGID, CAL_REFS_FLEX)
           tagslt=sltlist(1)
           if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then
              call instslt(wgtslcf,'init')
@@ -363,7 +363,7 @@ contains
              endif
           endif
           if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
-       endif
+       end select
        !
        uvengy(:) = 0
        if(cltype == EL_PME) then
