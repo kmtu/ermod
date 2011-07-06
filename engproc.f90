@@ -269,7 +269,8 @@ contains
     use ptinsrt, only: instslt
     use realcal_blk, only: realcal_proc
     use reciprocal, only: recpcal_init, &
-         recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc
+         recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
+         recpcal_self_energy
     use mpiproc                                                      ! MPI
     integer, parameter :: flcio=91                    ! IO unit for flcuv
     integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
@@ -319,12 +320,12 @@ contains
     !
     call cellinfo
     !
-    if(stnum.eq.skpcnf) then                ! PME initialization
-       call recpcal_init(slvmax,tagpt)
-    endif
 
     ! Initialize reciprocal space - grid and charges
     if(cltype == EL_PME) then
+       if(stnum == skpcnf) then                ! PME initialization
+          call recpcal_init(slvmax,tagpt)
+       endif
 
        ! check whether cell size changes
        ! recpcal is called only when cell size differ
@@ -376,7 +377,7 @@ contains
        else
           call realcal_self(tagslt, pairep) ! calculate self-interaction
        endif
-       call recpcal_energy(tagslt, tagslt, factor)
+       if (cltype == EL_PME) call recpcal_self_energy(factor)
        uvengy(0) = pairep + factor
 
        ! solute-solvent pair
