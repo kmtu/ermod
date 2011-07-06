@@ -327,13 +327,10 @@ contains
     if(cltype == EL_PME) then
 
        ! check whether cell size changes
-       q=1
-       if(stnum.eq.skpcnf) q = 0
-       if(any(prevcl(:,:) /= cell(:,:))) q = 0
-       prevcl(:, :) = cell(:, :)
-
        ! recpcal is called only when cell size differ
-       if(q == 0) call recpcal_spline_greenfunc()
+       if((stnum == skpcnf) .or. &
+            (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
+       prevcl(:, :) = cell(:, :)
 
        do k=1,slvmax
           i=tagpt(k)
