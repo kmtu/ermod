@@ -206,8 +206,7 @@ module engmain
        block_threshold
 
 contains 
-  subroutine init_params(success)
-    logical, intent(out) :: success
+  subroutine init_params()
     integer, parameter :: unit = 191
     integer :: err
     
@@ -218,7 +217,8 @@ contains
     if(err == 0) then
        read(unit, nml=ene_param)
        close(unit)
-       success = .TRUE.
+    else
+       stop "parameter file does not exist"
     end if
 
   end subroutine init_params

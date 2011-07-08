@@ -764,7 +764,6 @@ c
       real, parameter :: tiny=1.0e-20
       real :: real_seed
       character*3 scrtype
-      logical :: init_from_namelist
       call mpi_info                                                    ! MPI
 c
 #ifndef trjctry
@@ -800,10 +799,7 @@ c
       endif
       block_threshold = 4.0 ! block-wise calculation
 c     only part of constants set here
-      call init_params(init_from_namelist)
-      if(.not. init_from_namelist) then
-#     include "param_eng"
-      endif
+      call init_params()
 c
 c  default settings
 #ifndef trjctry
@@ -826,10 +822,7 @@ c  default settings
 c  default settings done
 c
 c     read again for non-default constants
-      call init_params(init_from_namelist)
-      if(.not. init_from_namelist) then
-#     include "param_eng"
-      endif
+      call init_params()
 
       if(iseed == 0) then
         CALL RANDOM_SEED
