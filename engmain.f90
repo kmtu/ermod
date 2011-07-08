@@ -211,7 +211,6 @@ contains
     integer :: err
     
     err = 0
-    success = .FALSE.
     open(unit = unit, file = ene_confname, action = "read", iostat = err)
     
     if(err == 0) then
