@@ -13,10 +13,6 @@ contains
          uvcrd,edens,ecorr,escrd,eself,&
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
          ene_param, ene_confname
-    !
-    ! FIXME
-    implicit real(a-h,k-z)
-    implicit integer(i,j)
 
     real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
     real eclbin,ecfbin,ec0bin,finfac,ectmvl
@@ -92,7 +88,7 @@ contains
           read(paramfile_io, nml = hist)
           close(paramfile_io)
        else
-#       include "param_eng"
+          stop "parameter file does not exist"
        end if
        if(peread.eq.1) then   ! read coordinate parameters from separate file
           open(unit=ecdio,file=ecdfile,status='old')
@@ -290,9 +286,16 @@ contains
     if((slttype.eq.1).and.(q.ne.1)) q=9
     if((slttype.ge.2).and.(q.ne.2)) q=9
     if(q.eq.9) call eng_stop('par')
-    if(slttype.eq.1) maxdst=numslt
-    if(slttype.ge.2) maxdst=maxins
-    !
+
+    ! for soln: maxdst is number of solutes (multiple solute)
+    ! for refs: maxdst is number of insertions
+    select case(slttype)
+    case(CAL_SOLN)
+       maxdst=numslt
+    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+       maxdst=maxins
+    end select
+
     if(plmode.eq.0) then
        ptinit=myrank ; ptskip=nprocs
        dsinit=0 ; dsskip=1
@@ -301,7 +304,7 @@ contains
        ptinit=0 ; ptskip=1
        dsinit=myrank ; dsskip=nprocs
     endif
-    !
+
     allocate( tplst(nummol) )
     slvmax=0
     do i=1+ptinit,nummol,ptskip
@@ -746,6 +749,7 @@ contains
           atj=specatm(js,j)
           xst(:) = sitepos(:,ati) - sitepos(:,atj)
           if(boxshp.ne.0) then              ! when the system is periodic
+             ! FIXME: is this correct for non-orthogonal system?
              do k=1,3
                 rst=dot_product(invcl(k,:), xst(:))
                 clm(k)=real(nint(rst))
