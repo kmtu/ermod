@@ -44,11 +44,11 @@ c
 #endif
       call mpi_setup('init')                                           ! MPI
       call opentrj
-      do 99999 stnum=1,large
+      do stnum=1,large
         call enganal(stnum)
-        if(stnum.eq.maxcnf) go to 1111
-99999 continue
-1111  call closetrj
+        if(stnum.eq.maxcnf) exit
+      end do
+      call closetrj
       call mpi_setup('stop')                                           ! MPI
 #ifdef VMDPLUGINS
       call vmdfio_fini_traj
