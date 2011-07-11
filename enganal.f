@@ -1,7 +1,7 @@
 c
 c
 c  structural analysis performed separately from energetic analysis
-#     include "stranal.f"
+c#     include "stranal.f"
 c
 c
 c  connection to the main routine of trajectory generation is done in
@@ -25,7 +25,7 @@ c   setparam for parameter setting and getconf for configuration reading
 #endif
       if((stnum.eq.skpcnf).and.(inscnd.eq.3)) call refmc('init')
       call engconst(stnum)
-      call spacedst(stnum)
+c      call spacedst(stnum)
       if(mod(stnum,(maxcnf/engdiv)).eq.0) call engstore(stnum)
       return
       end subroutine
