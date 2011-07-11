@@ -77,9 +77,7 @@ contains
 999 format(' The minimum of the energy coordinate is too large')
 981 format(' The energy-coordinate system is inconsistent')
 982 format(' The first particle needs to be the solute')
-#ifndef noMPI
-    call mpi_abend()                                                ! MPI
-#endif
+    call mpi_abend()                                                     ! MPI
     stop
   end subroutine halt_with_error
 
