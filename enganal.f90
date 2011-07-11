@@ -37,7 +37,7 @@ program trjmain
 #endif
   call mpi_setup('init')    ! MPI
   call opentrj
-  do stnum=1,maxconf
+  do stnum=1,maxcnf
      call enganal(stnum)
   end do
   call closetrj
