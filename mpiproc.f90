@@ -51,9 +51,10 @@ contains
 #endif
   end subroutine mpi_abend
 
-  ! FIXME
+  ! Stop calculation with error message
   subroutine halt_with_error(type)
     use engmain, only: stdout
+    implicit none
     character*3 type
     if(type.eq.'typ') write(stdout,991)
     if(type.eq.'num') write(stdout,992)

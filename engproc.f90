@@ -269,6 +269,7 @@ contains
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
     use mpiproc                                                      ! MPI
+    implicit none
     integer, parameter :: flcio=91                    ! IO unit for flcuv
     integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
     integer ptinit,ptskip,dsinit,dsskip
@@ -522,6 +523,7 @@ contains
          aveuv,slnuv,avediv,avslf,minuv,maxuv,&
          engnorm,engsmpl,voffset
     use mpiproc                                                      ! MPI
+    implicit none
     integer stnum,i,pti,j,iduv,iduvp,k,q,cntdst
     character*10, parameter :: numbers='0123456789'
     character*9 engfile
@@ -849,6 +851,7 @@ contains
   subroutine volcorrect(engnmfc)
     use engmain, only:  nummol,maxsite,numatm,temp,numsite,sluvid,&
          cltype,screen,charge,specatm,volume
+    implicit none
     integer i,ati,sid,stmax
     real pi,factor,engnmfc
     engnmfc=volume*engnmfc
@@ -873,6 +876,7 @@ contains
   !
   subroutine cellinfo
     use engmain, only:  cell,invcl,volume
+    implicit none
     integer m,k
     volume=cell(1,1)*cell(2,2)*cell(3,3)&
          +cell(1,2)*cell(2,3)*cell(3,1)+cell(1,3)*cell(2,1)*cell(3,2)&
@@ -970,6 +974,7 @@ contains
   subroutine sltcnd(systype,tagslt,type)
     use engmain, only: nummol,sluvid
     use ptinsrt, only: sltpstn
+    implicit none
     integer systype,tagslt,i,uvi,cntuv(2)
     real xst(3)
     character*3 type
@@ -993,6 +998,7 @@ contains
   subroutine repval(iduv,factor,pti,caltype)
     use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
     use mpiproc, only: halt_with_error
+    implicit none
     integer iduv,idpt,pti,cnt,idpick,idmax,idsoft
     real factor
     character*4 caltype
