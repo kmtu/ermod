@@ -11,7 +11,7 @@ c   setparam for parameter setting and getconf for configuration reading
       use engproc, only: enginit,engclear,engconst,engstore
       use setconf, only: setparam,getconf
       use ptinsrt, only: refmc
-      use stranal, only: spacedst
+c      use stranal, only: spacedst
       integer stnum
       if(stnum.eq.1) call setparam
 #ifndef trjctry
