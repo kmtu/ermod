@@ -1,3 +1,4 @@
+! -*- F90 -*-
 !  connection to the main routine of trajectory generation is done in
 !  setparam for parameter setting and getconf for configuration reading
 subroutine enganal(stnum)
@@ -30,16 +31,14 @@ program trjmain
   use mpiproc               ! MPI
   implicit none
   integer stnum
-  integer, parameter :: large=100000000
 #ifdef VMDPLUGINS
   external vmdfio_init_traj, vmdfio_fini_traj
   call vmdfio_init_traj
 #endif
   call mpi_setup('init')    ! MPI
   call opentrj
-  do stnum=1,large
+  do stnum=1,maxconf
      call enganal(stnum)
-     if(stnum.eq.maxcnf) exit
   end do
   call closetrj
   call mpi_setup('stop')    ! MPI
