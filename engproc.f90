@@ -14,7 +14,7 @@ contains
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
          ene_param, ene_confname
     use mpiproc, only: halt_with_error
-
+    implicit none
     real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
     real eclbin,ecfbin,ec0bin,finfac,ectmvl
     integer peread,pemax,pesoft,pecore,sltmltp
@@ -225,6 +225,7 @@ contains
   subroutine engclear
     use engmain, only: corrcal,slttype,ermax,numslv,esmax,&
          edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl
+    implicit none
     integer iduv,iduvp,pti
     do iduv=1,ermax
        edens(iduv)=0.0e0
