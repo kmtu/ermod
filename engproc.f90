@@ -324,7 +324,7 @@ contains
     end do
     deallocate( tplst )
     !
-    call cellinfo
+    call get_inverted_cell
     !
 
     ! Initialize reciprocal space - grid and charges
@@ -875,7 +875,7 @@ contains
   end subroutine volcorrect
   !
   !
-  subroutine cellinfo
+  subroutine get_inverted_cell
     use engmain, only:  cell,invcl,volume
     implicit none
     integer m,k
@@ -898,7 +898,7 @@ contains
        end do
     end do
     return
-  end subroutine cellinfo
+  end subroutine get_inverted_cell
 
 
   ! binsearch returns the smallest index (ret) which satisfies
