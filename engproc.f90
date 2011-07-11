@@ -894,20 +894,25 @@ contains
     end do
     return
   end subroutine cellinfo
-  !
-  !
-  !
-  subroutine binsearch(coord, n, value, ret)
+
+
+  ! binsearch returns the smallest index (ret) which satisfies
+  ! coord(ret) >= v
+  ! Special cases are as follows:
+  ! v < coord(1)  ==>  ret = 0 (out of range)
+  ! v > coord(n)  ==>  ret = n (infinite)
+  subroutine binsearch(coord, n, v, ret)
+    implicit none 
     real, intent(in) :: coord(n)
     integer, intent(out) :: ret
-    real, intent(in) :: value
+    real, intent(in) :: v
     integer, intent(in) :: n
     integer :: rmin, rmax, rmid
-    if(value < coord(1)) then
+    if(v < coord(1)) then
        ret = 0
        return
     endif
-    if(value > coord(n)) then
+    if(v > coord(n)) then
        ret = n
        return
     endif
@@ -919,7 +924,7 @@ contains
           exit
        endif
        rmid = (rmin + rmax - 1) / 2
-       if(value > coord(rmid)) then
+       if(v > coord(rmid)) then
           rmin = rmid + 1
        else
           rmax = rmid + 1
@@ -929,7 +934,7 @@ contains
   end subroutine binsearch
   !
   subroutine getiduv(pti,factor,iduv)
-    use engmain, only: ermax,numslv,uvmax,uvcrd,esmax,escrd,io6
+    use engmain, only: ermax,numslv,uvmax,uvcrd,esmax,escrd,stdout
     use mpiproc, only: halt_with_error
     implicit none
     integer pti,iduv,k,idpick,idmax,picktest
@@ -950,9 +955,10 @@ contains
     endif
     iduv = picktest + idpick
 
+    ! FIXME: clean up the following
     if(iduv.le.idpick) then
        iduv=idpick+1                                 ! smallest energy mesh
-       write(io6,199) factor,pti
+       write(stdout,199) factor,pti
 199    format('  energy of ',g12.4,' for ',i3,'-th species')
        call halt_with_error('min')
     endif
