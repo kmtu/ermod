@@ -13,6 +13,7 @@ contains
          uvcrd,edens,ecorr,escrd,eself,&
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
          ene_param, ene_confname
+    use mpiproc, only: halt_with_error
 
     real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
     real eclbin,ecfbin,ec0bin,finfac,ectmvl
@@ -45,18 +46,18 @@ contains
     end do
     do i=1,nummol
        if((sluvid(i).gt.0).and.(moltype(i).ne.sltmltp)) then
-          call eng_stop('typ')
+          call halt_with_error('typ')
        endif
     end do
     iduv=0
     if(numslt.le.0) iduv=9
     if((slttype.ge.2).and.(numslt.ne.1)) iduv=9
-    if(iduv.ne.0) call eng_stop('num')
+    if(iduv.ne.0) call halt_with_error('num')
     allocate( sltlist(numslt) )
     do i=1,numslt
        sltlist(i)=tplst(i)
     end do
-    if((slttype.ge.2).and.(sltlist(1).ne.nummol)) call eng_stop('ins')
+    if((slttype.ge.2).and.(sltlist(1).ne.nummol)) call halt_with_error('ins')
     deallocate( tplst )
     !
     if(numslt.eq.1) numslv=numtype-1
@@ -67,11 +68,11 @@ contains
        pti=moltype(i)
        if(sluvid(i).eq.0) then            ! solvent
           if(pti.lt.sltmltp) uvspec(i)=pti
-          if(pti.eq.sltmltp) call eng_stop('typ')
+          if(pti.eq.sltmltp) call halt_with_error('typ')
           if(pti.gt.sltmltp) uvspec(i)=pti-1
        endif
        if(sluvid(i).ne.0) then            ! solute
-          if(pti.ne.sltmltp) call eng_stop('typ')
+          if(pti.ne.sltmltp) call halt_with_error('typ')
           if(numslt.eq.1) uvspec(i)=0
           if(numslt.gt.1) uvspec(i)=numtype
        endif
@@ -109,7 +110,7 @@ contains
                 finfac=ecpmrd(4) ; ecdmin=ecpmrd(5) ; ecfmns=ecpmrd(6)
                 ecdcen=ecpmrd(7) ; eccore=ecpmrd(8)
                 if(eccore.lt.tiny) pecore=0
-                if(pecore.eq.1) call eng_stop('ecd')
+                if(pecore.eq.1) call halt_with_error('ecd')
                 exit
              endif
           end do
@@ -129,12 +130,12 @@ contains
        pesoft=0
        do regn=1,rglmax
           factor=rgcnt(regn)
-          if(int(factor).lt.1) call eng_stop('ecd')
+          if(int(factor).lt.1) call halt_with_error('ecd')
           pesoft=pesoft+nint(factor)
        end do
 
        pemax=pesoft+pecore
-       if(pemax.gt.large) call eng_stop('siz')
+       if(pemax.gt.large) call halt_with_error('siz')
 
        cdrgvl(0)=ecdmin
        cdrgvl(1)=ecfmns
@@ -285,7 +286,7 @@ contains
     call sltcnd(q,0,'sys')
     if((slttype.eq.1).and.(q.ne.1)) q=9
     if((slttype.ge.2).and.(q.ne.2)) q=9
-    if(q.eq.9) call eng_stop('par')
+    if(q.eq.9) call halt_with_error('par')
 
     ! for soln: maxdst is number of solutes (multiple solute)
     ! for refs: maxdst is number of insertions
@@ -350,7 +351,7 @@ contains
           tagslt=sltlist(cntdst)
           call sltcnd(q,tagslt,'pos')
           if(q.eq.0) go to 99999
-          if((q.ne.0).and.(q.ne.1)) call eng_stop('slt')
+          if((q.ne.0).and.(q.ne.1)) call halt_with_error('slt')
        case(CAL_REFS_RIGID, CAL_REFS_FLEX)
           tagslt=sltlist(1)
           if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then
@@ -438,7 +439,7 @@ contains
              i=tagpt(k)
              if(i.eq.tagslt) cycle
              pti=uvspec(i)
-             if(pti.le.0) call eng_stop('eng')
+             if(pti.le.0) call halt_with_error('eng')
           endif
           pairep=uvengy(k)
           call getiduv(pti,pairep,iduv)
@@ -686,38 +687,6 @@ contains
     return
   end subroutine engstore
   !
-  !
-  subroutine eng_stop(type)
-    use engmain, only: io6
-    use mpiproc                                                      ! MPI
-    character*3 type
-    if(type.eq.'typ') write(io6,991)
-    if(type.eq.'num') write(io6,992)
-    if(type.eq.'ins') write(io6,993)
-    if(type.eq.'par') write(io6,994)
-    if(type.eq.'slt') write(io6,995)
-    if(type.eq.'crd') write(io6,996)
-    if(type.eq.'eng') write(io6,997)
-    if(type.eq.'siz') write(io6,998)
-    if(type.eq.'min') write(io6,999)
-    if(type.eq.'ecd') write(io6,981)
-    if(type.eq.'fst') write(io6,982)
-991 format(' The number of solute types is incorrectly set')
-992 format(' The number of solute molecules is incorrectly set')
-993 format(' The solute numbering is incorrect for insertion')
-994 format(' The input parameter is incorrectly set')
-995 format(' The input parameter is incorrect for solute')
-996 format(' The coordinate system is incorrectly set')
-997 format(' Inconsistency is present in the program')
-998 format(' The number of energy-coordinate meshes is too large')
-999 format(' The minimum of the energy coordinate is too large')
-981 format(' The energy-coordinate system is inconsistent')
-982 format(' The first particle needs to be the solute')
-    call mpi_abend()                                                ! MPI
-    stop
-  end subroutine eng_stop
-  !
-  !
   subroutine realcal(i,j,pairep)
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
@@ -961,6 +930,8 @@ contains
   !
   subroutine getiduv(pti,factor,iduv)
     use engmain, only: ermax,numslv,uvmax,uvcrd,esmax,escrd,io6
+    use mpiproc, only: halt_with_error
+    implicit none
     integer pti,iduv,k,idpick,idmax,picktest
     real factor,egcrd
     if(pti.eq.0) idmax=esmax               ! solute self-energy
@@ -983,7 +954,7 @@ contains
        iduv=idpick+1                                 ! smallest energy mesh
        write(io6,199) factor,pti
 199    format('  energy of ',g12.4,' for ',i3,'-th species')
-       call eng_stop('min')
+       call halt_with_error('min')
     endif
     if(iduv.gt.(idpick+idmax)) iduv=idpick+idmax    ! largest energy mesh
 
@@ -1015,6 +986,7 @@ contains
 
   subroutine repval(iduv,factor,pti,caltype)
     use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
+    use mpiproc, only: halt_with_error
     integer iduv,idpt,pti,cnt,idpick,idmax,idsoft
     real factor
     character*4 caltype
@@ -1033,7 +1005,7 @@ contains
        idsoft=uvsoft(pti)
        idmax=uvmax(pti)
        idpt=iduv-idpick
-       if((idpt.lt.0).or.(idpt.gt.idmax)) call eng_stop('ecd')
+       if((idpt.lt.0).or.(idpt.gt.idmax)) call halt_with_error('ecd')
        if(idpt.le.idsoft) factor=(uvcrd(iduv)+uvcrd(iduv+1))/2.0e0
        if((idpt.gt.idsoft).and.(idpt.lt.idmax)) then
           factor=sqrt(uvcrd(iduv)*uvcrd(iduv+1))
