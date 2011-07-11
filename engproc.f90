@@ -6,7 +6,6 @@ contains
   !  procedure for constructing energy distribution functions
   !
   subroutine enginit
-    !
     use engmain, only: numtype,nummol,engdiv,corrcal,slttype,&
          moltype,sluvid,&
          ermax,numslv,uvmax,uvsoft,esmax,uvspec,&

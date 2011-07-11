@@ -9,6 +9,7 @@ c   setparam for parameter setting and getconf for configuration reading
       use engproc, only: enginit,engclear,engconst,engstore
       use setconf, only: setparam,getconf
       use ptinsrt, only: refmc
+      implicit none
       integer stnum
       if(stnum.eq.1) call setparam
 #ifndef trjctry
@@ -32,6 +33,7 @@ c
       use engmain, only: maxcnf
       use OUTname, only: opentrj,closetrj
       use mpiproc                                                      ! MPI
+      implicit none
       integer stnum
       integer, parameter :: large=100000000
 #ifdef VMDPLUGINS
