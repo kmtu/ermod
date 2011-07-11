@@ -154,7 +154,7 @@ module engmain
   integer :: estype,boxshp,inscnd,inscfg,hostspec,ljformat,iseed
   real :: block_threshold
   real :: inptemp,temp
-  integer, parameter :: io6=6             ! standard output
+  integer, parameter :: stdout = 6, io6 = 6             ! standard output
 
   integer, dimension(:),   allocatable :: moltype,numsite
   integer, dimension(:),   allocatable :: sluvid,refmlid

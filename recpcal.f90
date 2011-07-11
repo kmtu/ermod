@@ -133,12 +133,13 @@ contains
   ! FIXME: this routine is named as "solvent", but may include solute molecule, when mutiple solute is used.
   subroutine recpcal_prepare_solvent(i)
     use engmain, only: numsite
+    use mpiproc, only: halt_with_error
     implicit none
     integer, intent(in) :: i
     integer :: svi, stmax
 
     svi=slvtag(i)
-    if(svi <= 0) call eng_stop('eng')
+    if(svi <= 0) call halt_with_error('eng')
 
     stmax=numsite(i)
     call calc_spline_molecule(i, stmax, splslv(:,:,svi:svi+stmax-1), grdslv(:,svi:svi+stmax-1))
@@ -194,6 +195,7 @@ contains
 
   subroutine calc_spline_molecule(imol, stmax, store_spline, store_grid)
     use engmain, only: ms1max, ms2max, ms3max, splodr, specatm, sitepos, invcl
+    use mpiproc, only: halt_with_error
     use spline, only: spline_value
     implicit none
 
@@ -213,7 +215,7 @@ contains
           if(factor.lt.0.0e0) factor=factor+1.0e0
           if(factor.gt.1.0e0) factor=factor-1.0e0
           if((factor.lt.0.0e0).or.(factor.gt.1.0e0)) then
-             call eng_stop('crd')
+             call halt_with_error('crd')
           endif
           inm(k)=factor
        end do
@@ -241,6 +243,7 @@ contains
 
   subroutine recpcal_energy(tagslt, i, pairep)
     use engmain, only: ms1max, ms2max, ms3max, splodr, numsite, specatm, sluvid, charge
+    use mpiproc, only: halt_with_error
     implicit none
     integer, intent(in) :: tagslt, i
     real, intent(inout) :: pairep
@@ -252,14 +255,14 @@ contains
 
     pairep=0.0e0
     k=sluvid(tagslt)
-    if(k.eq.0) call eng_stop('fst')
+    if(k.eq.0) call halt_with_error('fst')
     if(tagslt.eq.i) then              ! solute self-energy
        call recpcal_self_energy(pairep)
     endif
 
     if(tagslt.ne.i) then              ! solute-solvent pair interaction
        svi=slvtag(i)
-       if(svi.le.0) call eng_stop('eng')
+       if(svi.le.0) call halt_with_error('eng')
        stmax=numsite(i)
        do sid=1,stmax
           ptrnk=svi+sid-1
@@ -290,36 +293,5 @@ contains
        end do
     endif
   end subroutine recpcal_energy
-
-  ! FIXME
-  subroutine eng_stop(type)
-    use engmain, only: io6
-    use mpiproc                                                      ! MPI
-    character*3 type
-    if(type.eq.'typ') write(io6,991)
-    if(type.eq.'num') write(io6,992)
-    if(type.eq.'ins') write(io6,993)
-    if(type.eq.'par') write(io6,994)
-    if(type.eq.'slt') write(io6,995)
-    if(type.eq.'crd') write(io6,996)
-    if(type.eq.'eng') write(io6,997)
-    if(type.eq.'siz') write(io6,998)
-    if(type.eq.'min') write(io6,999)
-    if(type.eq.'ecd') write(io6,981)
-    if(type.eq.'fst') write(io6,982)
-991 format(' The number of solute types is incorrectly set')
-992 format(' The number of solute molecules is incorrectly set')
-993 format(' The solute numbering is incorrect for insertion')
-994 format(' The input parameter is incorrectly set')
-995 format(' The input parameter is incorrect for solute')
-996 format(' The coordinate system is incorrectly set')
-997 format(' Inconsistency is present in the program')
-998 format(' The number of energy-coordinate meshes is too large')
-999 format(' The minimum of the energy coordinate is too large')
-981 format(' The energy-coordinate system is inconsistent')
-982 format(' The first particle needs to be the solute')
-    call mpi_abend()                                                ! MPI
-    stop
-  end subroutine eng_stop
 
 end module reciprocal

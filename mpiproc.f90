@@ -51,4 +51,36 @@ contains
 #endif
   end subroutine mpi_abend
 
+  ! FIXME
+  subroutine halt_with_error(type)
+    use engmain, only: stdout
+    character*3 type
+    if(type.eq.'typ') write(stdout,991)
+    if(type.eq.'num') write(stdout,992)
+    if(type.eq.'ins') write(stdout,993)
+    if(type.eq.'par') write(stdout,994)
+    if(type.eq.'slt') write(stdout,995)
+    if(type.eq.'crd') write(stdout,996)
+    if(type.eq.'eng') write(stdout,997)
+    if(type.eq.'siz') write(stdout,998)
+    if(type.eq.'min') write(stdout,999)
+    if(type.eq.'ecd') write(stdout,981)
+    if(type.eq.'fst') write(stdout,982)
+991 format(' The number of solute types is incorrectly set')
+992 format(' The number of solute molecules is incorrectly set')
+993 format(' The solute numbering is incorrect for insertion')
+994 format(' The input parameter is incorrectly set')
+995 format(' The input parameter is incorrect for solute')
+996 format(' The coordinate system is incorrectly set')
+997 format(' Inconsistency is present in the program')
+998 format(' The number of energy-coordinate meshes is too large')
+999 format(' The minimum of the energy coordinate is too large')
+981 format(' The energy-coordinate system is inconsistent')
+982 format(' The first particle needs to be the solute')
+#ifndef noMPI
+    call mpi_abend()                                                ! MPI
+#endif
+    stop
+  end subroutine halt_with_error
+
 end module mpiproc                                                       ! MPI
