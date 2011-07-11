@@ -12,6 +12,7 @@ subroutine enganal(stnum)
 #ifndef trjctry
   if(mod(stnum,skpcnf).ne.0) return
 #endif
+  if(stnum.eq.skpcnf) call enginit
   if(mod(stnum,(maxcnf/engdiv)).eq.skpcnf) call engclear
   call getconf
 #ifdef trjctry
@@ -26,20 +27,20 @@ end subroutine enganal
 #ifdef trjctry
 program trjmain
   use engmain, only: maxcnf
-  use engproc, only: enginit
   use OUTname, only: opentrj,closetrj
   use mpiproc               ! MPI
   implicit none
   integer stnum
+  integer, parameter :: large=100000000
 #ifdef VMDPLUGINS
   external vmdfio_init_traj, vmdfio_fini_traj
   call vmdfio_init_traj
 #endif
   call mpi_setup('init')    ! MPI
   call opentrj
-  call enginit
-  do stnum = 1,maxcnf
+  do stnum=1,large
      call enganal(stnum)
+     if(stnum.eq.maxcnf) exit
   end do
   call closetrj
   call mpi_setup('stop')    ! MPI
