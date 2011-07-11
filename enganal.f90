@@ -12,7 +12,6 @@ subroutine enganal(stnum)
 #ifndef trjctry
   if(mod(stnum,skpcnf).ne.0) return
 #endif
-  if(stnum.eq.skpcnf) call enginit
   if(mod(stnum,(maxcnf/engdiv)).eq.skpcnf) call engclear
   call getconf
 #ifdef trjctry
@@ -27,6 +26,7 @@ end subroutine enganal
 #ifdef trjctry
 program trjmain
   use engmain, only: maxcnf
+  use engproc, only: enginit
   use OUTname, only: opentrj,closetrj
   use mpiproc               ! MPI
   implicit none
@@ -37,7 +37,8 @@ program trjmain
 #endif
   call mpi_setup('init')    ! MPI
   call opentrj
-  do stnum=1,maxcnf
+  call enginit
+  do stnum = 1,maxcnf
      call enganal(stnum)
   end do
   call closetrj
