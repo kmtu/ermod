@@ -226,23 +226,15 @@ contains
          edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl
     implicit none
     integer iduv,iduvp,pti
-    do iduv=1,ermax
-       edens(iduv)=0.0e0
-    end do
+    edens(1:ermax)=0.0e0
     if(corrcal.eq.1) then
-       do iduv=1,ermax
-          do iduvp=1,ermax
-             ecorr(iduvp,iduv)=0.0e0
-          end do
-       end do
+       ecorr(1:ermax,1:ermax)=0.0e0
     endif
-    do iduv=1,esmax
-       eself(iduv)=0.0e0
-    end do
+
+    eself(1:esmax)=0.0e0
+
     if(slttype.eq.1) then
-       do pti=1,numslv
-          slnuv(pti)=0.0e0
-       end do
+       slnuv(1:numslv)=0.0e0
     endif
     avslf=0.0e0
     engnorm=0.0e0
