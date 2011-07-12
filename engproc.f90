@@ -356,7 +356,7 @@ contains
        close(io_flcuv)                   ! close flcuv file
     endif
 
-    deallocate( insdst,engdst,tagpt,uvengy,flceng,svfl )
+    deallocate( tagpt,uvengy )
 
     return
   end subroutine engconst
