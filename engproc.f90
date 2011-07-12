@@ -285,10 +285,7 @@ contains
        open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
     endif
     !
-    call sltcnd(q,0,'sys')
-    if((slttype.eq.1).and.(q.ne.1)) q=9
-    if((slttype.ge.2).and.(q.ne.2)) q=9
-    if(q.eq.9) call halt_with_error('par')
+    call sanity_check_sluvid()
 
     ! for soln: maxdst is number of solutes (multiple solute)
     ! for refs: maxdst is number of insertions
@@ -577,7 +574,6 @@ contains
        tagslt=sltlist(1)
        if(.not. initialized) then
           call instslt(weighting,'init')
-          initialized = .true.
        endif
        call instslt(weighting,'proc')
        if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
@@ -586,9 +582,10 @@ contains
        if(slttype == CAL_REFS_RIGID) then
           if(.not. initialized) then
              if(cltype == EL_PME) call realcal_self(tagslt,usreal)
-             initialized = .true.
           endif
        endif
+
+       initialized = .true.
        if(mod(cntdst-1,dsskip).ne.dsinit) then
           has_error = .true.
           return
@@ -1040,28 +1037,46 @@ contains
     return
   end subroutine getiduv
 
-  subroutine sltcnd(systype,tagslt,type)
+  subroutine sanity_check_sluvid()
+    use engmain, only: slttype, nummol, sluvid, CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+    use mpiproc, only: halt_with_error
+    implicit none
+
+    if(any(sluvid(:) < 0) .or. any(sluvid(:) > 3)) call halt_with_error('bug')
+    select case(slttype)
+    case(CAL_SOLN)
+       ! sluvid should be 0 (solvent) or 1 (solute)
+       if(any(sluvid(:) >= 2)) call halt_with_error('par')
+    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+       ! sluvid should be 0 (solvent), 2, 3 (test particles)
+       if(any(sluvid(:) == 1)) call halt_with_error('par')
+    end select
+
+    ! solute / test particle must exist
+    if(all(sluvid(:) == 0)) call halt_with_error('par')
+    ! solvent must exist
+    if(all(sluvid(:) /= 0)) call halt_with_error('par')
+  end subroutine sanity_check_sluvid
+
+  subroutine sltcnd(systype,tagslt)
     use engmain, only: nummol,sluvid
     use mpiproc, only: halt_with_error
     implicit none
-    integer systype,tagslt,i,uvi,cntuv(2)
-    real xst(3)
-    character*3 type
-    if(type.eq.'sys') then
-       systype=9
-       do uvi=1,2
-          cntuv(uvi)=0
-       enddo
-       do i=1,nummol
-          uvi=sluvid(i)
-          if(uvi.eq.3) uvi=2
-          if(uvi.gt.0) cntuv(uvi)=cntuv(uvi)+1
-       end do
-       if((cntuv(1).ne.0).and.(cntuv(2).eq.0)) systype=1
-       if((cntuv(1).eq.0).and.(cntuv(2).ne.0)) systype=2
-    else
-       call halt_with_error('bug')
-    endif
+    integer, intent(in) :: tagslt
+    integer, intent(out) :: systype
+    integer :: i,uvi,cntuv(2)
+
+    systype=9
+    do uvi=1,2
+       cntuv(uvi)=0
+    enddo
+    do i=1,nummol
+       uvi=sluvid(i)
+       if(uvi.eq.3) uvi=2 ! treat both flexible and rigid test particle to be uvi=2
+       if(uvi.gt.0) cntuv(uvi)=cntuv(uvi)+1 ! solute or test particle (solvent)
+    end do
+    if((cntuv(1).ne.0).and.(cntuv(2).eq.0)) systype=1
+    if((cntuv(1).eq.0).and.(cntuv(2).ne.0)) systype=2
     return
   end subroutine sltcnd
 
