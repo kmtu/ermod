@@ -14,14 +14,11 @@ end subroutine enganal_init
 subroutine enganal(stnum)
   use engmain, only: maxcnf,engdiv,skpcnf,inscnd
   use engproc, only: engclear,engconst,engstore
-  use setconf, only: getconf
   use ptinsrt, only: refmc
   implicit none
   integer, intent(in) :: stnum
 
   if(mod(stnum,(maxcnf/engdiv)).eq.skpcnf) call engclear
-  call getconf
-  if(mod(stnum,skpcnf).ne.0) return
 
   if((stnum.eq.skpcnf).and.(inscnd.eq.3)) call refmc('init')
   call engconst(stnum)
@@ -30,8 +27,9 @@ subroutine enganal(stnum)
 end subroutine enganal
 !     
 program trjmain
-  use engmain, only: maxcnf
+  use engmain, only: maxcnf, skpcnf
   use OUTname, only: opentrj,closetrj
+  use setconf, only: getconf
   use mpiproc               ! MPI
   implicit none
   integer stnum
@@ -47,7 +45,8 @@ program trjmain
   call enganal_init()
 
   do stnum=1,maxcnf
-     call enganal(stnum)
+     call getconf
+     if(mod(stnum,skpcnf) == 0) call enganal(stnum)
   end do
   call closetrj
   call mpi_setup('stop')    ! MPI
