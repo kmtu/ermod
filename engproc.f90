@@ -374,21 +374,25 @@ contains
 
        flceng(:)=0.0e0                        ! sum of solute-solvent energy
 
-       do k=0,slvmax
-          if(k.eq.0) pti=0                    ! solute self
-          if(k.gt.0) then                     ! solute-solvent pair
-             i=tagpt(k)
-             if(i.eq.tagslt) cycle
-             pti=uvspec(i)
-             if(pti.le.0) call halt_with_error('eng')
-          endif
+       ! self energy histogram
+       call getiduv(0, uvengy(0), iduv)
+       eself(iduv) = eself(iduv) + engnmfc
+       minuv(0) = min(minuv(0), pairep)
+       maxuv(0) = max(maxuv(0), pairep)
+
+       ! interaction energy histogram
+       do k = 1, slvmax
+          i=tagpt(k)
+          if(i.eq.tagslt) cycle
+          pti=uvspec(i)
+          if(pti.le.0) call halt_with_error('eng')
+
           pairep=uvengy(k)
           call getiduv(pti,pairep,iduv)
-          if(k.eq.0) eself(iduv)=eself(iduv)+engnmfc
-          if(k.gt.0) then
-             insdst(iduv)=insdst(iduv)+1
-             flceng(pti)=flceng(pti)+pairep    ! sum of solute-solvent energy
-          endif
+
+          insdst(iduv)=insdst(iduv)+1
+          flceng(pti)=flceng(pti)+pairep    ! sum of solute-solvent energy
+
           minuv(pti) = min(minuv(pti), pairep)
           maxuv(pti) = max(maxuv(pti), pairep)
        end do
