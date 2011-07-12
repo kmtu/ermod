@@ -340,7 +340,8 @@ contains
     ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
     ! cntdst is the iteration no. of insertion (refs)
     do cntdst=1,maxdst
-       call get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), has_error)
+       call get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, &
+            tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), tagslt, has_error)
        if(has_error) goto 99999
 
        if(wgtslf.eq.0) engnmfc=1.0e0
@@ -630,7 +631,7 @@ contains
   end subroutine engstore
   !
   subroutine get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, tagpt, &
-       weighting, uvengy, has_error)
+       weighting, uvengy, tagslt, has_error)
     use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
          maxins,ermax,numslv,esmax,uvspec,&
@@ -653,8 +654,9 @@ contains
     integer, intent(in) :: tagpt(slvmax)
     real, intent(inout) :: uvengy(0:slvmax), weighting
     logical, intent(out) :: has_error
+    integer, intent(inout) :: tagslt
 
-    integer :: i, k, q, tagslt
+    integer :: i, k, q
     real :: pairep, factor
     real, save :: usreal
 
