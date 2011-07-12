@@ -1037,6 +1037,7 @@ contains
     return
   end subroutine getiduv
 
+  ! Check system consistency: either test particle or solvent must exist
   subroutine sanity_check_sluvid()
     use engmain, only: slttype, nummol, sluvid, CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use mpiproc, only: halt_with_error
