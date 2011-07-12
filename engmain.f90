@@ -155,7 +155,10 @@ module engmain
   integer :: estype,boxshp,inscnd,inscfg,hostspec,ljformat,iseed
   real :: block_threshold
   real :: inptemp,temp
+
+  ! IO units
   integer, parameter :: stdout = 6, io6 = 6             ! standard output
+  integer, parameter :: io_flcuv = 91                   ! IO unit for flcuv
 
   integer, dimension(:),   allocatable :: moltype,numsite
   integer, dimension(:),   allocatable :: sluvid,refmlid
@@ -187,10 +190,13 @@ module engmain
 
   real :: lwreg,upreg
 
+
+
   ! numeric constants reference
   integer, parameter :: SYS_NONPERIODIC = 0, SYS_PERIODIC = 1
   integer, parameter :: EL_COULOMB = 0, EL_PME = 2
   integer, parameter :: CAL_SOLN = 1, CAL_REFS_RIGID = 2, CAL_REFS_FLEX = 3
+  integer, parameter :: ES_NVT = 1, ES_NPT = 2
 
   character(len=*), parameter :: ene_confname = "parameters_er"
 

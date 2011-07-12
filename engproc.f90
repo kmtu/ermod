@@ -252,9 +252,11 @@ contains
          slnuv,avslf,minuv,maxuv,numslt,sltlist,&
          engnorm,engsmpl,voffset,&
          boxshp, cltype, cell, &
+         io_flcuv, &
          SYS_NONPERIODIC, SYS_PERIODIC, &
          EL_COULOMB, EL_PME, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+         ES_NVT, ES_NPT
     use ptinsrt, only: instslt
     use realcal_blk, only: realcal_proc
     use reciprocal, only: recpcal_init, &
@@ -262,7 +264,6 @@ contains
          recpcal_self_energy
     use mpiproc                                                      ! MPI
     implicit none
-    integer, parameter :: flcio=91                    ! IO unit for flcuv
     integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
     integer ptinit,ptskip,dsinit,dsskip
     real engnmfc,pairep,wgtslcf,factor
@@ -275,7 +276,7 @@ contains
     call mpi_info                                                    ! MPI
     !
     if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.skpcnf)) then
-       open(unit=flcio,file='flcuv.tt',status='new')   ! open flcuv file
+       open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
     endif
     !
     call sltcnd(q,0,'sys')
@@ -310,8 +311,8 @@ contains
           tplst(slvmax)=i ! which particle is treated by this node?
        end if
     end do
-    allocate( insdst(ermax),engdst(ermax),tagpt(slvmax) )
-    allocate( uvengy(0:slvmax),flceng(numslv),svfl(numslv) )
+    allocate( tagpt(slvmax) )
+    allocate( uvengy(0:slvmax) )
     do k=1,slvmax
        tagpt(k)=tplst(k) ! and copied from tplst
     end do
@@ -345,109 +346,18 @@ contains
             tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), tagslt, has_error)
        if(has_error) cycle
 
-       if(wgtslf.eq.0) engnmfc=1.0e0
-       if(wgtslf.eq.1) then
-          factor=uvengy(0)
-          if(.not. voffset_initialized) then
-             if(dsinit.eq.0) voffset=factor
-#ifndef noMPI
-             if(plmode.eq.1) call mpi_bcast(voffset,1,&
-                  mpi_double_precision,0,mpi_comm_world,ierror)    ! MPI
-#endif
-             voffset_initialized = .true.
-          endif
-          factor=factor-voffset               ! shifted by offset
-          select case(slttype)
-          case (CAL_SOLN)
-             engnmfc=exp(factor/temp)
-          case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-             engnmfc=exp(-factor/temp)
-          end select
-       endif
-       if(estype.eq.2) call volcorrect(engnmfc)
-       if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc=engnmfc*wgtslcf
-       !
-       engnorm=engnorm+engnmfc               ! normalization factor
-       engsmpl=engsmpl+1.0e0                 ! number of sampling
-       if(estype.le.1) avslf=avslf+1.0e0
-       if(estype.eq.2) avslf=avslf+volume
-       !
-       insdst(1:ermax) = 0
-
-       flceng(:)=0.0e0                        ! sum of solute-solvent energy
-
-       ! self energy histogram
-       call getiduv(0, uvengy(0), iduv)
-       eself(iduv) = eself(iduv) + engnmfc
-       minuv(0) = min(minuv(0), pairep)
-       maxuv(0) = max(maxuv(0), pairep)
-
-       ! interaction energy histogram
-       do k = 1, slvmax
-          i=tagpt(k)
-          if(i.eq.tagslt) cycle
-          pti=uvspec(i)
-          if(pti.le.0) call halt_with_error('eng')
-
-          pairep=uvengy(k)
-          call getiduv(pti,pairep,iduv)
-
-          insdst(iduv)=insdst(iduv)+1
-          flceng(pti)=flceng(pti)+pairep    ! sum of solute-solvent energy
-
-          minuv(pti) = min(minuv(pti), pairep)
-          maxuv(pti) = max(maxuv(pti), pairep)
-       end do
-       !
-#ifndef noMPI
-       if(plmode.eq.0) then
-          call mpi_allreduce(insdst,engdst,ermax,&
-               mpi_integer,mpi_sum,mpi_comm_world,ierror)       ! MPI
-          insdst(:) = engdst(:)
-          call mpi_allreduce(flceng,svfl,numslv,mpi_double_precision,&
-               mpi_sum,mpi_comm_world,ierror)                   ! MPI
-          flceng(:) = svfl(:)
-       endif
-#endif
-       if(slttype == CAL_SOLN) then
-          slnuv(:)=slnuv(:) + flceng(:) * engnmfc
-          if(myrank.eq.0) then
-             if(maxdst.eq.1) then
-                write(flcio, 911) stnum,(flceng(pti), pti=1,numslv)
-             endif
-             if(maxdst.gt.1) then
-                write(flcio, 912) cntdst,stnum, (flceng(pti), pti=1,numslv)
-             endif
-          endif
-911       format(i9,999f15.5)
-912       format(2i9,999f15.5)
-       endif
-       !
-       do iduv=1+ptinit,ermax,ptskip
-          k=insdst(iduv)
-          if(k.gt.0) edens(iduv)=edens(iduv)+engnmfc*real(k)
-       enddo
-       if(corrcal.eq.1) then
-          do iduv=1+ptinit,ermax,ptskip
-             k=insdst(iduv)
-             if(k == 0) cycle
-
-             do iduvp=1,ermax
-                q=insdst(iduvp)
-                if(q == 0) cycle
-
-                ecorr(iduvp,iduv) = ecorr(iduvp,iduv) + engnmfc*real(k)*real(q)
-             end do
-          end do
-       endif
+       call update_histogram(stnum, cntdst, slvmax, maxdst, dsinit, &
+            ptinit, ptskip, tagslt, tagpt(1:slvmax), &
+            wgtslcf, uvengy(0:slvmax))
     end do
-    !
+
     if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.maxcnf)) then
-       endfile(flcio) ; close(flcio)                   ! close flcuv file
+       endfile(io_flcuv)
+       close(io_flcuv)                   ! close flcuv file
     endif
-    !
+
     deallocate( insdst,engdst,tagpt,uvengy,flceng,svfl )
-    !
+
     return
   end subroutine engconst
   !
@@ -644,7 +554,7 @@ contains
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
     use mpiproc                                                      ! MPI
-    
+
     implicit none
     integer, intent(in) :: cntdst, slvmax, stnum, maxdst, dsinit, dsskip
     integer, intent(in) :: tagpt(slvmax)
@@ -705,12 +615,12 @@ contains
        call realcal_self(tagslt, pairep) ! calculate self-interaction
     endif
     uvengy(0) = uvengy(0) + pairep
-    
+
     ! solute-solvent pair
     do k=1,slvmax
        i=tagpt(k)
        if(i.eq.tagslt) cycle
-       
+
        pairep = 0
        factor = 0
        if(cltype == EL_PME) then ! called only when PME, non-self interaction
@@ -723,6 +633,134 @@ contains
        uvengy(k) = uvengy(k) + pairep
     enddo
   end subroutine get_uv_energy
+
+  subroutine update_histogram(stnum, cntdst, slvmax, maxdst, dsinit, &
+       ptinit, ptskip, tagslt, tagpt, stat_weight, uvengy)
+    use engmain, only: wgtslf, plmode, estype, slttype, corrcal, volume, temp, uvspec, &
+         ermax, numslv, &
+         slnuv, avslf,&
+         minuv, maxuv, &
+         edens, ecorr, eself, &
+         engnorm, engsmpl, voffset, &
+         io_flcuv, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX,&
+         ES_NVT, ES_NPT
+    use mpiproc
+    implicit none
+    integer, intent(in) :: stnum, cntdst, slvmax, maxdst, dsinit, ptinit, ptskip, tagslt
+    integer, intent(in) :: tagpt(1:slvmax)
+    real, intent(in) :: uvengy(0:slvmax), stat_weight
+
+    integer, allocatable :: insdst(:), engdst(:)
+    real, allocatable :: flceng(:), svfl(:)
+
+    integer :: i, k, q, iduv, iduvp, pti
+    real :: factor, engnmfc, pairep
+
+    logical, save :: voffset_initialized = .false.
+
+    allocate(insdst(ermax), engdst(ermax))
+    allocate(flceng(numslv), svfl(numslv))
+
+    if(wgtslf.eq.0) engnmfc=1.0e0
+    if(wgtslf.eq.1) then
+       factor=uvengy(0)
+       if(.not. voffset_initialized) then
+          if(dsinit.eq.0) voffset=factor
+#ifndef noMPI
+          if(plmode.eq.1) call mpi_bcast(voffset,1,&
+               mpi_double_precision,0,mpi_comm_world,ierror)    ! MPI
+#endif
+          voffset_initialized = .true.
+       endif
+       factor=factor-voffset               ! shifted by offset
+       select case(slttype)
+       case (CAL_SOLN)
+          engnmfc=exp(factor/temp)
+       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+          engnmfc=exp(-factor/temp)
+       end select
+    endif
+    if(estype == ES_NPT) call volcorrect(engnmfc)
+    if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc = engnmfc*stat_weight
+    !
+    engnorm=engnorm+engnmfc               ! normalization factor
+    engsmpl=engsmpl+1.0e0                 ! number of sampling
+    if(estype.le.1) avslf=avslf+1.0e0
+    if(estype.eq.2) avslf=avslf+volume
+    !
+    insdst(1:ermax) = 0
+
+    flceng(:)=0.0e0                        ! sum of solute-solvent energy
+
+    ! self energy histogram
+    call getiduv(0, uvengy(0), iduv)
+    eself(iduv) = eself(iduv) + engnmfc
+    minuv(0) = min(minuv(0), pairep)
+    maxuv(0) = max(maxuv(0), pairep)
+
+    ! interaction energy histogram
+    do k = 1, slvmax
+       i=tagpt(k)
+       if(i.eq.tagslt) cycle
+       pti=uvspec(i)
+       if(pti.le.0) call halt_with_error('eng')
+
+       pairep=uvengy(k)
+       call getiduv(pti,pairep,iduv)
+
+       insdst(iduv)=insdst(iduv)+1
+       flceng(pti)=flceng(pti)+pairep    ! sum of solute-solvent energy
+
+       minuv(pti) = min(minuv(pti), pairep)
+       maxuv(pti) = max(maxuv(pti), pairep)
+    end do
+    !
+#ifndef noMPI
+    if(plmode.eq.0) then
+       call mpi_allreduce(insdst,engdst,ermax,&
+            mpi_integer,mpi_sum,mpi_comm_world,ierror)       ! MPI
+       insdst(:) = engdst(:)
+       call mpi_allreduce(flceng,svfl,numslv,mpi_double_precision,&
+            mpi_sum,mpi_comm_world,ierror)                   ! MPI
+       flceng(:) = svfl(:)
+    endif
+#endif
+    if(slttype == CAL_SOLN) then
+       slnuv(:) = slnuv(:) + flceng(:) * engnmfc
+       if(myrank.eq.0) then
+          if(maxdst.eq.1) then
+             write(io_flcuv, 911) stnum,(flceng(pti), pti=1,numslv)
+          endif
+          if(maxdst.gt.1) then
+             write(io_flcuv, 912) cntdst,stnum, (flceng(pti), pti=1,numslv)
+          endif
+       endif
+911    format(i9,999f15.5)
+912    format(2i9,999f15.5)
+    endif
+    !
+    do iduv=1+ptinit,ermax,ptskip
+       k=insdst(iduv)
+       if(k.gt.0) edens(iduv)=edens(iduv)+engnmfc*real(k)
+    enddo
+    if(corrcal.eq.1) then
+       do iduv=1+ptinit,ermax,ptskip
+          k=insdst(iduv)
+          if(k == 0) cycle
+
+          do iduvp=1,ermax
+             q=insdst(iduvp)
+             if(q == 0) cycle
+
+             ecorr(iduvp,iduv) = ecorr(iduvp,iduv) + engnmfc*real(k)*real(q)
+          end do
+       end do
+    endif
+
+    deallocate(insdst, engdst)
+    deallocate(flceng, svfl)
+  end subroutine update_histogram
 
   subroutine realcal(i,j,pairep)
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
