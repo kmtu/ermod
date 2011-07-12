@@ -1090,11 +1090,11 @@ c
         endif
 5001  continue
       deallocate( psite )
-c
-      do 5051 ati=1,numatm          ! conversion to (kcal/mol angstrom)^(1/2)
-        charge(ati)=18.22261721e0*charge(ati)
-5051  continue
-c
+
+!     conversion to (kcal/mol angstrom)^(1/2)
+!     == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
+      charge(1:numatm)=18.22261721e0*charge(ati)
+      
       return
       end subroutine
 c

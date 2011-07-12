@@ -148,6 +148,7 @@ module engmain
   ! Note for optimization: any major compilers shall inline expand "parameter"s
   ! mathematical & physical constants
   real, parameter :: pi = 3.1415926535897932
+  real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
 !
   integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
   integer :: slttype,sltpick,refpick,wgtslf,wgtins
