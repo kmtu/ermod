@@ -174,7 +174,7 @@ contains
           if((regn.eq.1).or.(regn.eq.5)) factor=eclbin
           if((regn.eq.2).or.(regn.eq.4)) factor=ecfbin
           if(regn.eq.3) factor=ec0bin
-          if(regn.eq.(rglmax+1)) then
+          if(regn.eq.(rglmax+1)) then ! this condition is satisfied only if pecore == 0
              incre=log(ercrd(pemax,pti)/ercrd(pesoft+1,pti))
              factor=incre/real(pecore-1)
           endif
@@ -1047,6 +1047,7 @@ contains
     use mpiproc, only: halt_with_error
     implicit none
 
+    ! sanity check
     if(any(sluvid(:) < 0) .or. any(sluvid(:) > 3)) call halt_with_error('bug')
     select case(slttype)
     case(CAL_SOLN)
