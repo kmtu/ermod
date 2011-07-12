@@ -1,6 +1,10 @@
 
 module engproc
   implicit none
+  integer :: cntdst, slvmax
+  integer :: maxdst, dsinit, dsskip, ptinit, ptskip
+  integer :: tagslt
+
 contains
   !
   !  procedure for constructing energy distribution functions
@@ -264,8 +268,8 @@ contains
          recpcal_self_energy
     use mpiproc                                                      ! MPI
     implicit none
-    integer stnum,cntdst,maxdst,tagslt,slvmax,i,pti,iduv,iduvp,k,q
-    integer ptinit,ptskip,dsinit,dsskip
+    integer, intent(in) :: stnum
+    integer i,pti,iduv,iduvp,k,q
     real engnmfc,pairep,wgtslcf,factor
     integer, dimension(:), allocatable :: insdst,engdst,tagpt,tplst
     real, dimension(:),    allocatable :: uvengy,flceng,svfl
@@ -342,16 +346,13 @@ contains
     ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
     ! cntdst is the iteration no. of insertion (refs)
     do cntdst=1,maxdst
-       call get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, &
-            tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), tagslt, has_error)
+       call get_uv_energy(stnum, tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), has_error)
        if(has_error) cycle
 
-       call update_histogram(stnum, cntdst, slvmax, maxdst, dsinit, &
-            ptinit, ptskip, tagslt, tagpt(1:slvmax), &
-            wgtslcf, uvengy(0:slvmax))
+       call update_histogram(stnum, tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax))
     end do
 
-    if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.maxcnf)) then
+    if((slttype == CAL_SOLN).and.(myrank.eq.0).and.(stnum.eq.maxcnf)) then
        endfile(io_flcuv)
        close(io_flcuv)                   ! close flcuv file
     endif
@@ -536,8 +537,7 @@ contains
     return
   end subroutine engstore
   !
-  subroutine get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, tagpt, &
-       weighting, uvengy, tagslt, has_error)
+  subroutine get_uv_energy(stnum, tagpt, weighting, uvengy, has_error)
     use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
          maxins,ermax,numslv,esmax,uvspec,&
@@ -556,11 +556,10 @@ contains
     use mpiproc                                                      ! MPI
 
     implicit none
-    integer, intent(in) :: cntdst, slvmax, stnum, maxdst, dsinit, dsskip
+    integer, intent(in) :: stnum
     integer, intent(in) :: tagpt(slvmax)
     real, intent(inout) :: uvengy(0:slvmax), weighting
     logical, intent(out) :: has_error
-    integer, intent(inout) :: tagslt
 
     integer :: i, k, q
     real :: pairep, factor
@@ -634,8 +633,7 @@ contains
     enddo
   end subroutine get_uv_energy
 
-  subroutine update_histogram(stnum, cntdst, slvmax, maxdst, dsinit, &
-       ptinit, ptskip, tagslt, tagpt, stat_weight, uvengy)
+  subroutine update_histogram(stnum, tagpt, stat_weight, uvengy)
     use engmain, only: wgtslf, plmode, estype, slttype, corrcal, volume, temp, uvspec, &
          ermax, numslv, &
          slnuv, avslf,&
@@ -647,7 +645,7 @@ contains
          ES_NVT, ES_NPT
     use mpiproc
     implicit none
-    integer, intent(in) :: stnum, cntdst, slvmax, maxdst, dsinit, ptinit, ptskip, tagslt
+    integer, intent(in) :: stnum
     integer, intent(in) :: tagpt(1:slvmax)
     real, intent(in) :: uvengy(0:slvmax), stat_weight
 
@@ -686,12 +684,14 @@ contains
     !
     engnorm=engnorm+engnmfc               ! normalization factor
     engsmpl=engsmpl+1.0e0                 ! number of sampling
-    if(estype.le.1) avslf=avslf+1.0e0
-    if(estype.eq.2) avslf=avslf+volume
-    !
-    insdst(1:ermax) = 0
 
-    flceng(:)=0.0e0                        ! sum of solute-solvent energy
+    select case(estype)
+    case (ES_NVT)
+       avslf=avslf+1.0e0
+    case (ES_NPT)
+       avslf=avslf+volume
+    end select
+
 
     ! self energy histogram
     call getiduv(0, uvengy(0), iduv)
@@ -699,6 +699,8 @@ contains
     minuv(0) = min(minuv(0), pairep)
     maxuv(0) = max(maxuv(0), pairep)
 
+    insdst(:) = 0
+    flceng(:) = 0.0e0                     ! sum of solute-solvent energy
     ! interaction energy histogram
     do k = 1, slvmax
        i=tagpt(k)
@@ -731,8 +733,7 @@ contains
        if(myrank.eq.0) then
           if(maxdst.eq.1) then
              write(io_flcuv, 911) stnum,(flceng(pti), pti=1,numslv)
-          endif
-          if(maxdst.gt.1) then
+          else
              write(io_flcuv, 912) cntdst,stnum, (flceng(pti), pti=1,numslv)
           endif
        endif
