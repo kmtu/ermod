@@ -403,20 +403,14 @@ contains
        if(plmode.eq.0) then
           call mpi_allreduce(insdst,engdst,ermax,&
                mpi_integer,mpi_sum,mpi_comm_world,ierror)       ! MPI
+          insdst(:) = engdst(:)
           call mpi_allreduce(flceng,svfl,numslv,mpi_double_precision,&
                mpi_sum,mpi_comm_world,ierror)                   ! MPI
-          do iduv=1,ermax                                         ! MPI
-             insdst(iduv)=engdst(iduv)                                  ! MPI
-          end do
-          do pti=1,numslv                                         ! MPI
-             flceng(pti)=svfl(pti)                                      ! MPI
-          end do
+          flceng(:) = svfl(:)
        endif
 #endif
        if(slttype == CAL_SOLN) then
-          do pti=1,numslv
-             slnuv(pti)=slnuv(pti)+flceng(pti)*engnmfc
-          end do
+          slnuv(:)=slnuv(:) + flceng(:) * engnmfc
           if(myrank.eq.0) then
              if(maxdst.eq.1) then
                 write(flcio, 911) stnum,(flceng(pti), pti=1,numslv)
@@ -425,8 +419,8 @@ contains
                 write(flcio, 912) cntdst,stnum, (flceng(pti), pti=1,numslv)
              endif
           endif
-911       format(i9,999999999f15.5)
-912       format(2i9,999999999f15.5)
+911       format(i9,999f15.5)
+912       format(2i9,999f15.5)
        endif
        !
        do iduv=1+ptinit,ermax,ptskip
@@ -436,15 +430,14 @@ contains
        if(corrcal.eq.1) then
           do iduv=1+ptinit,ermax,ptskip
              k=insdst(iduv)
-             if(k.gt.0) then
-                do iduvp=1,ermax
-                   q=insdst(iduvp)
-                   if(q.gt.0) then
-                      factor=engnmfc*real(k)*real(q)
-                      ecorr(iduvp,iduv)=ecorr(iduvp,iduv)+factor
-                   endif
-                end do
-             endif
+             if(k == 0) cycle
+
+             do iduvp=1,ermax
+                q=insdst(iduvp)
+                if(q == 0) cycle
+
+                ecorr(iduvp,iduv) = ecorr(iduvp,iduv) + engnmfc*real(k)*real(q)
+             end do
           end do
        endif
     end do
