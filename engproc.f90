@@ -370,11 +370,10 @@ contains
        if(estype.le.1) avslf=avslf+1.0e0
        if(estype.eq.2) avslf=avslf+volume
        !
-       do iduv=1,ermax
-          insdst(iduv)=0
-       enddo
+       insdst(1:ermax) = 0
 
        flceng(:)=0.0e0                        ! sum of solute-solvent energy
+
        do k=0,slvmax
           if(k.eq.0) pti=0                    ! solute self
           if(k.gt.0) then                     ! solute-solvent pair
@@ -390,8 +389,8 @@ contains
              insdst(iduv)=insdst(iduv)+1
              flceng(pti)=flceng(pti)+pairep    ! sum of solute-solvent energy
           endif
-          if(pairep.lt.minuv(pti)) minuv(pti)=pairep        ! minimum energy
-          if(pairep.gt.maxuv(pti)) maxuv(pti)=pairep        ! maximum energy
+          minuv(pti) = min(minuv(pti), pairep)
+          maxuv(pti) = max(maxuv(pti), pairep)
        end do
        !
 #ifndef noMPI
