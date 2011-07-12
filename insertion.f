@@ -99,6 +99,7 @@ c
       endif
 c
       if(type.eq.'solutn') then
+        print *, "debug: soluten: inscnd = ", inscnd
         do 1701 ati=1,numatm
           centag(ati)=0
 1701    continue
@@ -205,6 +206,7 @@ c
         if((lwreg.le.dis).and.(dis.le.upreg)) then
           sltstat=1
         else
+          print *, "debug: inscnd > 0"
           if(type.eq.'solutn') sltstat=0
           if(type.eq.'insert') call insrt_stop('bug')
         endif

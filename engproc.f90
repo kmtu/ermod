@@ -278,9 +278,10 @@ contains
     real, parameter :: tiny = 1.0e-20
     logical :: skipcond
     logical, save :: voffset_initialized = .false.
+    logical, save :: pme_initialized = .false.
     call mpi_info                                                    ! MPI
     !
-    if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.skpcnf)) then
+    if((slttype == CAL_SOLN).and.(myrank.eq.0).and.(stnum.eq.skpcnf)) then
        open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
     endif
     !
@@ -327,15 +328,17 @@ contains
 
     ! Initialize reciprocal space - grid and charges
     if(cltype == EL_PME) then
-       if(stnum == skpcnf) then                ! PME initialization
+       if(.not. pme_initialized) then
           call recpcal_init(slvmax,tagpt)
        endif
 
        ! check whether cell size changes
        ! recpcal is called only when cell size differ
-       if((stnum == skpcnf) .or. &
+       if((.not. pme_initialized) .or. &
             (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
        prevcl(:, :) = cell(:, :)
+
+       pme_initialized = .true.
 
        do k=1,slvmax
           i=tagpt(k)
