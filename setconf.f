@@ -1093,7 +1093,7 @@ c
 
 !     conversion to (kcal/mol angstrom)^(1/2)
 !     == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
-      charge(1:numatm)=18.22261721e0*charge(ati)
+      charge(1:numatm)=18.22261721e0 * charge(1:numatm)
       
       return
       end subroutine
