@@ -9,6 +9,7 @@ subroutine enganal_init()
   call enginit
 end subroutine enganal_init
 
+! FIXME: recover routine which runs as "combined with MD program"
 !  connection to the main routine of trajectory generation is done in
 !  setparam for parameter setting and getconf for configuration reading
 subroutine enganal(stnum)
