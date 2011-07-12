@@ -4,6 +4,7 @@ module engproc
   integer :: cntdst, slvmax
   integer :: maxdst, dsinit, dsskip, ptinit, ptskip
   integer :: tagslt
+  integer, allocatable :: tagpt(:)
 
 contains
   !
@@ -271,11 +272,11 @@ contains
     integer, intent(in) :: stnum
     integer i,pti,iduv,iduvp,k,q
     real engnmfc,pairep,wgtslcf,factor
-    integer, dimension(:), allocatable :: insdst,engdst,tagpt,tplst
+    integer, dimension(:), allocatable :: insdst,engdst,tplst
     real, dimension(:),    allocatable :: uvengy,flceng,svfl
     real, save :: prevcl(3, 3)
     real, parameter :: tiny = 1.0e-20
-    logical :: has_error
+    logical :: skipcond
     logical, save :: voffset_initialized = .false.
     call mpi_info                                                    ! MPI
     !
@@ -321,9 +322,8 @@ contains
        tagpt(k)=tplst(k) ! and copied from tplst
     end do
     deallocate( tplst )
-    !
+
     call get_inverted_cell
-    !
 
     ! Initialize reciprocal space - grid and charges
     if(cltype == EL_PME) then
@@ -346,10 +346,10 @@ contains
     ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
     ! cntdst is the iteration no. of insertion (refs)
     do cntdst=1,maxdst
-       call get_uv_energy(stnum, tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), has_error)
-       if(has_error) cycle
+       call get_uv_energy(stnum, wgtslcf, uvengy(0:slvmax), skipcond)
+       if(skipcond) cycle
 
-       call update_histogram(stnum, tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax))
+       call update_histogram(stnum, wgtslcf, uvengy(0:slvmax))
     end do
 
     if((slttype == CAL_SOLN).and.(myrank.eq.0).and.(stnum.eq.maxcnf)) then
@@ -537,7 +537,7 @@ contains
     return
   end subroutine engstore
   !
-  subroutine get_uv_energy(stnum, tagpt, weighting, uvengy, has_error)
+  subroutine get_uv_energy(stnum, weighting, uvengy, has_error)
     use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
          maxins,ermax,numslv,esmax,uvspec,&
@@ -557,7 +557,6 @@ contains
 
     implicit none
     integer, intent(in) :: stnum
-    integer, intent(in) :: tagpt(slvmax)
     real, intent(inout) :: uvengy(0:slvmax), weighting
     logical, intent(out) :: has_error
 
@@ -633,7 +632,7 @@ contains
     enddo
   end subroutine get_uv_energy
 
-  subroutine update_histogram(stnum, tagpt, stat_weight, uvengy)
+  subroutine update_histogram(stnum, stat_weight, uvengy)
     use engmain, only: wgtslf, plmode, estype, slttype, corrcal, volume, temp, uvspec, &
          ermax, numslv, &
          slnuv, avslf,&
@@ -646,7 +645,6 @@ contains
     use mpiproc
     implicit none
     integer, intent(in) :: stnum
-    integer, intent(in) :: tagpt(1:slvmax)
     real, intent(in) :: uvengy(0:slvmax), stat_weight
 
     integer, allocatable :: insdst(:), engdst(:)
