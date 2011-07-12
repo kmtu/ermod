@@ -662,6 +662,7 @@ contains
     integer :: i, k, q
     real :: pairep, factor
     real, save :: usreal
+    logical, save :: initialized = .false.
 
     has_error = .false.
     ! determine / pick solute structure
@@ -676,16 +677,18 @@ contains
        if((q.ne.0).and.(q.ne.1)) call halt_with_error('slt')
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        tagslt=sltlist(1)
-       if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then
+       if(.not. initialized) then
           call instslt(weighting,'init')
+          initialized = .true.
        endif
        call instslt(weighting,'proc')
        if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
           call instslt(weighting,'last')
        endif
        if(slttype == CAL_REFS_RIGID) then
-          if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then   ! initialization
+          if(.not. initialized) then
              if(cltype == EL_PME) call realcal_self(tagslt,usreal)
+             initialized = .true.
           endif
        endif
        if(mod(cntdst-1,dsskip).ne.dsinit) then
