@@ -1059,28 +1059,6 @@ contains
     if(all(sluvid(:) /= 0)) call halt_with_error('par')
   end subroutine sanity_check_sluvid
 
-  subroutine sltcnd(systype,tagslt)
-    use engmain, only: nummol,sluvid
-    use mpiproc, only: halt_with_error
-    implicit none
-    integer, intent(in) :: tagslt
-    integer, intent(out) :: systype
-    integer :: i,uvi,cntuv(2)
-
-    systype=9
-    do uvi=1,2
-       cntuv(uvi)=0
-    enddo
-    do i=1,nummol
-       uvi=sluvid(i)
-       if(uvi.eq.3) uvi=2 ! treat both flexible and rigid test particle to be uvi=2
-       if(uvi.gt.0) cntuv(uvi)=cntuv(uvi)+1 ! solute or test particle (solvent)
-    end do
-    if((cntuv(1).ne.0).and.(cntuv(2).eq.0)) systype=1
-    if((cntuv(1).eq.0).and.(cntuv(2).ne.0)) systype=2
-    return
-  end subroutine sltcnd
-
   subroutine repval(iduv,factor,pti,caltype)
     use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
     use mpiproc, only: halt_with_error
