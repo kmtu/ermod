@@ -268,8 +268,9 @@ contains
     real engnmfc,pairep,wgtslcf,factor
     integer, dimension(:), allocatable :: insdst,engdst,tagpt,tplst
     real, dimension(:),    allocatable :: uvengy,flceng,svfl
-    real, save :: prevcl(3, 3), usreal
+    real, save :: prevcl(3, 3)
     real, parameter :: tiny = 1.0e-20
+    logical :: has_error
     call mpi_info                                                    ! MPI
     !
     if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.skpcnf)) then
@@ -339,61 +340,8 @@ contains
     ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
     ! cntdst is the iteration no. of insertion (refs)
     do cntdst=1,maxdst
-       select case(slttype) 
-       case(CAL_SOLN)
-          tagslt=sltlist(cntdst)
-          call sltcnd(q,tagslt,'pos')
-          if(q.eq.0) go to 99999
-          if((q.ne.0).and.(q.ne.1)) call halt_with_error('slt')
-       case(CAL_REFS_RIGID, CAL_REFS_FLEX)
-          tagslt=sltlist(1)
-          if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then
-             call instslt(wgtslcf,'init')
-          endif
-          call instslt(wgtslcf,'proc')
-          if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
-             call instslt(wgtslcf,'last')
-          endif
-          if(slttype == CAL_REFS_RIGID) then
-             if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then   ! initialization
-                if(cltype == EL_PME) call realcal_self(tagslt,usreal)
-             endif
-          endif
-          if(mod(cntdst-1,dsskip).ne.dsinit) go to 99999
-       end select
-       !
-       uvengy(:) = 0
-       if(cltype == EL_PME) then
-          call recpcal_prepare_solute(tagslt)
-          call realcal_proc(tagslt, tagpt, slvmax, uvengy)
-          call recpcal_self_energy(uvengy(0))
-       endif
-
-       ! solute-solute self energy
-       pairep = 0.0
-       if(slttype == CAL_REFS_RIGID) then ! rigid solute: self energy never changes
-          pairep=usreal
-       else
-          call realcal_self(tagslt, pairep) ! calculate self-interaction
-       endif
-       uvengy(0) = uvengy(0) + pairep
-
-       ! solute-solvent pair
-       do k=1,slvmax
-          i=tagpt(k)
-          if(i.eq.tagslt) cycle
-
-          pairep = 0
-          factor = 0
-          if(cltype == EL_PME) then ! called only when PME, non-self interaction
-             call residual_ene(tagslt, i, pairep)
-             call recpcal_energy(tagslt, i, factor)
-             pairep = pairep + factor
-          else
-             call realcal(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
-          endif
-          uvengy(k) = uvengy(k) + pairep
-       enddo
+       call get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), has_error)
+       if(has_error) goto 99999
 
        if(wgtslf.eq.0) engnmfc=1.0e0
        if(wgtslf.eq.1) then
@@ -681,6 +629,100 @@ contains
     return
   end subroutine engstore
   !
+  subroutine get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, tagpt, &
+       weighting, uvengy, has_error)
+    use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
+         estype,sluvid,temp,volume,plmode,&
+         maxins,ermax,numslv,esmax,uvspec,&
+         edens,ecorr,eself,&
+         slnuv,avslf,minuv,maxuv,numslt,sltlist,&
+         engnorm,engsmpl,voffset,&
+         boxshp, cltype, cell, &
+         SYS_NONPERIODIC, SYS_PERIODIC, &
+         EL_COULOMB, EL_PME, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+    use ptinsrt, only: instslt
+    use realcal_blk, only: realcal_proc
+    use reciprocal, only: recpcal_init, &
+         recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
+         recpcal_self_energy
+    use mpiproc                                                      ! MPI
+    
+    implicit none
+    integer, intent(in) :: cntdst, slvmax, stnum, maxdst, dsinit, dsskip
+    integer, intent(in) :: tagpt(slvmax)
+    real, intent(inout) :: uvengy(0:slvmax), weighting
+    logical, intent(out) :: has_error
+
+    integer :: i, k, q, tagslt
+    real :: pairep, factor
+    real, save :: usreal
+
+    has_error = .false.
+    ! determine / pick solute structure
+    select case(slttype) 
+    case(CAL_SOLN)
+       tagslt=sltlist(cntdst)
+       call sltcnd(q,tagslt,'pos')
+       if(q.eq.0) then
+          has_error = .true.
+          return
+       endif
+       if((q.ne.0).and.(q.ne.1)) call halt_with_error('slt')
+    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+       tagslt=sltlist(1)
+       if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then
+          call instslt(weighting,'init')
+       endif
+       call instslt(weighting,'proc')
+       if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
+          call instslt(weighting,'last')
+       endif
+       if(slttype == CAL_REFS_RIGID) then
+          if((stnum.eq.skpcnf).and.(cntdst.eq.1)) then   ! initialization
+             if(cltype == EL_PME) call realcal_self(tagslt,usreal)
+          endif
+       endif
+       if(mod(cntdst-1,dsskip).ne.dsinit) then
+          has_error = .true.
+          return
+       endif
+    end select
+
+    uvengy(:) = 0
+    if(cltype == EL_PME) then
+       call recpcal_prepare_solute(tagslt)
+       call realcal_proc(tagslt, tagpt, slvmax, uvengy)
+       call recpcal_self_energy(uvengy(0))
+    endif
+
+    ! solute-solute self energy
+    pairep = 0.0
+    if(slttype == CAL_REFS_RIGID) then ! rigid solute: self energy never changes
+       pairep=usreal
+    else
+       call realcal_self(tagslt, pairep) ! calculate self-interaction
+    endif
+    uvengy(0) = uvengy(0) + pairep
+    
+    ! solute-solvent pair
+    do k=1,slvmax
+       i=tagpt(k)
+       if(i.eq.tagslt) cycle
+       
+       pairep = 0
+       factor = 0
+       if(cltype == EL_PME) then ! called only when PME, non-self interaction
+          call residual_ene(tagslt, i, pairep)
+          call recpcal_energy(tagslt, i, factor)
+          pairep = pairep + factor
+       else
+          call realcal(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
+       endif
+       uvengy(k) = uvengy(k) + pairep
+    enddo
+  end subroutine get_uv_energy
+
   subroutine realcal(i,j,pairep)
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
