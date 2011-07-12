@@ -271,6 +271,7 @@ contains
     real, save :: prevcl(3, 3)
     real, parameter :: tiny = 1.0e-20
     logical :: has_error
+    logical, save :: voffset_initialized = .false.
     call mpi_info                                                    ! MPI
     !
     if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.skpcnf)) then
@@ -347,12 +348,13 @@ contains
        if(wgtslf.eq.0) engnmfc=1.0e0
        if(wgtslf.eq.1) then
           factor=uvengy(0)
-          if((stnum.eq.skpcnf).and.(cntdst.eq.(1+dsinit))) then
+          if(.not. voffset_initialized) then
              if(dsinit.eq.0) voffset=factor
 #ifndef noMPI
              if(plmode.eq.1) call mpi_bcast(voffset,1,&
                   mpi_double_precision,0,mpi_comm_world,ierror)    ! MPI
 #endif
+             voffset_initialized = .true.
           endif
           factor=factor-voffset               ! shifted by offset
           select case(slttype)
