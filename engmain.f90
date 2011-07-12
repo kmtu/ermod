@@ -51,7 +51,10 @@
 !   iseed : seed parameter for uniform random number
 !   inptemp : temperature of the system in Kelvin
 !   temp  : temperature of the system in kcal/mol
+!   force_calculation: if set to .true., the program continues to run even if there is a warning
+!
 !   io6   : standard output
+!   
 !
 !  names of constants and variables for trajectory generation
 !   moltype : type of the molecule numbering between 1 and numtype
@@ -155,6 +158,7 @@ module engmain
   integer :: estype,boxshp,inscnd,inscfg,hostspec,ljformat,iseed
   real :: block_threshold
   real :: inptemp,temp
+  logical :: force_calculation
 
   ! IO units
   integer, parameter :: stdout = 6, io6 = 6             ! standard output

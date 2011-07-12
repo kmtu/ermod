@@ -1006,13 +1006,14 @@ contains
   ! returns the position of the bin corresponding to energy coordinate value
   subroutine getiduv(pti,engcoord,iduv)
     use engmain, only: ermax,numslv,uvmax,uvcrd,esmax,escrd,stdout
-    use mpiproc, only: halt_with_error
+    use mpiproc, only: halt_with_error, warning
     implicit none
     integer, intent(in) :: pti
     real, intent(in) :: engcoord
     integer, intent(out) :: iduv
     integer :: k,idpick,idmax,picktest
     real :: egcrd
+    real, parameter :: warn_threshold = 1e+8
     if(pti.eq.0) idmax=esmax               ! solute self-energy
     if(pti.gt.0) idmax=uvmax(pti)          ! solute-solvent interaction
     idpick=0
@@ -1028,6 +1029,14 @@ contains
        call binsearch(uvcrd(idpick+1), idmax, engcoord, picktest)
     endif
     iduv = picktest + idpick
+
+    if(picktest == idmax .and. engcoord < warn_threshold) then
+       ! Feature #52: put a warning if energy exceeds max binning region and pecore = 0
+       ! Since it is hard to distinguish pecore = 0 bin at this moment,
+       ! It is determined from engcoord itself
+       write(stdout, '(A,g12.4,A,i3,A)'), '  energy of ', engcoord, ' for ', pti, '-th species'
+       call warning('mbin')
+    endif
 
     ! FIXME: clean up the following
     if(iduv.le.idpick) then

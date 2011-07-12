@@ -82,4 +82,15 @@ contains
     stop
   end subroutine halt_with_error
 
+  subroutine warning(typ)
+    use engmain, only: stdout, force_calculation
+    implicit none
+    character(len=4), intent(in) :: typ
+    if(typ == 'mbin') write(stdout, '(A)'), " Warning: the maximum bin coordinate is too low for this species"
+    if(force_calculation) return
+    write(stdout, '(A)'), "The program aborts becaue there is a warning"
+    write(stdout, '(A)'), "If you wish to force program running, specify 'force_calculation = .true.' in parameters_er."
+    call mpi_abend()
+    stop
+  end subroutine warning
 end module mpiproc                                                       ! MPI

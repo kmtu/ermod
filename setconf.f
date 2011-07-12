@@ -753,7 +753,8 @@ c
      &                   intprm,elecut,lwljcut,upljcut,
      &                   cmbrule,cltype,screen,ewtoler,splodr,plmode,
      &                   ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
-     &                   block_threshold
+     &                   block_threshold,
+     &                   force_calculation
       use OUTname, only: OUTintprm,                             ! from outside
      &                   OUTens,OUTbxs,OUTtemp,                 ! from outside
      &                   OUTelc,OUTlwl,OUTupl,                  ! from outside
@@ -798,6 +799,7 @@ c
 #endif
       endif
       block_threshold = 4.0 ! block-wise calculation
+      force_calculation = .false.
 c     only part of constants set here
       call init_params()
 c
