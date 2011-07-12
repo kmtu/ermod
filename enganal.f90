@@ -8,16 +8,11 @@ subroutine enganal(stnum)
   use ptinsrt, only: refmc
   implicit none
   integer stnum
-  if(stnum.eq.1) call setparam
-#ifndef trjctry
-  if(mod(stnum,skpcnf).ne.0) return
-#endif
-  if(stnum.eq.skpcnf) call enginit
+
   if(mod(stnum,(maxcnf/engdiv)).eq.skpcnf) call engclear
   call getconf
-#ifdef trjctry
   if(mod(stnum,skpcnf).ne.0) return
-#endif
+
   if((stnum.eq.skpcnf).and.(inscnd.eq.3)) call refmc('init')
   call engconst(stnum)
   if(mod(stnum,(maxcnf/engdiv)).eq.0) call engstore(stnum)
@@ -28,6 +23,8 @@ end subroutine enganal
 program trjmain
   use engmain, only: maxcnf
   use OUTname, only: opentrj,closetrj
+  use setconf, only: setparam
+  use engproc, only: enginit
   use mpiproc               ! MPI
   implicit none
   integer stnum
@@ -38,6 +35,11 @@ program trjmain
 #endif
   call mpi_setup('init')    ! MPI
   call opentrj
+
+  ! initialize
+  call setparam
+  call enginit
+
   do stnum=1,large
      call enganal(stnum)
      if(stnum.eq.maxcnf) exit
