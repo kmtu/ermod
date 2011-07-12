@@ -89,6 +89,7 @@ c
      &                   boxshp,inscnd,inscfg,hostspec,
      &                   moltype,numsite,specatm,sitepos,cell,invcl,
      &                   lwreg,upreg
+      use mpiproc, only: halt_with_error
       integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
       real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen
       character*6 type
@@ -99,7 +100,7 @@ c
       endif
 c
       if(type.eq.'solutn') then
-        print *, "debug: soluten: inscnd = ", inscnd
+        call halt_with_error('bug')
         do 1701 ati=1,numatm
           centag(ati)=0
 1701    continue
@@ -206,7 +207,6 @@ c
         if((lwreg.le.dis).and.(dis.le.upreg)) then
           sltstat=1
         else
-          print *, "debug: inscnd > 0"
           if(type.eq.'solutn') sltstat=0
           if(type.eq.'insert') call insrt_stop('bug')
         endif

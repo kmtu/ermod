@@ -573,12 +573,6 @@ contains
     select case(slttype) 
     case(CAL_SOLN)
        tagslt=sltlist(cntdst)
-       call sltcnd(q,tagslt,'pos')
-       if(q.eq.0) then
-          has_error = .true.
-          return
-       endif
-       if((q.ne.0).and.(q.ne.1)) call halt_with_error('slt')
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        tagslt=sltlist(1)
        if(.not. initialized) then
@@ -1048,7 +1042,7 @@ contains
 
   subroutine sltcnd(systype,tagslt,type)
     use engmain, only: nummol,sluvid
-    use ptinsrt, only: sltpstn
+    use mpiproc, only: halt_with_error
     implicit none
     integer systype,tagslt,i,uvi,cntuv(2)
     real xst(3)
@@ -1065,8 +1059,9 @@ contains
        end do
        if((cntuv(1).ne.0).and.(cntuv(2).eq.0)) systype=1
        if((cntuv(1).eq.0).and.(cntuv(2).ne.0)) systype=2
+    else
+       call halt_with_error('bug')
     endif
-    if(type.eq.'pos') call sltpstn(systype,xst,'solutn',tagslt)
     return
   end subroutine sltcnd
 
