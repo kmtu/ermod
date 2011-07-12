@@ -1,13 +1,23 @@
 ! -*- F90 -*-
+
+subroutine enganal_init()
+  use setconf, only: setparam
+  use engproc, only: enginit
+  implicit none
+
+  call setparam
+  call enginit
+end subroutine enganal_init
+
 !  connection to the main routine of trajectory generation is done in
 !  setparam for parameter setting and getconf for configuration reading
 subroutine enganal(stnum)
   use engmain, only: maxcnf,engdiv,skpcnf,inscnd
-  use engproc, only: enginit,engclear,engconst,engstore
-  use setconf, only: setparam,getconf
+  use engproc, only: engclear,engconst,engstore
+  use setconf, only: getconf
   use ptinsrt, only: refmc
   implicit none
-  integer stnum
+  integer, intent(in) :: stnum
 
   if(mod(stnum,(maxcnf/engdiv)).eq.skpcnf) call engclear
   call getconf
@@ -19,12 +29,9 @@ subroutine enganal(stnum)
   return
 end subroutine enganal
 !     
-#ifdef trjctry
 program trjmain
   use engmain, only: maxcnf
   use OUTname, only: opentrj,closetrj
-  use setconf, only: setparam
-  use engproc, only: enginit
   use mpiproc               ! MPI
   implicit none
   integer stnum
@@ -34,15 +41,13 @@ program trjmain
   call vmdfio_init_traj
 #endif
   call mpi_setup('init')    ! MPI
-  call opentrj
+  call opentrj()
 
   ! initialize
-  call setparam
-  call enginit
+  call enganal_init()
 
-  do stnum=1,large
+  do stnum=1,maxcnf
      call enganal(stnum)
-     if(stnum.eq.maxcnf) exit
   end do
   call closetrj
   call mpi_setup('stop')    ! MPI
@@ -51,4 +56,3 @@ program trjmain
 #endif
   stop
 end program trjmain
-#endif
