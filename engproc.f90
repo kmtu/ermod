@@ -249,7 +249,6 @@ contains
   !
   !
   subroutine engconst(stnum)
-    !
     use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
          maxins,ermax,numslv,esmax,uvspec,&
@@ -296,11 +295,11 @@ contains
        maxdst=maxins
     end select
 
-    if(plmode.eq.0) then
+    if(plmode.eq.0) then ! parallel over solvent molecules
        ptinit=myrank ; ptskip=nprocs
        dsinit=0 ; dsskip=1
     endif
-    if(plmode.eq.1) then
+    if(plmode.eq.1) then ! parallel over insertion
        ptinit=0 ; ptskip=1
        dsinit=myrank ; dsskip=nprocs
     endif
@@ -1033,7 +1032,7 @@ contains
     if(picktest == idmax .and. engcoord < warn_threshold) then
        ! Feature #52: put a warning if energy exceeds max binning region and pecore = 0
        ! Since it is hard to distinguish pecore = 0 bin at this moment,
-       ! It is determined from engcoord itself
+       ! it is determined by looking engcoord: if too low, it is sprious
        write(stdout, '(A,g12.4,A,i3,A)'), '  energy of ', engcoord, ' for ', pti, '-th species'
        call warning('mbin')
     endif
