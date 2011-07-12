@@ -1002,13 +1002,17 @@ contains
     enddo
     ret = rmin - 1
   end subroutine binsearch
-  !
-  subroutine getiduv(pti,factor,iduv)
+
+  ! returns the position of the bin corresponding to energy coordinate value
+  subroutine getiduv(pti,engcoord,iduv)
     use engmain, only: ermax,numslv,uvmax,uvcrd,esmax,escrd,stdout
     use mpiproc, only: halt_with_error
     implicit none
-    integer pti,iduv,k,idpick,idmax,picktest
-    real factor,egcrd
+    integer, intent(in) :: pti
+    real, intent(in) :: engcoord
+    integer, intent(out) :: iduv
+    integer :: k,idpick,idmax,picktest
+    real :: egcrd
     if(pti.eq.0) idmax=esmax               ! solute self-energy
     if(pti.gt.0) idmax=uvmax(pti)          ! solute-solvent interaction
     idpick=0
@@ -1019,16 +1023,16 @@ contains
     endif
     iduv=idpick
     if(pti == 0) then
-       call binsearch(escrd, idmax, factor, picktest)
+       call binsearch(escrd, idmax, engcoord, picktest)
     else
-       call binsearch(uvcrd(idpick+1), idmax, factor, picktest)
+       call binsearch(uvcrd(idpick+1), idmax, engcoord, picktest)
     endif
     iduv = picktest + idpick
 
     ! FIXME: clean up the following
     if(iduv.le.idpick) then
        iduv=idpick+1                                 ! smallest energy mesh
-       write(stdout,199) factor,pti
+       write(stdout,199) engcoord,pti
 199    format('  energy of ',g12.4,' for ',i3,'-th species')
        call halt_with_error('min')
     endif
