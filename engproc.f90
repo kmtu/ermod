@@ -342,7 +342,7 @@ contains
     do cntdst=1,maxdst
        call get_uv_energy(cntdst, slvmax, stnum, maxdst, dsinit, dsskip, &
             tagpt(1:slvmax), wgtslcf, uvengy(0:slvmax), tagslt, has_error)
-       if(has_error) goto 99999
+       if(has_error) cycle
 
        if(wgtslf.eq.0) engnmfc=1.0e0
        if(wgtslf.eq.1) then
@@ -445,8 +445,6 @@ contains
              endif
           end do
        endif
-       !
-99999  continue
     end do
     !
     if((slttype.eq.1).and.(myrank.eq.0).and.(stnum.eq.maxcnf)) then
