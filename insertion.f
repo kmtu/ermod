@@ -100,7 +100,6 @@ c
       endif
 c
       if(type.eq.'solutn') then
-        call halt_with_error('bug')
         do 1701 ati=1,numatm
           centag(ati)=0
 1701    continue

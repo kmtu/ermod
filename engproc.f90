@@ -569,6 +569,8 @@ contains
     select case(slttype) 
     case(CAL_SOLN)
        tagslt=sltlist(cntdst)
+       call check_mol_condition(has_error)
+       if(has_error) return
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        tagslt=sltlist(1)
        if(.not. initialized) then
@@ -1071,6 +1073,19 @@ contains
     ! solvent must exist
     if(all(sluvid(:) /= 0)) call halt_with_error('par')
   end subroutine sanity_check_sluvid
+
+  ! Check whether molecule is within specified region (of sltcnd)
+  subroutine check_mol_condition(has_error)
+    use ptinsrt, only: sltpstn
+    implicit none
+    logical, intent(out) :: has_error
+    integer :: sltstat
+    real :: com_dummy(3)
+    has_error = .false.
+    ! FIXME: rewrite!
+    call sltpstn(sltstat, com_dummy, 'solutn', tagslt)
+    if(sltstat == 0) has_error = .true.
+  end subroutine check_mol_condition
 
   subroutine repval(iduv,factor,pti,caltype)
     use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
