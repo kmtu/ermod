@@ -249,17 +249,13 @@ contains
     if(vectp.eq.'p') inim=1
     if(vectp.eq.'q') inim=0
     factor=2.0e0
-    do m=0,3
-       qrtn(m)=0.0e0
-    end do
+    qrtn(:) = 0.0e0
     do while((factor.gt.1.0e0).or.(factor.lt.lwbnd))
-       factor=0.0e0
        do m=inim,3
           call URAND(rdum)
           qrtn(m)=2.0e0*rdum-1.0e0
-          factor=factor+qrtn(m)*qrtn(m)
        end do
-       factor=sqrt(factor)
+       factor=sqrt(sum(qrtn(inim:3) ** 2))
     end do
     if(vectp.eq.'q') then
        do m=0,3
@@ -280,10 +276,7 @@ contains
        ati=specatm(sid,i)
        do  m=1,3
           if(inscfg.eq.0) then                        ! translation + rotation
-             rst=0.0e0
-             do k=1,3
-                rst=rst+rotmat(k,m)*bfcoord(k,sid)
-             end do
+             rst=dot_product(rotmat(:, m), bfcoord(:, sid))
              rst=rst+pcom(m)
           endif
           if(inscfg.eq.1) rst=pcom(m)+bfcoord(m,sid)  ! translation only
@@ -297,6 +290,7 @@ contains
 
 ! convert quaternion to rotation matrix
   subroutine getrot(qrtn,rotmat)
+    implicit none
     real, intent(in) :: qrtn(0:3)
     real, intent(out) :: rotmat(3,3)
     rotmat(1,1)=qrtn(0)*qrtn(0)+qrtn(1)*qrtn(1)&
@@ -327,7 +321,7 @@ contains
   subroutine insrt_stop(type)
     use engmain, only: io6
     use mpiproc                                                      ! MPI
-    character*3 type
+    character(len=3), intent(in) :: type
     if(type.eq.'set') write(io6,791)
     if(type.eq.'geo') write(io6,792)
     if(type.eq.'bug') write(io6,793)
@@ -533,9 +527,8 @@ contains
        if(k.eq.movmax) then                    ! when all MC are rejected
           do sid=1,stmax
              ati=specatm(sid,nummol)
-             do m=1,3
-                sitepos(m,ati)=sltsite(m,sid)
-             end do
+
+             sitepos(:,ati)=sltsite(:,sid)
           end do
        endif
     endif
@@ -549,9 +542,8 @@ contains
     integer refmol,rfyn,i,m,ati,rfi,sid,stmax,lstatm(maxsite,nummol)
     real cen(3),posatm(3,numatm),totwgt
     totwgt=0.0e0
-    do m=1,3
-       cen(m)=0.0e0
-    end do
+
+    cen(:)=0.0e0
     do i=1,nummol
        call getrfyn(i,rfi,rfyn,refmol)
        if(rfyn.eq.1) then
@@ -560,16 +552,14 @@ contains
              if(lstatm(sid,i).eq.rfi) then
                 ati=specatm(sid,i)
                 totwgt=totwgt+1.0e0
-                do m=1,3
-                   cen(m)=cen(m)+posatm(m,ati)
-                end do
+
+                cen(:) = cen(:) + posatm(:,ati)
              endif
           end do
        endif
     end do
-    do m=1,3
-       cen(m)=cen(m)/totwgt
-    end do
+
+    cen(:) = cen(:) / totwgt
     return
   end subroutine refcen
 !
@@ -653,17 +643,14 @@ contains
 !
   subroutine dispref(centg,cenrf,qrtn,refmol)
     use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    implicit none
     integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
     real centg(3),cenrf(3),qrtn(0:3),qrtmat(4,4),xsm(3),xrf(3)
     real totm,xp,yp,zp,xm,ym,zm,dumv(4),work(16)
     call refcen(centg,refsatm,sitepos,refmol)
     call refcen(cenrf,refsatm,refspos,refmol)
     totm=0.0e0
-    do m=1,4
-       do k=1,4
-          qrtmat(k,m)=0.0e0
-       end do
-    end do
+    qrtmat(:, :) = 0.0e0
     do i=1,nummol
        call getrfyn(i,rfi,rfyn,refmol)
        if(rfyn.eq.1) then
@@ -694,7 +681,8 @@ contains
           end do
        endif
     end do
-    do  m=1,3
+    ! symmetrize
+    do m=1,3
        do k=m+1,4
           qrtmat(m,k)=qrtmat(k,m)
        end do
@@ -722,6 +710,7 @@ contains
 !
   subroutine refsdev(strchr,refmol,caltype)
     use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    implicit none
     integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
     character*6 caltype
     real strchr,centg(3),cenrf(3),qrtn(0:3),rotmat(3,3)
@@ -767,6 +756,7 @@ contains
 !
   subroutine getrfyn(i,rfi,rfyn,refmol)
     use engmain, only: nummol,sluvid,refmlid
+    implicit none
     integer i,rfi,rfyn,refmol
     rfi=refmlid(i)
     rfyn=0
