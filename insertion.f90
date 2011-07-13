@@ -132,37 +132,37 @@ contains
        elen=0.0e0
        do m=1,3
           elen=elen+cell(m,3)*cell(m,3)
-       enddo
+       end do
        elen=sqrt(elen)
 
        do k=1,2
           call URAND(rdum)
           clm(k)=rdum-0.50e0
-       enddo
-          do 1523 m=1,3
+       end do
+          do m=1,3
             rst=0.0e0
-            do 1524 k=1,2
+            do  k=1,2
               rst=rst+cell(m,k)*clm(k)
-1524        continue
+           end do
             pcom(m)=rst
-1523      continue
+         end do
           call URAND(rdum)
        rst=lwreg+rdum*(upreg-lwreg)
        call URAND(rdum)
        if(rdum.le.0.50e0) rst=-rst
        dis=0.0e0
-       do 1525 m=1,3
+       do m=1,3
           dis=dis+invcl(3,m)*syscen(m)
-1525   continue
+       end do
        dis=dis+rst/elen
-       do 1526 m=1,3
+       do m=1,3
           pcom(m)=pcom(m)+dis*cell(m,3)
-1526   continue
+       end do
 
        rst=0.0e0
-       do 1527 m=1,3
+       do m=1,3
           rst=rst+invcl(3,m)*(pcom(m)-syscen(m))
-1527   continue
+       end do
        dis=abs(rst)*elen
     endif
 !
