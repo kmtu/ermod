@@ -1,45 +1,45 @@
 
 module ptinsrt
-!
-!  test particle insertion of the solute
-!
+  !
+  !  test particle insertion of the solute
+  !
   real, save :: unrn
-!
-!  single-solute trajectrory file           used only when slttype = 3
+  !
+  !  single-solute trajectrory file           used only when slttype = 3
   character(*), parameter :: slttrj='SltConf'    ! solute filename
   integer, parameter :: slcnf=31                 ! solute file ID
   character(*), parameter :: sltwgt='SltWght'    ! solute weight filename
   integer, parameter :: swinf=32                 ! solute weight ID
-!
-!  insertion against reference structure    used only when inscnd = 3
-!   refmlid : superposition reference among solvent species
-!             --- 0 : not reference
-!                 1 : reference solvent  2 : reference solute
-!             value set in subroutine setparam
-!   refsatm : specification of the reference site
-!             --- 0 : not reference
-!                 1 : reference solvent  2 : reference solute
-!   refspos : coordiantes of interaction site for reference structure
-!   sltcen : coordinate of the solute center
-!   sltqrn : quarternion for the solute orientation
-!   movmax : number of Monte Carlo moves
-!   trmax : maximum of translational Monte Carlo move
-!   agmax : maximum of orientational Monte Carlo move
+  !
+  !  insertion against reference structure    used only when inscnd = 3
+  !   refmlid : superposition reference among solvent species
+  !             --- 0 : not reference
+  !                 1 : reference solvent  2 : reference solute
+  !             value set in subroutine setparam
+  !   refsatm : specification of the reference site
+  !             --- 0 : not reference
+  !                 1 : reference solvent  2 : reference solute
+  !   refspos : coordiantes of interaction site for reference structure
+  !   sltcen : coordinate of the solute center
+  !   sltqrn : quarternion for the solute orientation
+  !   movmax : number of Monte Carlo moves
+  !   trmax : maximum of translational Monte Carlo move
+  !   agmax : maximum of orientational Monte Carlo move
   integer, dimension(:,:), allocatable, save :: refsatm
   real, dimension(:,:),    allocatable, save :: refspos
   real, save :: sltcen(3),sltqrn(0:3)
   integer, parameter :: movmax=10
   real, parameter :: trmax=0.20e0
   real, parameter :: agmax=0.10e0
-!   file for reference structure
+  !   file for reference structure
   character(*), parameter :: reffile='RefInfo'  ! reference structure
   integer, parameter :: refio=71                ! reference structure IO
-!   specifier to treat the reference as the total or as the system part only
+  !   specifier to treat the reference as the total or as the system part only
   integer, parameter :: reftot=99, refsys=98
-!
-!
+  !
+  !
 contains
-!
+  !
   subroutine instslt(wgtslcf,caltype)
     use engmain, only: nummol,slttype,inscnd,inscfg,numslt,sltlist,iseed
     integer insml,m
@@ -75,12 +75,12 @@ contains
        endif
        if(inscfg.eq.2) call coordinate(insml,pcom,qrtn) ! site coordinate
     endif
-!
+    !
     if(inscnd.eq.3) call refmc('inst')                 ! MC with reference
-!
+    !
     return
   end subroutine instslt
-!
+  !
   ! FIXME: cleanup
   subroutine sltpstn(sltstat,pcom,type,tagslt)
 
@@ -99,7 +99,7 @@ contains
     endif
 
     if(type.ne.'insert') stop "BUG"
-!
+    !
     if(inscnd.eq.0) then   ! solute with random position
        if(boxshp.eq.0) call insrt_stop('geo') ! system has to be periodic
        do k=1,3
@@ -110,11 +110,11 @@ contains
           pcom(m)=dot_product(cell(m, :), clm(:))
        end do
     endif
-!
+    !
     if((inscnd.eq.1).or.(inscnd.eq.2)) then     ! system center
        call get_system_com(syscen)
     endif
-!
+    !
     if(inscnd.eq.1) then   ! solute in spherical object or isolated droplet
        call rndmvec('p',qrtn,(lwreg/upreg))
 
@@ -126,7 +126,7 @@ contains
        end do
        dis=sqrt(dis)
     endif
-!
+    !
     if(inscnd.eq.2) then   ! solute in slab geometry
        if(boxshp.eq.0) call insrt_stop('geo')    ! system has to be periodic
        elen=0.0e0
@@ -139,14 +139,14 @@ contains
           call URAND(rdum)
           clm(k)=rdum-0.50e0
        end do
-          do m=1,3
-            rst=0.0e0
-            do  k=1,2
-              rst=rst+cell(m,k)*clm(k)
-           end do
-            pcom(m)=rst
-         end do
-          call URAND(rdum)
+       do m=1,3
+          rst=0.0e0
+          do  k=1,2
+             rst=rst+cell(m,k)*clm(k)
+          end do
+          pcom(m)=rst
+       end do
+       call URAND(rdum)
        rst=lwreg+rdum*(upreg-lwreg)
        call URAND(rdum)
        if(rdum.le.0.50e0) rst=-rst
@@ -165,12 +165,12 @@ contains
        end do
        dis=abs(rst)*elen
     endif
-!
+    !
     if(inscnd.eq.3) then   ! solute against reference structure
        if(type.eq.'insert') call insrt_stop('bug')
        call refsdev(dis,2,'system')
     endif
-!
+    !
     if(inscnd.eq.0) sltstat=1
     if(inscnd.gt.0) then
        if((lwreg.le.dis).and.(dis.le.upreg)) then
@@ -179,18 +179,18 @@ contains
           call insrt_stop('bug')
        endif
     endif
-!
+    !
     return
-  end subroutine
-!
+  end subroutine sltpstn
+  !
   subroutine get_molecule_com(target, com)
     use engmain, only: numatm, specatm, numsite
-      
+
     implicit none
     integer, intent(in) :: target
     real, intent(out) :: com(3)
     integer :: centag(1:numatm), ati, sid, stmax
-      
+
     centag(ati)=0
     stmax=numsite(target)
     do sid=1,stmax
@@ -240,21 +240,21 @@ contains
     end do
     cen(:)=cen(:)/wgt
 
-   end subroutine getcen
-!
-   subroutine rndmvec(vectp,qrtn,lwbnd)
-     character vectp
-     integer m,inim
-     real qrtn(0:3),lwbnd,rdum,factor
-     if(vectp.eq.'p') inim=1
-     if(vectp.eq.'q') inim=0
-     factor=2.0e0
-     do m=0,3
-        qrtn(m)=0.0e0
-     end do
-     do while((factor.gt.1.0e0).or.(factor.lt.lwbnd))
-        factor=0.0e0
-        do m=inim,3
+  end subroutine getcen
+  !
+  subroutine rndmvec(vectp,qrtn,lwbnd)
+    character vectp
+    integer m,inim
+    real qrtn(0:3),lwbnd,rdum,factor
+    if(vectp.eq.'p') inim=1
+    if(vectp.eq.'q') inim=0
+    factor=2.0e0
+    do m=0,3
+       qrtn(m)=0.0e0
+    end do
+    do while((factor.gt.1.0e0).or.(factor.lt.lwbnd))
+       factor=0.0e0
+       do m=inim,3
           call URAND(rdum)
           qrtn(m)=2.0e0*rdum-1.0e0
           factor=factor+qrtn(m)*qrtn(m)
@@ -267,8 +267,8 @@ contains
        end do
     endif
   end subroutine rndmvec
-!
-!
+  !
+  !
   subroutine coordinate(i,pcom,qrtn)
     use engmain, only: nummol,maxsite,numatm,inscfg,&
          numsite,bfcoord,specatm,sitepos
@@ -447,7 +447,7 @@ contains
     character*4 caltype
     character*8 atmtype,dump
     character eletype
-!
+    !
     if(caltype.eq.'init') then
        allocate( refsatm(maxsite,nummol),refspos(3,numatm) )
        do i=1,nummol
@@ -460,327 +460,327 @@ contains
              refspos(m,ati)=0.0e0
           end do
        end do
-!
-!  read the reference structure
+       !
+       !  read the reference structure
        open(unit=refio,file=reffile,status='old')
        do i=1,nummol
           rfi=refmlid(i)
           if(rfi.ne.0) then
              stmax=numsite(i)
-            do sid=1,stmax
-              read(refio,*) dump,k,atmtype,dump,q,&
-                           (xst(m), m=1,3),factor,factor
-              eletype=atmtype(1:1)
-              if(eletype.eq.'H') refsatm(sid,i)=0      ! hydrogen atom
-              if(eletype.ne.'H') refsatm(sid,i)=rfi    ! heavy atom
-              ati=specatm(sid,i)
-              do m=1,3
-                refspos(m,ati)=xst(m)
+             do sid=1,stmax
+                read(refio,*) dump,k,atmtype,dump,q,&
+                     (xst(m), m=1,3),factor,factor
+                eletype=atmtype(1:1)
+                if(eletype.eq.'H') refsatm(sid,i)=0      ! hydrogen atom
+                if(eletype.ne.'H') refsatm(sid,i)=rfi    ! heavy atom
+                ati=specatm(sid,i)
+                do m=1,3
+                   refspos(m,ati)=xst(m)
+                end do
              end do
-          end do
           endif
        end do
        close(refio)
-!
-!  build the initial configuration of the solute
+       !
+       !  build the initial configuration of the solute
        if(slttype.ge.2) then
           call dispref(centg,cenrf,bfqrn,1)     ! matching reference
           call getrot(bfqrn,rtmbf)
           stmax=numsite(nummol)                 ! inserted solute molecule
           do  sid=1,stmax
-            ati=specatm(sid,nummol)
-            do  m=1,3
-              factor=0.0e0
-              do  k=1,3
-                factor=factor+rtmbf(k,m)*(refspos(k,ati)-cenrf(k))
-             end do
-              sitepos(m,ati)=factor+centg(m)
-           end do
-        end do
-          call dispref(sltcen,cenrf,sltqrn,2)   ! solute center & orientation
-        endif
-      endif
-!
-      if(caltype.eq.'inst') then                ! inserted solute molecule
-        stmax=numsite(nummol)
-        do sid=1,stmax
-            ati=specatm(sid,nummol)
-            do m=1,3
-                sltsite(m,sid)=sitepos(m,ati)
-            end do
-            do m=1,3
-                sitepos(m,ati)=bfcoord(m,sid)
-            end do
-        end do
-        call refcen(xst,refsatm,sitepos,2)      ! solute center in bfcoord
-        do sid=1,stmax
-            ati=specatm(sid,nummol)
-            do m=1,3
-                bfcoord(m,sid)=bfcoord(m,sid)-xst(m)
-            end do
-        end do
-        call dispref(centg,cenrf,bfqrn,2)       ! matching solute
-        call getrot(bfqrn,rtmbf)
-        k=0
-        do q=1,movmax
-            call sltmove(sltcen,sltqrn,rtmbf,'frwd')
-            call refsdev(factor,2,'extend')
-            if((factor.lt.lwreg).or.(factor.gt.upreg)) then
-                k=k+1
-                call sltmove(sltcen,sltqrn,rtmbf,'back')
-            endif
-        end do
-        if(k.eq.movmax) then                    ! when all MC are rejected
-            do sid=1,stmax
-                ati=specatm(sid,nummol)
-                do m=1,3
-                    sitepos(m,ati)=sltsite(m,sid)
+             ati=specatm(sid,nummol)
+             do  m=1,3
+                factor=0.0e0
+                do  k=1,3
+                   factor=factor+rtmbf(k,m)*(refspos(k,ati)-cenrf(k))
                 end do
-            end do
-        endif
-      endif
-!
-      return
-    end subroutine refmc
-!
-!
-    subroutine refcen(cen,lstatm,posatm,refmol)
-      use engmain, only: nummol,maxsite,numatm,numsite,specatm
-      integer refmol,rfyn,i,m,ati,rfi,sid,stmax,lstatm(maxsite,nummol)
-      real cen(3),posatm(3,numatm),totwgt
-      totwgt=0.0e0
-      do m=1,3
-          cen(m)=0.0e0
-      end do
-      do i=1,nummol
-          call getrfyn(i,rfi,rfyn,refmol)
-          if(rfyn.eq.1) then
-              stmax=numsite(i)
-              do sid=1,stmax
-                  if(lstatm(sid,i).eq.rfi) then
-                      ati=specatm(sid,i)
-                      totwgt=totwgt+1.0e0
-                      do m=1,3
-                          cen(m)=cen(m)+posatm(m,ati)
-                      end do
-                  endif
-              end do
-          endif
-      end do
-      do m=1,3
-          cen(m)=cen(m)/totwgt
-      end do
-      return
-      end subroutine
-!
-!
-      subroutine sltmove(pcen,qrtn,rtmbf,mvtype)
-      use engmain, only: nummol,maxsite,numatm,&
-                        numsite,bfcoord,specatm,sitepos
-      integer m,k,q,ati,sid,stmax,ax1,ax2
-      real pcen(3),qrtn(0:3),rtmbf(3,3)
-      real rdum,factor,rotmat(3,3),rtmmov(3,3),axis(3)
-      character*4 mvtype
-      real, save :: odcn(3),oqrn(0:3)
-      stmax=numsite(nummol)                       ! inserted solute molecule
-      do m=1,3
-          if(mvtype.eq.'frwd') odcn(m)=pcen(m)
-          if(mvtype.eq.'back') pcen(m)=odcn(m)
-      end do
-      do m=0,3
-          if(mvtype.eq.'frwd') oqrn(m)=qrtn(m)
-          if(mvtype.eq.'back') qrtn(m)=oqrn(m)
-      end do
-      if(mvtype.eq.'frwd') then
-          do m=1,3                             ! translation
-              call URAND(rdum)
-              pcen(m)=pcen(m)+trmax*(rdum+rdum-1.0e0)
+                sitepos(m,ati)=factor+centg(m)
+             end do
           end do
-        factor=2.0e0                              ! rotation
-        do while(factor.gt.1.0e0)
-            do m=1,3
-                call URAND(rdum)
-                axis(m)=rdum+rdum-1.0e0
-            end do
-            factor=axis(1)*axis(1)+axis(2)*axis(2)+axis(3)*axis(3)
-        end do
-        factor=sqrt(factor)
-        do m=1,3
-            axis(m)=axis(m)/factor
-        end do
-        call URAND(rdum)
-        ax1=mod(int(abs(unrn)),4)
-        ax2=ax1
-        do while(ax1.eq.ax2)
-            call URAND(rdum)
-            ax2=mod(int(abs(unrn)),4)
-        end do
-        call URAND(rdum)
-        factor=agmax*(rdum+rdum-1.0e0)
-        qrtn(ax1)=cos(factor)*oqrn(ax1)-sin(factor)*oqrn(ax2)
-        qrtn(ax2)=sin(factor)*oqrn(ax1)+cos(factor)*oqrn(ax2)
-        factor=0.0e0
-        do m=0,3
-            factor=factor+qrtn(m)*qrtn(m)
-        end do
-        factor=sqrt(factor)
-        do m=0,3
-            qrtn(m)=qrtn(m)/factor
-        end do
-      endif
-      call getrot(qrtn,rtmmov)                    ! site coordinate
-      do m=1,3
-          do k=1,3
-              factor=0.0e0
-              do q=1,3
-                  factor=factor+rtmmov(q,m)*rtmbf(q,k)
-              end do
-              rotmat(m,k)=factor
-          end do
-      end do
-      do sid=1,stmax
+          call dispref(sltcen,cenrf,sltqrn,2)   ! solute center & orientation
+       endif
+    endif
+    !
+    if(caltype.eq.'inst') then                ! inserted solute molecule
+       stmax=numsite(nummol)
+       do sid=1,stmax
           ati=specatm(sid,nummol)
           do m=1,3
-              factor=0.0e0
-              do k=1,3
-                  factor=factor+rotmat(m,k)*bfcoord(k,sid)
-              end do
-              sitepos(m,ati)=factor+pcen(m)
+             sltsite(m,sid)=sitepos(m,ati)
           end do
-      end do
-      return
-      end subroutine
-!
-      subroutine dispref(centg,cenrf,qrtn,refmol)
-      use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
-      integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
-      real centg(3),cenrf(3),qrtn(0:3),qrtmat(4,4),xsm(3),xrf(3)
-      real totm,xp,yp,zp,xm,ym,zm,dumv(4),work(16)
-      call refcen(centg,refsatm,sitepos,refmol)
-      call refcen(cenrf,refsatm,refspos,refmol)
-      totm=0.0e0
-      do m=1,4
-          do k=1,4
-              qrtmat(k,m)=0.0e0
+          do m=1,3
+             sitepos(m,ati)=bfcoord(m,sid)
           end do
-      end do
-      do i=1,nummol
-          call getrfyn(i,rfi,rfyn,refmol)
-          if(rfyn.eq.1) then
-              stmax=numsite(i)
-              do sid=1,stmax
-                  if(refsatm(sid,i).eq.rfi) then
-                      ati=specatm(sid,i)
-                      totm=totm+1.0e0
-                      do m=1,3
-                          xsm(m)=sitepos(m,ati)-centg(m)
-                      end do
-                      do m=1,3
-                          xrf(m)=refspos(m,ati)-cenrf(m)
-                      end do
-                      xp=xrf(1)+xsm(1) ; yp=xrf(2)+xsm(2) ; zp=xrf(3)+xsm(3)
-                      xm=xrf(1)-xsm(1) ; ym=xrf(2)-xsm(2) ; zm=xrf(3)-xsm(3)
-                      qrtmat(1,1)=qrtmat(1,1)+xm*xm+ym*ym+zm*zm
-                      qrtmat(2,1)=qrtmat(2,1)+yp*zm-ym*zp
-                      qrtmat(3,1)=qrtmat(3,1)+xm*zp-xp*zm
-                      qrtmat(4,1)=qrtmat(4,1)+xp*ym-xm*yp
-                      qrtmat(2,2)=qrtmat(2,2)+yp*yp+zp*zp+xm*xm
-                      qrtmat(3,2)=qrtmat(3,2)+xm*ym-xp*yp
-                      qrtmat(4,2)=qrtmat(4,2)+xm*zm-xp*zp
-                      qrtmat(3,3)=qrtmat(3,3)+xp*xp+zp*zp+ym*ym
-                      qrtmat(4,3)=qrtmat(4,3)+ym*zm-yp*zp
-                      qrtmat(4,4)=qrtmat(4,4)+xp*xp+yp*yp+zm*zm
-                  endif
-              end do
+       end do
+       call refcen(xst,refsatm,sitepos,2)      ! solute center in bfcoord
+       do sid=1,stmax
+          ati=specatm(sid,nummol)
+          do m=1,3
+             bfcoord(m,sid)=bfcoord(m,sid)-xst(m)
+          end do
+       end do
+       call dispref(centg,cenrf,bfqrn,2)       ! matching solute
+       call getrot(bfqrn,rtmbf)
+       k=0
+       do q=1,movmax
+          call sltmove(sltcen,sltqrn,rtmbf,'frwd')
+          call refsdev(factor,2,'extend')
+          if((factor.lt.lwreg).or.(factor.gt.upreg)) then
+             k=k+1
+             call sltmove(sltcen,sltqrn,rtmbf,'back')
           endif
-      end do
-      do  m=1,3
-         do k=m+1,4
-            qrtmat(m,k)=qrtmat(k,m)
-         end do
-      end do
-      do m=1,4
-          do k=1,4
-              qrtmat(k,m)=qrtmat(k,m)/totm
+       end do
+       if(k.eq.movmax) then                    ! when all MC are rejected
+          do sid=1,stmax
+             ati=specatm(sid,nummol)
+             do m=1,3
+                sitepos(m,ati)=sltsite(m,sid)
+             end do
           end do
-      end do
-      call DSYEV('V','U',4,qrtmat,4,dumv,work,16,i)
-      do m=0,3
-          qrtn(m)=qrtmat(m+1,1)   ! eigenvector for the minimum eigenvalue
-      end do
-      totm=0.0e0
-      do m=0,3
-          totm=totm+qrtn(m)*qrtn(m)
-      end do
-      totm=sqrt(totm)
-      do m=0,3
-          qrtn(m)=qrtn(m)/totm
-      end do
-      return
-      end subroutine
+       endif
+    endif
+    !
+    return
+  end subroutine refmc
 !
 !
-      subroutine refsdev(strchr,refmol,caltype)
-      use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
-      integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
-      character*6 caltype
-      real strchr,centg(3),cenrf(3),qrtn(0:3),rotmat(3,3)
-      real totm,factor,xsm(3)
-      select case(caltype)
-        case('system')
-          call dispref(centg,cenrf,qrtn,refsys)
-        case('extend')
-          call dispref(centg,cenrf,qrtn,reftot)
-        case default
-          call insrt_stop('bug')
-      end select
-      call getrot(qrtn,rotmat)
-      strchr=0.0e0
-      totm=0.0e0
-      do i=1,nummol
-          call getrfyn(i,rfi,rfyn,refmol)
-          if(rfyn.eq.1) then
-              stmax=numsite(i)
-              do sid=1,stmax
-                  if(refsatm(sid,i).eq.rfi) then
-                      ati=specatm(sid,i)
-                      totm=totm+1.0e0
-                      do m=1,3
-                          factor=0.0e0
-                          do k=1,3
-                              factor=factor+rotmat(m,k)*(sitepos(k,ati)-centg(k))
-                          end do
-                          xsm(m)=factor+cenrf(m)
-                      end do
-                      do m=1,3
-                          factor=xsm(m)-refspos(m,ati)
-                          strchr=strchr+factor*factor
-                      end do
-                  endif
-              end do
-          endif
-      end do
-      strchr=sqrt(strchr/totm)
-      return
-      end subroutine
+  subroutine refcen(cen,lstatm,posatm,refmol)
+    use engmain, only: nummol,maxsite,numatm,numsite,specatm
+    integer refmol,rfyn,i,m,ati,rfi,sid,stmax,lstatm(maxsite,nummol)
+    real cen(3),posatm(3,numatm),totwgt
+    totwgt=0.0e0
+    do m=1,3
+       cen(m)=0.0e0
+    end do
+    do i=1,nummol
+       call getrfyn(i,rfi,rfyn,refmol)
+       if(rfyn.eq.1) then
+          stmax=numsite(i)
+          do sid=1,stmax
+             if(lstatm(sid,i).eq.rfi) then
+                ati=specatm(sid,i)
+                totwgt=totwgt+1.0e0
+                do m=1,3
+                   cen(m)=cen(m)+posatm(m,ati)
+                end do
+             endif
+          end do
+       endif
+    end do
+    do m=1,3
+       cen(m)=cen(m)/totwgt
+    end do
+    return
+  end subroutine refcen
 !
 !
-      subroutine getrfyn(i,rfi,rfyn,refmol)
-      use engmain, only: nummol,sluvid,refmlid
-      integer i,rfi,rfyn,refmol
-      rfi=refmlid(i)
-      rfyn=0
-      select case(refmol)
-        case(1,2)
-          if(rfi.eq.refmol) rfyn=1
-        case(reftot)
-          if(rfi.ne.0) rfyn=1
-        case(refsys)
-          if((rfi.ne.0).and.(sluvid(i).le.1)) rfyn=1
-        case default
-          call insrt_stop('bug')
-      end select
-      return
-      end subroutine
+  subroutine sltmove(pcen,qrtn,rtmbf,mvtype)
+    use engmain, only: nummol,maxsite,numatm,&
+         numsite,bfcoord,specatm,sitepos
+    integer m,k,q,ati,sid,stmax,ax1,ax2
+    real pcen(3),qrtn(0:3),rtmbf(3,3)
+    real rdum,factor,rotmat(3,3),rtmmov(3,3),axis(3)
+    character*4 mvtype
+    real, save :: odcn(3),oqrn(0:3)
+    stmax=numsite(nummol)                       ! inserted solute molecule
+    do m=1,3
+       if(mvtype.eq.'frwd') odcn(m)=pcen(m)
+       if(mvtype.eq.'back') pcen(m)=odcn(m)
+    end do
+    do m=0,3
+       if(mvtype.eq.'frwd') oqrn(m)=qrtn(m)
+       if(mvtype.eq.'back') qrtn(m)=oqrn(m)
+    end do
+    if(mvtype.eq.'frwd') then
+       do m=1,3                             ! translation
+          call URAND(rdum)
+          pcen(m)=pcen(m)+trmax*(rdum+rdum-1.0e0)
+       end do
+       factor=2.0e0                              ! rotation
+       do while(factor.gt.1.0e0)
+          do m=1,3
+             call URAND(rdum)
+             axis(m)=rdum+rdum-1.0e0
+          end do
+          factor=axis(1)*axis(1)+axis(2)*axis(2)+axis(3)*axis(3)
+       end do
+       factor=sqrt(factor)
+       do m=1,3
+          axis(m)=axis(m)/factor
+       end do
+       call URAND(rdum)
+       ax1=mod(int(abs(unrn)),4)
+       ax2=ax1
+       do while(ax1.eq.ax2)
+          call URAND(rdum)
+          ax2=mod(int(abs(unrn)),4)
+       end do
+       call URAND(rdum)
+       factor=agmax*(rdum+rdum-1.0e0)
+       qrtn(ax1)=cos(factor)*oqrn(ax1)-sin(factor)*oqrn(ax2)
+       qrtn(ax2)=sin(factor)*oqrn(ax1)+cos(factor)*oqrn(ax2)
+       factor=0.0e0
+       do m=0,3
+          factor=factor+qrtn(m)*qrtn(m)
+       end do
+       factor=sqrt(factor)
+       do m=0,3
+          qrtn(m)=qrtn(m)/factor
+       end do
+    endif
+    call getrot(qrtn,rtmmov)                    ! site coordinate
+    do m=1,3
+       do k=1,3
+          factor=0.0e0
+          do q=1,3
+             factor=factor+rtmmov(q,m)*rtmbf(q,k)
+          end do
+          rotmat(m,k)=factor
+       end do
+    end do
+    do sid=1,stmax
+       ati=specatm(sid,nummol)
+       do m=1,3
+          factor=0.0e0
+          do k=1,3
+             factor=factor+rotmat(m,k)*bfcoord(k,sid)
+          end do
+          sitepos(m,ati)=factor+pcen(m)
+       end do
+    end do
+    return
+  end subroutine sltmove
+!
+  subroutine dispref(centg,cenrf,qrtn,refmol)
+    use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
+    real centg(3),cenrf(3),qrtn(0:3),qrtmat(4,4),xsm(3),xrf(3)
+    real totm,xp,yp,zp,xm,ym,zm,dumv(4),work(16)
+    call refcen(centg,refsatm,sitepos,refmol)
+    call refcen(cenrf,refsatm,refspos,refmol)
+    totm=0.0e0
+    do m=1,4
+       do k=1,4
+          qrtmat(k,m)=0.0e0
+       end do
+    end do
+    do i=1,nummol
+       call getrfyn(i,rfi,rfyn,refmol)
+       if(rfyn.eq.1) then
+          stmax=numsite(i)
+          do sid=1,stmax
+             if(refsatm(sid,i).eq.rfi) then
+                ati=specatm(sid,i)
+                totm=totm+1.0e0
+                do m=1,3
+                   xsm(m)=sitepos(m,ati)-centg(m)
+                end do
+                do m=1,3
+                   xrf(m)=refspos(m,ati)-cenrf(m)
+                end do
+                xp=xrf(1)+xsm(1) ; yp=xrf(2)+xsm(2) ; zp=xrf(3)+xsm(3)
+                xm=xrf(1)-xsm(1) ; ym=xrf(2)-xsm(2) ; zm=xrf(3)-xsm(3)
+                qrtmat(1,1)=qrtmat(1,1)+xm*xm+ym*ym+zm*zm
+                qrtmat(2,1)=qrtmat(2,1)+yp*zm-ym*zp
+                qrtmat(3,1)=qrtmat(3,1)+xm*zp-xp*zm
+                qrtmat(4,1)=qrtmat(4,1)+xp*ym-xm*yp
+                qrtmat(2,2)=qrtmat(2,2)+yp*yp+zp*zp+xm*xm
+                qrtmat(3,2)=qrtmat(3,2)+xm*ym-xp*yp
+                qrtmat(4,2)=qrtmat(4,2)+xm*zm-xp*zp
+                qrtmat(3,3)=qrtmat(3,3)+xp*xp+zp*zp+ym*ym
+                qrtmat(4,3)=qrtmat(4,3)+ym*zm-yp*zp
+                qrtmat(4,4)=qrtmat(4,4)+xp*xp+yp*yp+zm*zm
+             endif
+          end do
+       endif
+    end do
+    do  m=1,3
+       do k=m+1,4
+          qrtmat(m,k)=qrtmat(k,m)
+       end do
+    end do
+    do m=1,4
+       do k=1,4
+          qrtmat(k,m)=qrtmat(k,m)/totm
+       end do
+    end do
+    call DSYEV('V','U',4,qrtmat,4,dumv,work,16,i)
+    do m=0,3
+       qrtn(m)=qrtmat(m+1,1)   ! eigenvector for the minimum eigenvalue
+    end do
+    totm=0.0e0
+    do m=0,3
+       totm=totm+qrtn(m)*qrtn(m)
+    end do
+    totm=sqrt(totm)
+    do m=0,3
+       qrtn(m)=qrtn(m)/totm
+    end do
+    return
+  end subroutine dispref
+!
+!
+  subroutine refsdev(strchr,refmol,caltype)
+    use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
+    character*6 caltype
+    real strchr,centg(3),cenrf(3),qrtn(0:3),rotmat(3,3)
+    real totm,factor,xsm(3)
+    select case(caltype)
+    case('system')
+       call dispref(centg,cenrf,qrtn,refsys)
+    case('extend')
+       call dispref(centg,cenrf,qrtn,reftot)
+    case default
+       call insrt_stop('bug')
+    end select
+    call getrot(qrtn,rotmat)
+    strchr=0.0e0
+    totm=0.0e0
+    do i=1,nummol
+       call getrfyn(i,rfi,rfyn,refmol)
+       if(rfyn.eq.1) then
+          stmax=numsite(i)
+          do sid=1,stmax
+             if(refsatm(sid,i).eq.rfi) then
+                ati=specatm(sid,i)
+                totm=totm+1.0e0
+                do m=1,3
+                   factor=0.0e0
+                   do k=1,3
+                      factor=factor+rotmat(m,k)*(sitepos(k,ati)-centg(k))
+                   end do
+                   xsm(m)=factor+cenrf(m)
+                end do
+                do m=1,3
+                   factor=xsm(m)-refspos(m,ati)
+                   strchr=strchr+factor*factor
+                end do
+             endif
+          end do
+       endif
+    end do
+    strchr=sqrt(strchr/totm)
+    return
+  end subroutine refsdev
+!
+!
+  subroutine getrfyn(i,rfi,rfyn,refmol)
+    use engmain, only: nummol,sluvid,refmlid
+    integer i,rfi,rfyn,refmol
+    rfi=refmlid(i)
+    rfyn=0
+    select case(refmol)
+    case(1,2)
+       if(rfi.eq.refmol) rfyn=1
+    case(reftot)
+       if(rfi.ne.0) rfyn=1
+    case(refsys)
+       if((rfi.ne.0).and.(sluvid(i).le.1)) rfyn=1
+    case default
+       call insrt_stop('bug')
+    end select
+    return
+  end subroutine getrfyn
 !
 end module
