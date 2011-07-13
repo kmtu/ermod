@@ -100,15 +100,7 @@ c
       endif
 c
       if(type.eq.'solutn') then
-        do 1701 ati=1,numatm
-          centag(ati)=0
-1701    continue
-        stmax=numsite(tagslt)
-        do 1702 sid=1,stmax
-          ati=specatm(sid,tagslt)
-          centag(ati)=1
-1702    continue
-        call getcen(centag,pcom)
+        call get_molecule_com(tagslt, pcom)
       endif
 c
       if(inscnd.eq.0) then   ! solute with random position
@@ -129,17 +121,7 @@ c
       endif
 c
       if((inscnd.eq.1).or.(inscnd.eq.2)) then     ! system center
-        do 1751 i=1,nummol
-          pti=moltype(i)
-          if(pti.eq.hostspec) m=1
-          if(pti.ne.hostspec) m=0
-          stmax=numsite(i)
-          do 1752 sid=1,stmax
-            ati=specatm(sid,i)
-            centag(ati)=m
-1752      continue
-1751    continue
-        call getcen(centag,syscen)
+        call get_system_com(syscen)
       endif
 c
       if(inscnd.eq.1) then   ! solute in spherical object or isolated droplet
@@ -214,6 +196,42 @@ c
       return
       end subroutine
 c
+      subroutine get_molecule_com(target, com)
+      use engmain, only: numatm, specatm, numsite
+      
+      implicit none
+      integer, intent(in) :: target
+      real, intent(out) :: com(3)
+      integer :: centag(1:numatm), ati, sid, stmax
+      
+      centag(ati)=0
+      stmax=numsite(target)
+      do sid=1,stmax
+        ati=specatm(sid,target)
+        centag(ati)=1
+      end do
+      call getcen(centag,com)
+      end subroutine
+
+      subroutine get_system_com(com)
+      use engmain, only: nummol, numatm, specatm, numsite, hostspec, moltype
+      
+      implicit none
+      real, intent(out) :: com(3)
+      integer :: centag(1:numatm), ati, sid, stmax, i, m, pti
+
+      do i=1,nummol
+        pti=moltype(i)
+        if(pti.eq.hostspec) m=1
+        if(pti.ne.hostspec) m=0
+        stmax=numsite(i)
+        do sid=1,stmax
+          ati=specatm(sid,i)
+          centag(ati)=m
+        end do
+      end do
+      call getcen(centag, com)
+      end subroutine
 c
       subroutine getcen(centag,cen)             ! getting the center of mass
       use engmain, only: numatm,sitemass,sitepos

@@ -172,6 +172,7 @@ module engmain
   integer, dimension(:,:), allocatable :: specatm
   real, dimension(:,:),    allocatable :: sitepos
   real, dimension(3,3)                 :: cell,invcl
+  real :: celllen(3)
   real :: volume
 
   real :: elecut,lwljcut,upljcut,screen,ewtoler

@@ -940,7 +940,15 @@ contains
     return
   end subroutine volcorrect
   !
-  !
+  subroutine update_cell_info()
+    use engmain, only: cell, celllen
+    implicit none
+    integer :: i
+    do i = 1, 3
+       celllen(i) = sqrt(sum(cell(:, i) ** 2))
+    enddo
+  end subroutine update_cell_info
+
   subroutine get_inverted_cell
     use engmain, only:  cell,invcl,volume
     implicit none
@@ -958,12 +966,13 @@ contains
     invcl(3,1)=cell(2,1)*cell(3,2)-cell(2,2)*cell(3,1)
     invcl(3,2)=cell(1,2)*cell(3,1)-cell(1,1)*cell(3,2)
     invcl(3,3)=cell(1,1)*cell(2,2)-cell(1,2)*cell(2,1)
+    
     do m=1,3
        do k=1,3
           invcl(k,m)=invcl(k,m)/volume
        end do
     end do
-    return
+    call update_cell_info
   end subroutine get_inverted_cell
 
 
@@ -1075,17 +1084,47 @@ contains
   end subroutine sanity_check_sluvid
 
   ! Check whether molecule is within specified region (of sltcnd)
-  subroutine check_mol_configuration(has_error)
-    use ptinsrt, only: sltpstn
+  subroutine check_mol_configuration(is_invalid)
+    use ptinsrt, only: sltpstn, get_molecule_com
     implicit none
-    logical, intent(out) :: has_error
+    logical, intent(out) :: is_invalid
     integer :: sltstat
-    real :: com_dummy(3)
-    has_error = .false.
-    ! FIXME: rewrite!
-    call sltpstn(sltstat, com_dummy, 'solutn', tagslt)
-    if(sltstat == 0) has_error = .true.
+    real :: com(3)
+    is_invalid = .false.
+    
+    call get_molecule_com(tagslt, com)
+    call check_mol_configuration_impl(com, is_invalid)
   end subroutine check_mol_configuration
+
+  subroutine check_mol_configuration_impl(com, is_invalid)
+    use engmain, only: inscnd, lwreg, upreg, boxshp, SYS_NONPERIODIC, invcl, celllen
+    use ptinsrt, only: get_system_com
+    use mpiproc, only: halt_with_error
+    implicit none
+    real, intent(in) :: com(3)
+    logical, intent(out) :: is_invalid
+    real :: system_com(3), dx(3)
+    real :: distance
+
+    is_invalid = .false.
+
+    select case(inscnd)
+    case(0)
+       return
+    case(1) ! sphere geometry
+       call get_system_com(system_com)
+       dx(:) = com(:) - system_com(:)
+       distance = sqrt(dot_product(dx, dx))
+    case(2) ! slab (only z-axis is constrained) configuration
+       if(boxshp == SYS_NONPERIODIC) call halt_with_error('slb')
+       call get_system_com(system_com)
+       dx(:) = com(:) - system_com(:)
+       distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
+    end select
+    
+    if(distance > lwreg .and. distance < upreg) return
+    is_invalid = .true.
+  end subroutine check_mol_configuration_impl
 
   subroutine repval(iduv,factor,pti,caltype)
     use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
