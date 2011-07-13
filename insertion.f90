@@ -1,69 +1,69 @@
       module ptinsrt
-c
-c  test particle insertion of the solute
-c
+!
+!  test particle insertion of the solute
+!
       real, save :: unrn
-c
-c  single-solute trajectrory file           used only when slttype = 3
+!
+!  single-solute trajectrory file           used only when slttype = 3
       character(*), parameter :: slttrj='SltConf'    ! solute filename
       integer, parameter :: slcnf=31                 ! solute file ID
       character(*), parameter :: sltwgt='SltWght'    ! solute weight filename
       integer, parameter :: swinf=32                 ! solute weight ID
-c
-c  insertion against reference structure    used only when inscnd = 3
-c   refmlid : superposition reference among solvent species
-c             --- 0 : not reference
-c                 1 : reference solvent  2 : reference solute
-c             value set in subroutine setparam
-c   refsatm : specification of the reference site
-c             --- 0 : not reference
-c                 1 : reference solvent  2 : reference solute
-c   refspos : coordiantes of interaction site for reference structure
-c   sltcen : coordinate of the solute center
-c   sltqrn : quarternion for the solute orientation
-c   movmax : number of Monte Carlo moves
-c   trmax : maximum of translational Monte Carlo move
-c   agmax : maximum of orientational Monte Carlo move
+!
+!  insertion against reference structure    used only when inscnd = 3
+!   refmlid : superposition reference among solvent species
+!             --- 0 : not reference
+!                 1 : reference solvent  2 : reference solute
+!             value set in subroutine setparam
+!   refsatm : specification of the reference site
+!             --- 0 : not reference
+!                 1 : reference solvent  2 : reference solute
+!   refspos : coordiantes of interaction site for reference structure
+!   sltcen : coordinate of the solute center
+!   sltqrn : quarternion for the solute orientation
+!   movmax : number of Monte Carlo moves
+!   trmax : maximum of translational Monte Carlo move
+!   agmax : maximum of orientational Monte Carlo move
       integer, dimension(:,:), allocatable, save :: refsatm
       real, dimension(:,:),    allocatable, save :: refspos
       real, save :: sltcen(3),sltqrn(0:3)
       integer, parameter :: movmax=10
       real, parameter :: trmax=0.20e0
       real, parameter :: agmax=0.10e0
-c   file for reference structure
+!   file for reference structure
       character(*), parameter :: reffile='RefInfo'  ! reference structure
       integer, parameter :: refio=71                ! reference structure IO
-c   specifier to treat the reference as the total or as the system part only
+!   specifier to treat the reference as the total or as the system part only
       integer, parameter :: reftot=99, refsys=98
-c
-c
+!
+!
       contains
-c
+!
       subroutine instslt(wgtslcf,caltype)
-c
-      use engmain, only: nummol,slttype,inscnd,inscfg,numslt,sltlist,
-     &                   iseed
+!
+      use engmain, only: nummol,slttype,inscnd,inscfg,numslt,sltlist,&
+           iseed
       integer insml,m
       real wgtslcf,pcom(3),qrtn(0:3)
       character*4 caltype
       character*3 insyn
-c
+!
       call instwgt(wgtslcf,caltype)
-c
+!
       if(caltype.eq.'init') unrn=real(iseed)
       if((caltype.eq.'init').or.(caltype.eq.'last')) then
         if(slttype.eq.3) call getsolute(0,caltype)       ! flexible solute
         return
       endif
-c
+!
       m=0
       if(numslt.ne.1) m=9
       if((numslt.eq.1).and.(sltlist(1).ne.nummol)) m=9
       if(m.ne.0) call insrt_stop('set')    ! incorrect solute specification
-c
+!
       insml=nummol                                       ! inserted solute
       if(slttype.eq.3) call getsolute(insml,'conf')      ! flexible solute
-c
+!
       if(inscnd.le.2) then
         if(inscfg.ne.2) then
           insyn='not'
@@ -76,69 +76,64 @@ c
         endif
         if(inscfg.eq.2) call coordinate(insml,pcom,qrtn) ! site coordinate
       endif
-c
+!
       if(inscnd.eq.3) call refmc('inst')                 ! MC with reference
-c
+!
       return
       end subroutine
-c
-c
+!
+!
+      ! FIXME: cleanup
       subroutine sltpstn(sltstat,pcom,type,tagslt)
-c
-      use engmain, only: nummol,maxsite,numatm,
-     &                   boxshp,inscnd,inscfg,hostspec,
-     &                   moltype,numsite,specatm,sitepos,cell,invcl,
-     &                   lwreg,upreg
+!
+      use engmain, only: nummol,maxsite,numatm,&
+                        boxshp,inscnd,inscfg,hostspec,&
+                        moltype,numsite,specatm,sitepos,cell,invcl,&
+                        lwreg,upreg
       use mpiproc, only: halt_with_error
       integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
       real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen
       character*6 type
-c
+!
       if(inscfg.eq.2) then
         sltstat=1
         return
       endif
-c
-      if(type.eq.'solutn') then
-        call get_molecule_com(tagslt, pcom)
-      endif
-c
+
+      if(type.ne.'insert') stop "BUG"
+!
       if(inscnd.eq.0) then   ! solute with random position
-        if(type.eq.'insert') then
-          if(boxshp.eq.0) call insrt_stop('geo')  ! system has to be periodic
-          do 1501 k=1,3
-            call URAND(rdum)
-            clm(k)=rdum-0.50e0
-1501      continue
-          do 1502 m=1,3
-            rst=0.0e0
-            do 1503 k=1,3
-              rst=rst+cell(m,k)*clm(k)
-1503        continue
-            pcom(m)=rst
-1502      continue
-        endif
+        if(boxshp.eq.0) call insrt_stop('geo') ! system has to be periodic
+        do k=1,3
+          call URAND(rdum)
+          clm(k)=rdum-0.50e0
+        end do
+        do m=1,3
+          rst=0.0e0
+          do k=1,3
+            rst=rst+cell(m,k)*clm(k)
+          end do
+          pcom(m)=rst
+        end do
       endif
-c
+!
       if((inscnd.eq.1).or.(inscnd.eq.2)) then     ! system center
         call get_system_com(syscen)
       endif
-c
+!
       if(inscnd.eq.1) then   ! solute in spherical object or isolated droplet
-        if(type.eq.'insert') then
-          call rndmvec('p',qrtn,(lwreg/upreg))
-          do 1511 m=1,3
-            pcom(m)=upreg*qrtn(m)+syscen(m)
-1511      continue
-        endif
+        call rndmvec('p',qrtn,(lwreg/upreg))
+        do m=1,3
+          pcom(m)=upreg*qrtn(m)+syscen(m)
+        end do
         dis=0.0e0
-        do 1512 m=1,3
+        do m=1,3
           rst=pcom(m)-syscen(m)
           dis=dis+rst*rst
-1512    continue
+        end do
         dis=sqrt(dis)
       endif
-c
+!
       if(inscnd.eq.2) then   ! solute in slab geometry
         if(boxshp.eq.0) call insrt_stop('geo')    ! system has to be periodic
         elen=0.0e0
@@ -146,7 +141,7 @@ c
           elen=elen+cell(m,3)*cell(m,3)
 1521    continue
         elen=sqrt(elen)
-        if(type.eq.'insert') then
+
           do 1522 k=1,2
             call URAND(rdum)
             clm(k)=rdum-0.50e0
@@ -170,32 +165,31 @@ c
           do 1526 m=1,3
             pcom(m)=pcom(m)+dis*cell(m,3)
 1526      continue
-        endif
+
         rst=0.0e0
         do 1527 m=1,3
           rst=rst+invcl(3,m)*(pcom(m)-syscen(m))
 1527    continue
         dis=abs(rst)*elen
       endif
-c
+!
       if(inscnd.eq.3) then   ! solute against reference structure
         if(type.eq.'insert') call insrt_stop('bug')
         call refsdev(dis,2,'system')
       endif
-c
+!
       if(inscnd.eq.0) sltstat=1
       if(inscnd.gt.0) then
         if((lwreg.le.dis).and.(dis.le.upreg)) then
           sltstat=1
         else
-          if(type.eq.'solutn') sltstat=0
-          if(type.eq.'insert') call insrt_stop('bug')
+          call insrt_stop('bug')
         endif
       endif
-c
+!
       return
       end subroutine
-c
+!
       subroutine get_molecule_com(target, com)
       use engmain, only: numatm, specatm, numsite
       
@@ -232,7 +226,7 @@ c
       end do
       call getcen(centag, com)
       end subroutine
-c
+!
       subroutine getcen(centag,cen)             ! getting the center of mass
       use engmain, only: numatm,sitemass,sitepos
       integer ati,m,centag(numatm)
@@ -255,8 +249,8 @@ c
 3334  continue
       return
       end subroutine
-c
-c
+!
+!
       subroutine rndmvec(vectp,qrtn,lwbnd)
       character vectp
       integer m,inim
@@ -283,11 +277,11 @@ c
       endif
       return
       end subroutine
-c
-c
+!
+!
       subroutine coordinate(i,pcom,qrtn)
-      use engmain, only: nummol,maxsite,numatm,inscfg,
-     &                   numsite,bfcoord,specatm,sitepos
+      use engmain, only: nummol,maxsite,numatm,inscfg,&
+                        numsite,bfcoord,specatm,sitepos
       integer stmax,sid,ati,m,k,i
       real pcom(3),qrtn(0:3),rotmat(3,3),rst
       stmax=numsite(i)
@@ -309,16 +303,16 @@ c
 3501  continue
       return
       end subroutine
-c
-c
+!
+!
       subroutine getrot(qrtn,rotmat)
       real qrtn(0:3),rotmat(3,3)
-      rotmat(1,1)=qrtn(0)*qrtn(0)+qrtn(1)*qrtn(1)
-     &                           -qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
-      rotmat(2,2)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)
-     &                           +qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
-      rotmat(3,3)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)
-     &                           -qrtn(2)*qrtn(2)+qrtn(3)*qrtn(3)
+      rotmat(1,1)=qrtn(0)*qrtn(0)+qrtn(1)*qrtn(1)&
+                                -qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
+      rotmat(2,2)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)&
+                                +qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
+      rotmat(3,3)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)&
+                                -qrtn(2)*qrtn(2)+qrtn(3)*qrtn(3)
       rotmat(1,2)=2.0e0*(qrtn(1)*qrtn(2)+qrtn(0)*qrtn(3))
       rotmat(2,1)=2.0e0*(qrtn(1)*qrtn(2)-qrtn(0)*qrtn(3))
       rotmat(1,3)=2.0e0*(qrtn(1)*qrtn(3)-qrtn(0)*qrtn(2))
@@ -327,8 +321,8 @@ c
       rotmat(3,2)=2.0e0*(qrtn(2)*qrtn(3)-qrtn(0)*qrtn(1))
       return
       end subroutine
-c
-c
+!
+!
       subroutine insscheme(insml,insyn)                ! user-defined scheme
       use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
       integer insml,stmax,sid,ati
@@ -337,8 +331,8 @@ c
       stmax=numsite(insml)
       return
       end subroutine
-c
-c
+!
+!
       subroutine insrt_stop(type)
       use engmain, only: io6
       use mpiproc                                                      ! MPI
@@ -352,10 +346,10 @@ c
       call mpi_setup('stop')                                           ! MPI
       stop
       end subroutine
-c
-c
+!
+!
       subroutine getsolute(i,caltype)
-c
+!
       use engmain, only: nummol,maxsite,inscfg,numsite,bfcoord
       use setconf, only: molcen
       use OUTname, only: iofmt,bxiso,toptp,skpio,OUTconfig,OUTskip
@@ -365,12 +359,12 @@ c
       real*4 sglfct
       character rddum
       real, dimension(:,:), allocatable :: psite
-c
+!
       if(caltype.eq.'init') then
 ! FIXME: move this entire section into setconf.f
         if(iofmt.eq.'yes') open(unit=slcnf,file=slttrj,status='old')
-        if(iofmt.eq.'not') open(unit=slcnf,file=slttrj,status='old',
-     &                                           form='unformatted')
+        if(iofmt.eq.'not') open(unit=slcnf,file=slttrj,status='old',&
+                                                form='unformatted')
         call OUTskip(slcnf,iofmt,skpio)
         return
       endif
@@ -378,13 +372,13 @@ c
         close(slcnf)
         return
       endif
-c
+!
       stmax=numsite(i)
       allocate( psite(3,stmax) )
       if(bxiso.eq.'not') sid=0
       if(bxiso.eq.'yes') sid=1
       call OUTconfig(psite,dumcl,stmax,sid,slcnf,'trj')
-c
+!
       if(toptp.eq.'int') then
         if(iofmt.eq.'yes') read(slcnf,*,END=3199) m
         if(iofmt.eq.'not') read(slcnf,END=3199) m
@@ -401,13 +395,13 @@ c
         if(iofmt.eq.'yes') read(slcnf,*,END=3199) rddum
         if(iofmt.eq.'not') read(slcnf,END=3199) rddum
       endif
-c
+!
       backspace(slcnf)
       goto 3195
 3199  rewind(slcnf)
       call OUTskip(slcnf,iofmt,skpio)
 3195  continue
-c
+!
       if(inscfg.ne.2) call molcen(i,psite,xst,'com')
       do 3131 sid=1,stmax
         do 3132 m=1,3
@@ -416,11 +410,11 @@ c
 3132    continue
 3131  continue
       deallocate( psite )
-c
+!
       return
       end subroutine
-c
-c
+!
+!
       subroutine instwgt(wgtslcf,caltype)
       use engmain, only: slttype,wgtins
       integer m
@@ -442,8 +436,8 @@ c
       endif
       return
       end subroutine
-c
-c
+!
+!
       subroutine URAND(rndm)          ! uniform random number generator
       real rndm,mtpl,mdls
       integer gen1,gen2,rat
@@ -456,19 +450,19 @@ c
       rndm=unrn/mdls
       return
       end subroutine
-c
-c
+!
+!
       subroutine refmc(caltype)
-c
-      use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,
-     &                   lwreg,upreg,bfcoord,specatm,sitepos
+!
+      use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,&
+                        lwreg,upreg,bfcoord,specatm,sitepos
       integer i,k,m,q,ati,rfi,sid,stmax
       real xst(3),centg(3),cenrf(3)
       real factor,bfqrn(0:3),rtmbf(3,3),sltsite(3,maxsite)
       character*4 caltype
       character*8 atmtype,dump
       character eletype
-c
+!
       if(caltype.eq.'init') then
         allocate( refsatm(maxsite,nummol),refspos(3,numatm) )
         do 1311 i=1,nummol
@@ -481,16 +475,16 @@ c
             refspos(m,ati)=0.0e0
 1314      continue
 1313    continue
-c
-c  read the reference structure
+!
+!  read the reference structure
         open(unit=refio,file=reffile,status='old')
         do 1001 i=1,nummol
           rfi=refmlid(i)
           if(rfi.ne.0) then
             stmax=numsite(i)
             do 1011 sid=1,stmax
-              read(refio,*) dump,k,atmtype,dump,q,
-     &                      (xst(m), m=1,3),factor,factor
+              read(refio,*) dump,k,atmtype,dump,q,&
+                           (xst(m), m=1,3),factor,factor
               eletype=atmtype(1:1)
               if(eletype.eq.'H') refsatm(sid,i)=0      ! hydrogen atom
               if(eletype.ne.'H') refsatm(sid,i)=rfi    ! heavy atom
@@ -502,8 +496,8 @@ c  read the reference structure
           endif
 1001    continue
         close(refio)
-c
-c  build the initial configuration of the solute
+!
+!  build the initial configuration of the solute
         if(slttype.ge.2) then
           call dispref(centg,cenrf,bfqrn,1)     ! matching reference
           call getrot(bfqrn,rtmbf)
@@ -521,7 +515,7 @@ c  build the initial configuration of the solute
           call dispref(sltcen,cenrf,sltqrn,2)   ! solute center & orientation
         endif
       endif
-c
+!
       if(caltype.eq.'inst') then                ! inserted solute molecule
         stmax=numsite(nummol)
         do 3101 sid=1,stmax
@@ -560,11 +554,11 @@ c
 3211      continue
         endif
       endif
-c
+!
       return
       end subroutine
-c
-c
+!
+!
       subroutine refcen(cen,lstatm,posatm,refmol)
       use engmain, only: nummol,maxsite,numatm,numsite,specatm
       integer refmol,rfyn,i,m,ati,rfi,sid,stmax,lstatm(maxsite,nummol)
@@ -593,11 +587,11 @@ c
 1201  continue
       return
       end subroutine
-c
-c
+!
+!
       subroutine sltmove(pcen,qrtn,rtmbf,mvtype)
-      use engmain, only: nummol,maxsite,numatm,
-     &                   numsite,bfcoord,specatm,sitepos
+      use engmain, only: nummol,maxsite,numatm,&
+                        numsite,bfcoord,specatm,sitepos
       integer m,k,q,ati,sid,stmax,ax1,ax2
       real pcen(3),qrtn(0:3),rtmbf(3,3)
       real rdum,factor,rotmat(3,3),rtmmov(3,3),axis(3)
@@ -671,8 +665,8 @@ c
 3211  continue
       return
       end subroutine
-c
-c
+!
+!
       subroutine dispref(centg,cenrf,qrtn,refmol)
       use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
       integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
@@ -740,8 +734,8 @@ c
 3223  continue
       return
       end subroutine
-c
-c
+!
+!
       subroutine refsdev(strchr,refmol,caltype)
       use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
       integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
@@ -785,8 +779,8 @@ c
       strchr=sqrt(strchr/totm)
       return
       end subroutine
-c
-c
+!
+!
       subroutine getrfyn(i,rfi,rfyn,refmol)
       use engmain, only: nummol,sluvid,refmlid
       integer i,rfi,rfyn,refmol
@@ -804,5 +798,5 @@ c
       end select
       return
       end subroutine
-c
+!
       end module
