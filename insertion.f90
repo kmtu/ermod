@@ -107,11 +107,7 @@ contains
           clm(k)=rdum-0.50e0
        end do
        do m=1,3
-          rst=0.0e0
-          do k=1,3
-             rst=rst+cell(m,k)*clm(k)
-          end do
-          pcom(m)=rst
+          pcom(m)=dot_product(cell(m, :), clm(:))
        end do
     endif
 !
@@ -121,9 +117,8 @@ contains
 !
     if(inscnd.eq.1) then   ! solute in spherical object or isolated droplet
        call rndmvec('p',qrtn,(lwreg/upreg))
-       do m=1,3
-          pcom(m)=upreg*qrtn(m)+syscen(m)
-       end do
+
+       pcom(:)=upreg*qrtn(1:3)+syscen(:)
        dis=0.0e0
        do m=1,3
           rst=pcom(m)-syscen(m)
@@ -207,7 +202,6 @@ contains
 
   subroutine get_system_com(com)
     use engmain, only: nummol, numatm, specatm, numsite, hostspec, moltype
-    
     implicit none
     real, intent(out) :: com(3)
     integer :: centag(1:numatm), ati, sid, stmax, i, m, pti
@@ -227,26 +221,26 @@ contains
 
   subroutine getcen(centag,cen)             ! getting the center of mass
     use engmain, only: numatm,sitemass,sitepos
-    integer ati,m,centag(numatm)
-    real wgt,cen(3),sitm
+    implicit none
+    integer, intent(in) :: centag(numatm)
+    real, intent(out) :: cen(3)
+    integer ati,m
+    real wgt,sitm
+
     wgt=0.0e0
-    do 3331 m=1,3
-       cen(m)=0.0e0
-3331  continue
-    do 3332 ati=1,numatm
+    cen(:)=0.0e0
+
+    do ati=1,numatm
        if(centag(ati).eq.1) then
           sitm=sitemass(ati)
           wgt=wgt+sitm
-          do 3333 m=1,3
-            cen(m)=cen(m)+sitm*sitepos(m,ati)
-3333      continue
-        endif
-3332  continue
-      do 3334 m=1,3
-        cen(m)=cen(m)/wgt
-3334  continue
-      return
-    end subroutine
+
+          cen(:)=cen(:)+sitm*sitepos(:,ati)
+       endif
+    end do
+    cen(:)=cen(:)/wgt
+
+   end subroutine getcen
 !
     subroutine rndmvec(vectp,qrtn,lwbnd)
       character vectp
@@ -283,23 +277,23 @@ contains
       real pcom(3),qrtn(0:3),rotmat(3,3),rst
       stmax=numsite(i)
       if(inscfg.eq.0) call getrot(qrtn,rotmat)        ! rotation matrix
-      do 3501 sid=1,stmax
+      do  sid=1,stmax
         ati=specatm(sid,i)
-        do 3511 m=1,3
+        do  m=1,3
           if(inscfg.eq.0) then                        ! translation + rotation
             rst=0.0e0
-            do 3512 k=1,3
-              rst=rst+rotmat(k,m)*bfcoord(k,sid)
-3512        continue
+            do k=1,3
+               rst=rst+rotmat(k,m)*bfcoord(k,sid)
+            end do
             rst=rst+pcom(m)
           endif
           if(inscfg.eq.1) rst=pcom(m)+bfcoord(m,sid)  ! translation only
           if(inscfg.eq.2) rst=bfcoord(m,sid)          ! no change
           sitepos(m,ati)=rst
-3511    continue
-3501  continue
-      return
-      end subroutine
+       end do
+    end do
+    return
+  end subroutine coordinate
 !
 !
       subroutine getrot(qrtn,rotmat)
