@@ -1,13 +1,13 @@
       module OUTglobal
-c  renaming global variables in package program
+!  renaming global variables in package program
       integer GLBnrun,GLBntype,GLBens,GLBpbc,GLBclt,GLBspl
       real GLBtmp,GLBelc,GLBvdc,GLBsrc
       integer GLBew1,GLBew2,GLBew3
 #ifndef trjctry
 #ifdef DLPOLY
       contains
-      subroutine DLglobal(nstinit,nstrun,ntpmls,keyens,imcon,keyfce,
-     &                    temp,rcut,rvdw,alpha,nospl,kmax1,kmax2,kmax3)
+      subroutine DLglobal(nstinit,nstrun,ntpmls,keyens,imcon,keyfce,&
+                          temp,rcut,rvdw,alpha,nospl,kmax1,kmax2,kmax3)
       integer nstinit,nstrun,ntpmls,keyens,imcon,keyfce,nospl
       real temp,rcut,rvdw,alpha
       integer kmax1,kmax2,kmax3
@@ -20,16 +20,16 @@ c  renaming global variables in package program
 #endif
 #endif
       end module
-c
-c
+!
+!
       module OUTname
-c  renaming outside parameters and parameters to avoid conflict
+!  renaming outside parameters and parameters to avoid conflict
       use OUTglobal
-c
+!
 #ifndef trjctry
 #ifdef MPDyn
-      use CommonBlocks, only: QPBC,QBarostat,QSwitch,           ! MPDyn
-     &                        cCOULOMB,ForceField               ! MPDyn
+      use CommonBlocks, only: QPBC,QBarostat,QSwitch,&          ! MPDyn
+                              cCOULOMB,ForceField               ! MPDyn
       use BathParam, only: Temp_o                               ! MPDyn
       use TimeParam, only : Nstep                               ! MPDyn
       use Numbers, only: NumSpec,NumMol,NumAtm                  ! MPDyn
@@ -65,24 +65,24 @@ c
       use NonbondList_M, only: rnboff                           ! Toray
       use CoulombEnergy_M, only: nfelec,alpha,mszrec            ! Toray
       use VDWEnergy_M, only: nfvdw,parvdw                       ! Toray
-      use EnergyRep_M, only: nmoltype,nlstmol,natmmol,          ! Toray
-     &                       latm_sort,mstepEnergyRep           ! Toray
+      use EnergyRep_M, only: nmoltype,nlstmol,natmmol,&         ! Toray
+                             latm_sort,mstepEnergyRep           ! Toray
 #endif
 #ifdef DLPOLY
       use site_module, only: nummols,numsit                     ! DL_POLY
-      use config_module, only: weight,chge,ltype,               ! DL_POLY
-     &                         cell,xxx,yyy,zzz                 ! DL_POLY
+      use config_module, only: weight,chge,ltype,&              ! DL_POLY
+                               cell,xxx,yyy,zzz                 ! DL_POLY
       use vdw_module, only: ltpvdw,lstvdw,prmvdw                ! DL_POLY
 #endif
 #endif
-c
+!
       integer, parameter :: iotrj=99                 ! trajectory file IO
       character(*), parameter :: trjfile='HISTORY'   ! trajectory filename
       integer, parameter :: cltrj=98                 ! cell trajectory file IO
       character(*), parameter :: celfile='HISTCELL'  ! cell trajectory filename
       integer, parameter :: mdinf=89                 ! MD info file IO
       character(*), parameter :: inffile='MDinfo'    ! MD info filename
-c
+!
       character*3, save :: iofmt      ! formatted or not for trajectory file
       character*3, save :: cltrd      ! seperate file for cell trajectory file
       character*3, save :: mdird      ! seperate file for MD info
@@ -90,18 +90,18 @@ c
       character*3, save :: toptp      ! type of first variable in each line
       integer, save :: skpio          ! number of first skipped lines
       real, save :: sgmcnv,chgcnv,engcnv,lencnv      ! unit conversion factor
-c
+!
       integer OUTens,OUTbxs,OUTcmb,OUTclt,OUTspo
       real OUTtemp,OUTelc,OUTlwl,OUTupl,OUTscr
       integer OUTew1,OUTew2,OUTew3,OUTms1,OUTms2,OUTms3
-c
+!
       integer OUTnrun,OUTntype
       integer, dimension(:), allocatable :: OUTnmol,OUTsite
       real, dimension(:), allocatable :: OUTstmass,OUTcharge
       real, dimension(:), allocatable :: OUTljene,OUTljlen
       integer TotAtm
       logical :: use_mdlib
-c
+!
 #ifdef GROMACS
       character(len=80) :: buffer
 #ifdef MDLIB
@@ -111,9 +111,9 @@ c
 #ifdef VMDPLUGINS
       integer(8) :: vmdhisthandle
 #endif
-c
+!
       contains
-c
+!
       subroutine OUTinitial
       iofmt='yes' ; cltrd='not' ; mdird='yes'      ! default
       bxiso='not' ; toptp='int' ; skpio=0          ! default
@@ -146,7 +146,7 @@ c
 #endif
       return
       end subroutine
-c
+!
       subroutine opentrj
 #ifdef VMDPLUGINS
       external vmdfio_open_traj
@@ -178,8 +178,8 @@ c
 #endif
       if(.not.(use_mdlib)) then
         if(iofmt.eq.'yes') open(unit=iotrj,file=trjfile,status='old')
-        if(iofmt.eq.'not') open(unit=iotrj,file=trjfile,status='old',
-     &                                          form='unformatted')
+        if(iofmt.eq.'not') open(unit=iotrj,file=trjfile,status='old',&
+                                                form='unformatted')
       endif
       if(cltrd.eq.'yes') open(unit=cltrj,file=celfile,status='old')
       if(mdird.eq.'yes') open(unit=mdinf,file=inffile,status='old')
@@ -207,11 +207,11 @@ c
       use_mdlib = .false.                            ! Clear for next
       return
       end subroutine
-c
+!
       subroutine OUTrename
       integer i,pti,sid,ctm
       real trjene,trjlen
-c
+!
 #ifndef trjctry
 #ifdef MPDyn
       OUTnrun=Nstep                                             ! MPDyn
@@ -234,7 +234,7 @@ c
       OUTntype=GLBntype                                         ! DL_POLY
 #endif
 #endif
-c
+!
 #ifdef trjctry
       if(mdird.eq.'yes') read(mdinf,*) OUTnrun,OUTntype
       if(mdird.eq.'not') read(iotrj,*) OUTnrun,OUTntype         ! CHARMM
@@ -243,9 +243,9 @@ c
       endif
       if(cltrd.eq.'yes') call OUTskip(cltrj,'yes',3)            ! NAMD
 #endif
-c
+!
       allocate( OUTnmol(OUTntype),OUTsite(OUTntype) )
-c
+!
 #ifndef trjctry
       do 1001 i=1,OUTntype
 #ifdef MPDyn
@@ -276,7 +276,7 @@ c
 #endif
 1001  continue
 #endif
-c
+!
 #ifdef trjctry
       if(mdird.eq.'yes') then
         read(mdinf,*) (OUTnmol(i), i=1,OUTntype)
@@ -287,14 +287,14 @@ c
         read(iotrj,*) (OUTsite(i), i=1,OUTntype)                ! CHARMM
       endif
 #endif
-c
+!
       TotAtm=0
       do 1102 i=1,OUTntype
         TotAtm=TotAtm+OUTnmol(i)*OUTsite(i)
 1102  continue
       allocate( OUTstmass(TotAtm),OUTcharge(TotAtm) )
       allocate( OUTljene(TotAtm),OUTljlen(TotAtm) )
-c
+!
 #ifndef trjctry
       do 1201 i=1,TotAtm
 #ifdef MPDyn
@@ -351,11 +351,11 @@ c
 #endif
 1201  continue
 #endif
-c
+!
       return
       end subroutine
-c
-c
+!
+!
       subroutine OUTintprm
 #ifndef trjctry
       use mpiproc                                                      ! MPI
@@ -433,8 +433,8 @@ c
       OUTens=2                                                     ! Toray
       if(oEnsemble(2:2).eq.'V') OUTens=1                           ! Toray
       if(oEnsemble(2:2).eq.'P') OUTens=2                           ! Toray
-      if((nflxyz(1).eq.0).and.(nflxyz(2).eq.0)                     ! Toray
-     &                   .and.(nflxyz(3).eq.0)) then               ! Toray
+      if((nflxyz(1).eq.0).and.(nflxyz(2).eq.0)&                    ! Toray
+                         .and.(nflxyz(3).eq.0)) then               ! Toray
         OUTbxs=1                                                   ! Toray
       else                                                         ! Toray
         OUTbxs=0                                                   ! Toray
@@ -474,8 +474,8 @@ c
 #endif
       return
       end subroutine
-c
-c
+!
+!
       subroutine OUTconfig(OUTpos,OUTcell,OUTatm,OUTbox,OUTtrj,rdconf)
       integer OUTatm,OUTbox,OUTtrj,trjID,i,m,k
       real OUTpos(3,OUTatm),OUTcell(3,3),xst(9),factor
@@ -489,7 +489,7 @@ c
       
       external vmdfio_read_traj_step
 #endif
-c
+!
       if(OUTtrj.eq.0) trjID=iotrj
       if(OUTtrj.ne.0) trjID=OUTtrj
       do 7771 k=1,3
@@ -497,7 +497,7 @@ c
           OUTcell(m,k)=0.0e0
 7772    continue
 7771  continue
-c
+!
 #ifndef trjctry
       if(rdconf.eq.'fly') then
 #ifdef MPDyn
@@ -571,7 +571,7 @@ c
 #endif
       endif
 #endif
-c
+!
       if(rdconf.eq.'trj') then
 #ifdef VMDPLUGINS
         if(trjID == iotrj) then
@@ -717,11 +717,11 @@ c
 7712    continue                                                ! CHARMM
 #endif
       endif
-c
+!
       return
       end subroutine
-c
-c
+!
+!
       subroutine OUTskip(fileio,ioform,skpmax)
       integer fileio,skpcnt,skpmax
       character*3 ioform
@@ -734,39 +734,39 @@ c
       return
       end subroutine
       end module
-c
-c
+!
+!
       module setconf
       contains
-c
-c  setting molecular simulation parameters
-c
+!
+!  setting molecular simulation parameters
+!
       subroutine iniparam
-      use engmain, only: init_params,
-     &                   iseed,
-     &                   skpcnf,corrcal,
-     &                   slttype,sltpick,refpick,wgtslf,wgtins,
-     &                   estype,boxshp,inscnd,inscfg,hostspec,ljformat,
-     &                   inptemp,temp,
-     &                   engdiv,maxins,
-     &                   lwreg,upreg,
-     &                   intprm,elecut,lwljcut,upljcut,
-     &                   cmbrule,cltype,screen,ewtoler,splodr,plmode,
-     &                   ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,
-     &                   block_threshold,
-     &                   force_calculation
-      use OUTname, only: OUTintprm,                             ! from outside
-     &                   OUTens,OUTbxs,OUTtemp,                 ! from outside
-     &                   OUTelc,OUTlwl,OUTupl,                  ! from outside
-     &                   OUTcmb,OUTclt,OUTscr,OUTspo,           ! from outside
-     &                   OUTew1,OUTew2,OUTew3,                  ! from outside
-     &                   OUTms1,OUTms2,OUTms3                   ! from outside
+      use engmain, only: init_params,&
+                         iseed,&
+                         skpcnf,corrcal,&
+                         slttype,sltpick,refpick,wgtslf,wgtins,&
+                         estype,boxshp,inscnd,inscfg,hostspec,ljformat,&
+                         inptemp,temp,&
+                         engdiv,maxins,&
+                         lwreg,upreg,&
+                         intprm,elecut,lwljcut,upljcut,&
+                         cmbrule,cltype,screen,ewtoler,splodr,plmode,&
+                         ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,&
+                         block_threshold,&
+                         force_calculation
+      use OUTname, only: OUTintprm,&                            ! from outside
+                         OUTens,OUTbxs,OUTtemp,&                ! from outside
+                         OUTelc,OUTlwl,OUTupl,&                 ! from outside
+                         OUTcmb,OUTclt,OUTscr,OUTspo,&          ! from outside
+                         OUTew1,OUTew2,OUTew3,&                 ! from outside
+                         OUTms1,OUTms2,OUTms3                   ! from outside
       use mpiproc                                                      ! MPI
       real, parameter :: tiny=1.0e-20
       real :: real_seed
       character*3 scrtype
       call mpi_info                                                    ! MPI
-c
+!
 #ifndef trjctry
       intprm=0                    ! combined with parent MD program
 #else
@@ -800,10 +800,10 @@ c
       endif
       block_threshold = 4.0 ! block-wise calculation
       force_calculation = .false.
-c     only part of constants set here
+!     only part of constants set here
       call init_params()
-c
-c  default settings
+!
+!  default settings
 #ifndef trjctry
       if(slttype.eq.1) skpcnf=5
       if(slttype.ge.2) skpcnf=50
@@ -821,9 +821,9 @@ c  default settings
         ew2max=ew1max ; ew3max=ew1max
         ms2max=ms1max ; ms3max=ms1max
       endif
-c  default settings done
-c
-c     read again for non-default constants
+!  default settings done
+!
+!     read again for non-default constants
       call init_params()
 
       if(iseed == 0) then
@@ -864,11 +864,11 @@ c     read again for non-default constants
       if((slttype.ge.2).and.(cltype.eq.2)) then      ! PME with insertion
         if(maxins.gt.nprocs) plmode=1
       endif
-c
+!
       return
       end subroutine
-c
-c
+!
+!
       real function getscrn(ewtoler,elecut,scrtype)
       character*3 scrtype
       real ewtoler,elecut,ewasml,ewalrg,scrfac,factor
@@ -885,20 +885,20 @@ c
       getscrn=scrfac
       return
       end function
-c
-c
-c  setting molecular and interaction parameters and reading coordinates
-c
+!
+!
+!  setting molecular and interaction parameters and reading coordinates
+!
       subroutine setparam
-c
-      use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,
-     &                   slttype,sltpick,refpick,inscfg,ljformat,
-     &                   moltype,numsite,sluvid,refmlid,
-     &                   bfcoord,sitemass,charge,ljene,ljlen,
-     &                   specatm,sitepos
-      use OUTname, only: OUTinitial,OUTrename,                  ! from outside
-     &                   OUTntype,OUTnmol,OUTsite,OUTnrun,      ! from outside
-     &                   OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
+!
+      use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
+                         slttype,sltpick,refpick,inscfg,ljformat,&
+                         moltype,numsite,sluvid,refmlid,&
+                         bfcoord,sitemass,charge,ljene,ljlen,&
+                         specatm,sitepos
+      use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
+                         OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
+                         OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
       integer, parameter :: large=1000000
       ! only integer power is allowed as the initialization expression (7.1.6.1)
       real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
@@ -915,14 +915,14 @@ c
       character(*), parameter :: numbers='123456789'
       integer, parameter :: sltio=71                 ! IO for sltfile
       integer, parameter :: molio=72                 ! IO for molfile
-c
+!
       call OUTinitial                ! initialization of OUTname module
       call iniparam                  ! initialization of parameters
       call OUTrename                 ! matching with outside variables
       maxcnf=OUTnrun                                     ! from outside
       if(slttype.eq.1) numtype=OUTntype                  ! from outside
       if(slttype.ge.2) numtype=OUTntype+1                ! from outside
-c
+!
       allocate( pttype(numtype),ptcnt(numtype) )
       do 1101 pti=1,numtype
         ati=9
@@ -933,15 +933,15 @@ c
         if(pti.le.OUTntype) ptcnt(pti)=OUTnmol(pti)      ! from outside
         if(pti.gt.OUTntype) ptcnt(pti)=1
 1101  continue
-c
+!
       nummol=0
       do 1102 pti=1,numtype
         nummol=nummol+ptcnt(pti)
 1102  continue
-c
+!
       allocate( moltype(nummol),numsite(nummol) )
       allocate( sluvid(nummol),refmlid(nummol) )
-c
+!
       cmin=1
       cmax=0
       do 1201 pti=1,numtype
@@ -952,7 +952,7 @@ c
         cmin=cmax+1
 1201  continue
       if(cmax.ne.nummol) call set_stop('num')
-c
+!
       do 1251 i=1,nummol
         pti=moltype(i)
         if(pttype(pti).eq.0) stmax=OUTsite(pti)          ! from outside
@@ -960,10 +960,10 @@ c
           open(unit=sltio,file=sltfile,status='old')
           stmax=0
           do 1211 sid=1,large
-            if(slttype.eq.2) read(sltio,*,END=1219) m,atmtype,
-     &                                 (xst(m), m=1,3),(xst(m), m=1,3)
-            if(slttype.eq.3) read(sltio,*,END=1219) m,atmtype,
-     &                                                 (xst(m), m=1,3)
+            if(slttype.eq.2) read(sltio,*,END=1219) m,atmtype,&
+                                       (xst(m), m=1,3),(xst(m), m=1,3)
+            if(slttype.eq.3) read(sltio,*,END=1219) m,atmtype,&
+                                                       (xst(m), m=1,3)
             stmax=stmax+1
 1211      continue
 1219      continue
@@ -989,7 +989,7 @@ c
         refmlid(i)=rftype
 1251  continue
       deallocate( pttype,ptcnt )
-c
+!
       maxsite=0
       numatm=0
       do 1281 i=1,nummol
@@ -997,11 +997,11 @@ c
         if(stmax.gt.maxsite) maxsite=stmax
         numatm=numatm+stmax
 1281  continue
-c
+!
       allocate( bfcoord(3,maxsite),sitemass(numatm) )
       allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
       allocate( specatm(maxsite,nummol),sitepos(3,numatm) )
-c
+!
       do 7301 sid=1,maxsite                ! initial setting to zero
         do 7302 m=1,3
           bfcoord(m,sid)=0.0e0
@@ -1013,7 +1013,7 @@ c
         ljene(ati)=0.0e0
         ljlen(ati)=0.0e0
 7305  continue
-c
+!
       ati=0                                ! specifying the site in molecule
       do 1501 i=1,nummol
         do 1511 sid=1,maxsite
@@ -1026,7 +1026,7 @@ c
 1512    continue
 1501  continue
       if(ati.ne.numatm) call set_stop('num')
-c
+!
       allocate( psite(3,maxsite) )         ! temporary set of coordinates
       do 5001 i=1,nummol
         uvtype=sluvid(i)
@@ -1058,8 +1058,8 @@ c
           if(uvtype.ge.1) molfile=sltfile            ! solute
           open(unit=molio,file=molfile,status='old')
           do 7111 sid=1,stmax
-            if(uvtype.eq.2) read(molio,*) m,atmtype,(xst(m), m=1,3),
-     &                                    (psite(m,sid), m=1,3)
+            if(uvtype.eq.2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
+                                          (psite(m,sid), m=1,3)
             if(uvtype.ne.2) read(molio,*) m,atmtype,(xst(m), m=1,3)
             call getmass(factor,atmtype)
             ati=specatm(sid,i)
@@ -1080,7 +1080,7 @@ c
 7111      continue
           close(molio)
         endif
-c
+!
         if(uvtype.eq.2) then        ! setting the center of mass to zero
           if(inscfg.ne.2) call molcen(i,psite,xst,'com')
           do 5251 sid=1,stmax
@@ -1099,11 +1099,11 @@ c
       
       return
       end subroutine
-c
-c
+!
+!
       subroutine getconf
-      use engmain, only: nummol,numatm,boxshp,
-     &                   numsite,sluvid,sitepos,cell
+      use engmain, only: nummol,numatm,boxshp,&
+                         numsite,sluvid,sitepos,cell
       use OUTname, only: OUTconfig                     ! from outside
       real, dimension(:,:), allocatable :: OUTpos,OUTcell
       integer i,m,k,OUTatm
@@ -1132,8 +1132,8 @@ c
       deallocate( OUTpos,OUTcell )
       return
       end subroutine
-c
-c
+!
+!
       subroutine set_stop(type)
       use engmain, only: io6
       use mpiproc                                                      ! MPI
@@ -1153,10 +1153,10 @@ c
       call mpi_setup('stop')                                           ! MPI
       stop
       end subroutine
-c
-c
+!
+!
       subroutine getmass(stmass,atmtype)
-c
+!
       real stmass
       real massH,massC,massO,massN,massS,massP
       real massNa,massCa,massZn,massFe,massCu,massF,massCl,massBr
@@ -1164,7 +1164,7 @@ c
       character*2 eltp2
       character*3 eltp3
       character*5 atmtype
-c
+!
       massH=1.00794e0             ! mass number (hydrogen)
       massC=12.0107e0             ! mass number (carbon)
       massO=15.9994e0             ! mass number (oxygen)
@@ -1179,7 +1179,7 @@ c
       massF=18.9984032e0          ! mass number (fluorine)
       massCl=35.4527e0            ! mass number (chlorine)
       massBr=79.904e0             ! mass number (bromine)
-c
+!
       eltp1=atmtype(1:1)
       if(eltp1.eq.'H') stmass=massH
       if(eltp1.eq.'C') stmass=massC
@@ -1200,11 +1200,11 @@ c
       eltp3=atmtype(1:3)
       if(eltp3.eq.'CH2') stmass=massC+2.0e0*massH
       if(eltp3.eq.'CH3') stmass=massC+3.0e0*massH
-c
+!
       return
       end subroutine
-c
-c
+!
+!
       subroutine molcen(i,psite,cen,caltype)       ! getting molecular center
       use engmain, only: nummol,maxsite,numatm,numsite,sitemass,specatm
       integer i,ati,sid,stmax,m
@@ -1229,5 +1229,5 @@ c
 3334  continue
       return
       end subroutine
-c
+!
       end module
