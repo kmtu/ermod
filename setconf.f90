@@ -210,6 +210,7 @@ contains
     return
   end subroutine closetrj
 !
+  ! Initialization 2nd phase - read topologies from mother MD program, or read MDinfo
   subroutine OUTrename
     integer i,pti,sid,ctm
     real trjene,trjlen
@@ -320,8 +321,8 @@ contains
        trjene=Interact%NonBondedInfo%VdwDepth(pti)             ! PrestoX
        trjlen=Interact%NonBondedInfo%VdwRadius(pti)            ! PrestoX
        if(Interact%IsCharmm) then                              ! PrestoX (bug)
-          trjene=Interact%NonBondedInfo%VdwRadius(pti)          ! PrestoX (bug)
-          trjlen=Interact%NonBondedInfo%VdwDepth(pti)           ! PrestoX (bug)
+          trjene=Interact%NonBondedInfo%VdwRadius(pti)         ! PrestoX (bug)
+          trjlen=Interact%NonBondedInfo%VdwDepth(pti)          ! PrestoX (bug)
        endif                                                   ! PrestoX (bug)
        OUTljene(i)=trjene                                      ! PrestoX
        OUTljlen(i)=sgmcnv*trjlen                               ! PrestoX
@@ -358,6 +359,7 @@ contains
   end subroutine OUTrename
 
 
+  ! read system setup (coulomb rule, LJ, etc..)
   subroutine OUTintprm
 #ifndef trjctry
     use mpiproc                                                      ! MPI
@@ -378,11 +380,11 @@ contains
     if(trim(cCOULOMB).eq.'PME')   OUTclt=2                       ! MPDyn
     if(OUTclt.ne.0) OUTscr=Alpha                                 ! MPDyn
     if(OUTclt.eq.1) then                                         ! MPDyn
-       OUTew1=kmaxx ; OUTew2=kmaxy ; OUTew3=kmaxz                 ! MPDyn
+       OUTew1=kmaxx ; OUTew2=kmaxy ; OUTew3=kmaxz                ! MPDyn
     endif                                                        ! MPDyn
     if(OUTclt.eq.2) then                                         ! MPDyn
-       OUTspo=Bsp_order                                           ! MPDyn
-       OUTms1=Nfft(1) ; OUTms2=Nfft(2) ; OUTms3=Nfft(3)           ! MPDyn
+       OUTspo=Bsp_order                                          ! MPDyn
+       OUTms1=Nfft(1) ; OUTms2=Nfft(2) ; OUTms3=Nfft(3)          ! MPDyn
     endif                                                        ! MPDyn
 #endif
 #ifdef MODYLAS
@@ -466,17 +468,18 @@ contains
     if((GLBclt.eq.12).or.(GLBclt.eq.13)) OUTclt=2                ! DL_POLY
     if((OUTclt.eq.1).or.(OUTclt.eq.2)) OUTscr=GLBsrc             ! DL_POLY
     if(OUTclt.eq.1) then                                         ! DL_POLY
-       OUTew1=GLBew1 ; OUTew2=GLBew2 ; OUTew3=GLBew3              ! DL_POLY
+       OUTew1=GLBew1 ; OUTew2=GLBew2 ; OUTew3=GLBew3             ! DL_POLY
     endif                                                        ! DL_POLY
     if(OUTclt.eq.2) then                                         ! DL_POLY
-       OUTspo=GLBspl                                              ! DL_POLY
-       OUTms1=GLBew1 ; OUTms2=GLBew2 ; OUTms3=GLBew3              ! DL_POLY
+       OUTspo=GLBspl                                             ! DL_POLY
+       OUTms1=GLBew1 ; OUTms2=GLBew2 ; OUTms3=GLBew3             ! DL_POLY
     endif                                                        ! DL_POLY
 #endif
 #endif
     return
   end subroutine OUTintprm
 
+  ! Get molecular configuration
   subroutine OUTconfig(OUTpos,OUTcell,OUTatm,OUTbox,OUTtrj,rdconf)
     implicit none
     integer OUTatm,OUTbox,OUTtrj,trjID,i,m,k
@@ -709,20 +712,20 @@ contains
       endif
 !
       return
-    end subroutine
+  end subroutine
 !
-!
-    subroutine OUTskip(fileio,ioform,skpmax)
-      integer fileio,skpcnt,skpmax
-      character*3 ioform
-      if(skpmax.gt.0) then
-         do 1101 skpcnt=1,skpmax
-            if(ioform.eq.'yes') read(fileio,*)
+! Utility function to skip trajectories (FIXME: what's the call from insertion?)
+  subroutine OUTskip(fileio,ioform,skpmax)
+    integer fileio,skpcnt,skpmax
+    character*3 ioform
+    if(skpmax.gt.0) then
+       do skpcnt=1,skpmax
+          if(ioform.eq.'yes') read(fileio,*)
           if(ioform.eq.'not') read(fileio)
-1101    continue
-      endif
-      return
-    end subroutine
+       end do
+    endif
+    return
+  end subroutine OUTskip
 end module
 !
 !
@@ -879,10 +882,8 @@ contains
     end function
 !
 !
-!  setting molecular and interaction parameters and reading coordinates
-!
+    ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
     subroutine setparam
-!
       use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
                          slttype,sltpick,refpick,inscfg,ljformat,&
                          moltype,numsite,sluvid,refmlid,&
