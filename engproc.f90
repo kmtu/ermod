@@ -689,8 +689,8 @@ contains
     ! self energy histogram
     call getiduv(0, uvengy(0), iduv)
     eself(iduv) = eself(iduv) + engnmfc
-    minuv(0) = min(minuv(0), pairep)
-    maxuv(0) = max(maxuv(0), pairep)
+    minuv(0) = min(minuv(0), uvengy(0))
+    maxuv(0) = max(maxuv(0), uvengy(0))
 
     insdst(:) = 0
     flceng(:) = 0.0e0                     ! sum of solute-solvent energy
