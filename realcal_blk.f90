@@ -84,17 +84,17 @@ contains
   end function count_solv
 
   subroutine set_solu_atoms(solu)
-    use engmain, only: numsite, specatm
+    use engmain, only: numsite, mol_begin_index
     integer, intent(in) :: solu
     integer :: i
     do i = 1, numsite(solu)
-       atomno_solu(i) = specatm(i, solu)
+       atomno_solu(i) = mol_begin_index(solu) + (i - 1)
        belong_solu(i) = solu
     end do
   end subroutine set_solu_atoms
 
   subroutine set_solv_atoms(solu, tagpt, slvmax)
-    use engmain, only: specatm, numsite
+    use engmain, only: numsite, mol_begin_index
     integer, intent(in) :: solu, tagpt(:), slvmax
     integer :: i, j, k, cnt
     cnt = 1
@@ -102,7 +102,7 @@ contains
        j = tagpt(i)
        if(j == solu) cycle
        do k = 1, numsite(j)
-          atomno_solv(cnt) = specatm(k, j)
+          atomno_solv(cnt) = mol_begin_index(j) + (k - 1)
           belong_solv(cnt) = i
           cnt = cnt + 1
        end do
@@ -187,7 +187,6 @@ contains
   end subroutine set_block_info
 
   subroutine blockify(natom, atomlist, blk)
-    use engmain, only: specatm
     integer, intent(in) :: natom, atomlist(:)
     integer, intent(out) :: blk(:, :)
     integer :: i, j, a, blktmp(3)

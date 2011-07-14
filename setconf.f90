@@ -888,10 +888,11 @@ contains
                          slttype,sltpick,refpick,inscfg,ljformat,&
                          moltype,numsite,sluvid,refmlid,&
                          bfcoord,sitemass,charge,ljene,ljlen,&
-                         specatm,sitepos, mol_begin_index
+                         specatm,sitepos, mol_begin_index, belong_to
       use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
                          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
                          OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
+      implicit none
       integer, parameter :: large=1000000
       ! only integer power is allowed as the initialization expression (7.1.6.1)
       real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
@@ -994,7 +995,8 @@ contains
       allocate( bfcoord(3,maxsite),sitemass(numatm) )
       allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
       allocate( specatm(maxsite,nummol),sitepos(3,numatm) )
-      allocate( mol_begin_index(nummol + 1) )
+      allocate(mol_begin_index(nummol + 1))
+      allocate(belong_to(numatm))
 
       do 7301 sid=1,maxsite                ! initial setting to zero
         do 7302 m=1,3
@@ -1013,7 +1015,12 @@ contains
       do i = 2, nummol
          mol_begin_index(i) = mol_begin_index(i - 1) + numsite(i)
       end do
-!
+
+      ! initialize belong_to
+      do i = 1, nummol
+         belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
+      end do
+
       ati=0                                ! specifying the site in molecule
       do 1501 i=1,nummol
         do 1511 sid=1,maxsite
