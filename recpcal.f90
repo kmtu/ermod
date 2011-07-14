@@ -16,7 +16,7 @@ contains
     use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
          cltype,screen,splodr,charge,&
          ms1max,ms2max,ms3max,&
-         specatm,sitepos,invcl,volume,&
+         sitepos,invcl,volume,&
          pi
     use spline, only: spline_init
     use fft_iface, only: fft_init_ctc, fft_init_inplace, &

@@ -890,7 +890,7 @@ contains
   end subroutine realcal_self
   !
   subroutine residual_ene(i, j, pairep)
-    use engmain, only: screen, volume, specatm, numsite, charge, cltype, mol_begin_index
+    use engmain, only: screen, volume, numsite, charge, cltype, mol_begin_index
     implicit none
     integer, intent(in) :: i, j
     real, intent(inout) :: pairep

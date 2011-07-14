@@ -1079,7 +1079,7 @@ contains
             endif
             if((ljformat.eq.2).or.(ljformat.eq.4)) then
               xst(2)=engcnv*xst(2)
-              xst(3)=lencnv*xst(3) ! FIXME: lencnv affects conversion from MolPrm
+              xst(3)=lencnv*xst(3)
             endif
             ljene(ati)=xst(2)
             ljlen(ati)=xst(3)
