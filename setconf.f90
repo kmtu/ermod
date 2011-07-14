@@ -995,7 +995,7 @@ contains
 !
       allocate( bfcoord(3,maxsite),sitemass(numatm) )
       allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
-      allocate( sitepos(3,numatm) )
+      allocate( specatm(maxsite,nummol),sitepos(3,numatm) )
       allocate(mol_begin_index(nummol + 1))
       allocate(belong_to(numatm))
 
