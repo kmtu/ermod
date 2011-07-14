@@ -1107,37 +1107,31 @@ contains
     end subroutine
 !
 !
-    subroutine getconf
-      use engmain, only: nummol,numatm,boxshp,&
-                         numsite,sluvid,sitepos,cell
-      use OUTname, only: OUTconfig                     ! from outside
-      real, dimension(:,:), allocatable :: OUTpos,OUTcell
-      integer i,m,k,OUTatm
-      character*3 rdconf
+  subroutine getconf
+    use engmain, only: nummol,numatm,boxshp,&
+         numsite,sluvid,sitepos,cell
+    use OUTname, only: OUTconfig                     ! from outside
+    real, dimension(:,:), allocatable :: OUTpos,OUTcell
+    integer i,m,k,OUTatm, iproc
+    character*3 rdconf
+    
 #ifdef trjctry
-      rdconf='trj'                                     ! reading from file
+    rdconf='trj'                                     ! reading from file
 #else
-      rdconf='fly'                                     ! on-the-fly reading
+    rdconf='fly'                                     ! on-the-fly reading
 #endif
-      OUTatm=0
-      do 1001 i=1,nummol
-        if(sluvid(i).le.1) OUTatm=OUTatm+numsite(i)
-1001  continue
-      allocate( OUTpos(3,OUTatm),OUTcell(3,3) )
-      call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
-      do 1011 i=1,OUTatm
-        do 1012 m=1,3
-          sitepos(m,i)=OUTpos(m,i)
-1012    continue
-1011  continue
-      do 1013 k=1,3
-        do 1014 m=1,3
-          cell(m,k)=OUTcell(m,k)
-1014    continue
-1013  continue
-      deallocate( OUTpos,OUTcell )
-      return
-      end subroutine
+    OUTatm=0
+    do i=1,nummol
+       if(sluvid(i).le.1) OUTatm=OUTatm+numsite(i) ! only solvent & solute; no test particles
+    end do
+    allocate( OUTpos(3,OUTatm),OUTcell(3,3) )
+    
+    call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
+    sitepos(:,1:OUTatm)=OUTpos(:,:)
+    cell(:,:)=OUTcell(:,:)
+    deallocate( OUTpos,OUTcell )
+    return
+  end subroutine getconf
 !
 !
       subroutine set_stop(type)
