@@ -171,6 +171,7 @@ module engmain
   real, dimension(:),      allocatable :: charge,ljene,ljlen
   integer, dimension(:,:), allocatable :: specatm
   real, dimension(:,:),    allocatable :: sitepos
+  real, allocatable :: mol_begin_index(:)
   real, dimension(3,3)                 :: cell,invcl
   real :: celllen(3)
   real :: volume

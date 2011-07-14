@@ -888,7 +888,7 @@ contains
                          slttype,sltpick,refpick,inscfg,ljformat,&
                          moltype,numsite,sluvid,refmlid,&
                          bfcoord,sitemass,charge,ljene,ljlen,&
-                         specatm,sitepos
+                         specatm,sitepos, mol_begin_index
       use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
                          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
                          OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
@@ -994,7 +994,8 @@ contains
       allocate( bfcoord(3,maxsite),sitemass(numatm) )
       allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
       allocate( specatm(maxsite,nummol),sitepos(3,numatm) )
-!
+      allocate( mol_begin_index(nummol + 1) )
+
       do 7301 sid=1,maxsite                ! initial setting to zero
         do 7302 m=1,3
           bfcoord(m,sid)=0.0e0
@@ -1006,6 +1007,12 @@ contains
         ljene(ati)=0.0e0
         ljlen(ati)=0.0e0
 7305  continue
+
+      ! initialize mol_begin_index
+      mol_begin_index(1) = 1
+      do i = 2, nummol
+         mol_begin_index(i) = mol_begin_index(i - 1) + numsite(i)
+      end do
 !
       ati=0                                ! specifying the site in molecule
       do 1501 i=1,nummol
@@ -1066,7 +1073,7 @@ contains
             endif
             if((ljformat.eq.2).or.(ljformat.eq.4)) then
               xst(2)=engcnv*xst(2)
-              xst(3)=lencnv*xst(3)
+              xst(3)=lencnv*xst(3) ! FIXME: lencnv affects conversion from MolPrm
             endif
             ljene(ati)=xst(2)
             ljlen(ati)=xst(3)
