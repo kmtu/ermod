@@ -20,7 +20,7 @@ if USE_MKL
 FFTFLAGS = -DMKL
 endif
 
-ermod_gromacs_SOURCES = $(ersources) vmdfio.c
+ermod_gromacs_SOURCES = $(ersources) vmdfio_if.f90 vmdfio.c
 ermod_gromacs_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
 ermod_gromacs_FCFLAGS = -DGROMACS -DVMDPLUGINS $(FFTFLAGS)
 ermod_gromacs_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm
@@ -29,7 +29,7 @@ extra_flags =
 
 # extra dependencies added
 ermod_gromacs-engproc.$(OBJEXT): engproc.f90 ermod_gromacs-insertion.$(OBJEXT) ermod_gromacs-recpcal.$(OBJEXT) ermod_gromacs-recpcal.$(OBJEXT) ermod_gromacs-realcal_blk.$(OBJEXT)
-ermod_gromacs-enganal.$(OBJEXT): enganal.f90 ermod_gromacs-engproc.$(OBJEXT) ermod_gromacs-setconf.$(OBJEXT)
+ermod_gromacs-enganal.$(OBJEXT): enganal.f90 ermod_gromacs-engproc.$(OBJEXT) ermod_gromacs-setconf.$(OBJEXT) ermod_gromacs-vmdfio_if.$(OBJEXT)
 ermod_gromacs-recpcal.$(OBJEXT): recpcal.f90 ermod_gromacs-spline.$(OBJEXT) ermod_gromacs-fft_iface.$(OBJEXT)
 ermod_gromacs-insertion.$(OBJEXT): insertion.f90 ermod_gromacs-setconf.$(OBJEXT)
 ermod_gromacs-setconf.$(OBJEXT): setconf.f90 ermod_gromacs-engmain.$(OBJEXT) ermod_gromacs-mpiproc.$(OBJEXT)

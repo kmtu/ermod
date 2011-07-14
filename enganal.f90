@@ -31,14 +31,16 @@ program trjmain
   use engmain, only: maxcnf, skpcnf
   use OUTname, only: opentrj,closetrj
   use setconf, only: getconf
+  use vmdfio_interface, only: init_vmdplugins, finish_vmdplugins
   use mpiproc               ! MPI
   implicit none
   integer stnum
   integer, parameter :: large=100000000
+
 #ifdef VMDPLUGINS
-  external vmdfio_init_traj, vmdfio_fini_traj
-  call vmdfio_init_traj
+  call init_vmdplugins()
 #endif
+
   call mpi_setup('init')    ! MPI
   call opentrj()
 
@@ -51,8 +53,10 @@ program trjmain
   end do
   call closetrj
   call mpi_setup('stop')    ! MPI
+
 #ifdef VMDPLUGINS
-  call vmdfio_fini_traj
+  call finish_vmdplugins()
 #endif
+
   stop
 end program trjmain
