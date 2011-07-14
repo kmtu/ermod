@@ -995,7 +995,7 @@ contains
 !
       allocate( bfcoord(3,maxsite),sitemass(numatm) )
       allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
-      allocate( specatm(maxsite,nummol),sitepos(3,numatm) )
+      allocate(sitepos(3,numatm))
       allocate(mol_begin_index(nummol + 1))
       allocate(belong_to(numatm))
 
@@ -1027,12 +1027,10 @@ contains
       ati=0                                ! specifying the site in molecule
       do 1501 i=1,nummol
         do 1511 sid=1,maxsite
-          specatm(sid,i)=-1
 1511    continue
         stmax=numsite(i)
         do 1512 sid=1,stmax
           ati=ati+1
-          specatm(sid,i)=ati
 1512    continue
 1501  continue
       if(ati.ne.numatm) call set_stop('num')

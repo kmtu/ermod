@@ -169,7 +169,6 @@ module engmain
   real, dimension(:,:),    allocatable :: bfcoord
   real, dimension(:),      allocatable :: sitemass
   real, dimension(:),      allocatable :: charge,ljene,ljlen
-  integer, dimension(:,:), allocatable :: specatm
   real, dimension(:,:),    allocatable :: sitepos
   integer, allocatable :: mol_begin_index(:), belong_to(:)
   real, dimension(3,3)                 :: cell,invcl
@@ -234,4 +233,11 @@ contains
     end if
 
   end subroutine init_params
+
+  integer function specatm(i, mol)
+    implicit none
+    integer, intent(in) :: i, mol
+
+    specatm = mol_begin_index(mol) + (i - 1)
+  end function specatm
 end module engmain
