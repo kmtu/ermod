@@ -1026,8 +1026,6 @@ contains
 
       ati=0                                ! specifying the site in molecule
       do 1501 i=1,nummol
-        do 1511 sid=1,maxsite
-1511    continue
         stmax=numsite(i)
         do 1512 sid=1,stmax
           ati=ati+1

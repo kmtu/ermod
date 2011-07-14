@@ -890,7 +890,7 @@ contains
   end subroutine realcal_self
   !
   subroutine residual_ene(i, j, pairep)
-    use engmain, only: screen, volume, specatm, numsite, charge, cltype
+    use engmain, only: screen, volume, specatm, numsite, charge, cltype, mol_begin_index
     implicit none
     integer, intent(in) :: i, j
     real, intent(inout) :: pairep
@@ -898,18 +898,9 @@ contains
     integer :: is, js, ismax, jsmax, ati, atj
     real, parameter :: pi = 3.141592653589793283462
     if(cltype == 0) stop "Error: residual_ene: called when cltype == 0, cannot happen"
-    ismax = numsite(i)
-    jsmax = numsite(j)
-    rtp1=0.0e0
-    do is=1,ismax
-       ati=specatm(is,i)
-       rtp1=rtp1+charge(ati)
-    enddo
-    rtp2=0.0e0
-    do js=1,jsmax
-       atj=specatm(js,j)
-       rtp2=rtp2+charge(atj)
-    enddo
+
+    rtp1 = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
+    rtp2 = sum(charge(mol_begin_index(j):(mol_begin_index(j+1)-1)))
     epcl=pi*rtp1*rtp2/screen/screen/volume
     if(i.eq.j) epcl=epcl/2.0e0 ! self-interaction
     pairep=pairep-epcl
