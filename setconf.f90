@@ -892,6 +892,7 @@ contains
       use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
                          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
                          OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
+      use mpiproc, only: halt_with_error
       implicit none
       integer, parameter :: large=1000000
       ! only integer power is allowed as the initialization expression (7.1.6.1)
@@ -994,7 +995,7 @@ contains
 !
       allocate( bfcoord(3,maxsite),sitemass(numatm) )
       allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
-      allocate( specatm(maxsite,nummol),sitepos(3,numatm) )
+      allocate( sitepos(3,numatm) )
       allocate(mol_begin_index(nummol + 1))
       allocate(belong_to(numatm))
 
@@ -1011,10 +1012,12 @@ contains
 7305  continue
 
       ! initialize mol_begin_index
+      ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
       mol_begin_index(1) = 1
-      do i = 2, nummol
-         mol_begin_index(i) = mol_begin_index(i - 1) + numsite(i)
+      do i = 1, nummol
+         mol_begin_index(i + 1) = mol_begin_index(i) + numsite(i)
       end do
+      if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("bug")
 
       ! initialize belong_to
       do i = 1, nummol

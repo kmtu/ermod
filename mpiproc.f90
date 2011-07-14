@@ -68,6 +68,7 @@ contains
     if(type.eq.'ecd') write(stdout,981)
     if(type.eq.'fst') write(stdout,982)
     if(type.eq.'slb') write(stdout,"(A)"), " Slab condition can only used in periodic system"
+    if(type.eq.'bug') write(stdout,"(A)"), " Critical failure in the program detected"
 991 format(' The number of solute types is incorrectly set')
 992 format(' The number of solute molecules is incorrectly set')
 993 format(' The solute numbering is incorrect for insertion')
