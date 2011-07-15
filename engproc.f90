@@ -405,8 +405,9 @@ contains
     if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
 #endif
 
+    ! Gather all information to Master node
 #ifndef noMPI
-    if(plmode.eq.1) then                                             ! MPI
+    if(plmode.eq.1) then                                              ! MPI
        call mpi_reduce(avslf,factor,1,&
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
        avslf=factor                                                   ! MPI
@@ -417,30 +418,30 @@ contains
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
        engsmpl=factor                                                 ! MPI
        allocate( sve1(esmax) )                                        ! MPI
-       do iduv=1,esmax                                           ! MPI
-          sve1(iduv)=eself(iduv)                                       ! MPI
+       do iduv=1,esmax                                                ! MPI
+          sve1(iduv)=eself(iduv)                                      ! MPI
        end do
        call mpi_reduce(sve1,eself,esmax,&
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
        deallocate( sve1 )                                             ! MPI
-    endif                                                            ! MPI
-    allocate( sve1(0:numslv),sve2(0:numslv) )                        ! MPI
-    do pti=0,numslv                                             ! MPI
+    endif                                                             ! MPI
+    allocate( sve1(0:numslv),sve2(0:numslv) )                         ! MPI
+    do pti=0,numslv                                                   ! MPI
        sve1(pti)=minuv(pti)                                           ! MPI
        sve2(pti)=maxuv(pti)                                           ! MPI
     end do
     call mpi_reduce(sve1,minuv,numslv+1,&                             ! MPI
-         mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)       ! MPI
+         mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)        ! MPI
     call mpi_reduce(sve2,maxuv,numslv+1,&                             ! MPI
-         mpi_double_precision,mpi_max,0,mpi_comm_world,ierror)       ! MPI
-    deallocate( sve1,sve2 )                                          ! MPI
-    allocate( sve1(ermax) )                                          ! MPI
-    do iduv=1,ermax                                             ! MPI
+         mpi_double_precision,mpi_max,0,mpi_comm_world,ierror)        ! MPI
+    deallocate( sve1,sve2 )                                           ! MPI
+    allocate( sve1(ermax) )                                           ! MPI
+    do iduv=1,ermax                                                   ! MPI
        sve1(iduv)=edens(iduv)                                         ! MPI
     end do
     call mpi_reduce(sve1,edens,ermax,&                                ! MPI
-         mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)       ! MPI
-    deallocate( sve1 )                                               ! MPI
+         mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)        ! MPI
+    deallocate( sve1 )                                                ! MPI
 #endif
     do iduv=1,ermax
        edens(iduv)=edens(iduv)/engnorm
