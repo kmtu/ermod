@@ -15,6 +15,7 @@ contains
          moltype,sluvid,&
          ermax,numslv,uvmax,uvsoft,esmax,uvspec,&
          uvcrd,edens,ecorr,escrd,eself,&
+         voffset, &
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
          ene_param, ene_confname
     use mpiproc, only: halt_with_error
@@ -219,6 +220,7 @@ contains
        minuv(pti)=infty
        maxuv(pti)=-infty
     end do
+    voffset = -infty
 
     call engclear
     !
@@ -368,18 +370,41 @@ contains
          plmode,ermax,numslv,esmax,temp,&
          edens,ecorr,eself,&
          aveuv,slnuv,avediv,avslf,minuv,maxuv,&
-         engnorm,engsmpl,voffset
+         engnorm,engsmpl,voffset, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use mpiproc                                                      ! MPI
     implicit none
     integer stnum,i,pti,j,iduv,iduvp,k,q,cntdst
     character*10, parameter :: numbers='0123456789'
     character*9 engfile
     character*3 suffeng
-    real factor
+    real :: voffset_local, voffset_scale
+    real :: factor
     real, parameter :: tiny=1.0e-30
     real, dimension(:), allocatable :: sve1,sve2
     call mpi_info                                                    ! MPI
     !
+
+    ! synchronize voffset
+    voffset_local = voffset
+#ifndef noMPI
+    call mpi_allreduce(mpi_in_place, voffset, 1,&
+         mpi_double_precision, mpi_max, mpi_comm_world, ierror)   ! MPI
+    ! scale histograms accoording to the maximum voffset
+    select case(slttype)
+    case (CAL_SOLN)
+       voffset_scale = exp((voffset_local - voffset)/temp)
+    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       voffset_scale = exp(-(voffset_local - voffset)/temp)
+    end select
+
+    engnorm = engnorm * voffset_scale
+    eself(:) = eself(:) * voffset_scale
+    if(slttype == CAL_SOLN) slnuv(:) = slnuv * voffset_scale
+    edens(:) = edens(:) * voffset_scale
+    if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
+#endif
+
 #ifndef noMPI
     if(plmode.eq.1) then                                             ! MPI
        call mpi_reduce(avslf,factor,1,&
@@ -657,11 +682,7 @@ contains
     if(wgtslf.eq.1) then
        factor=uvengy(0)
        if(.not. voffset_initialized) then
-          if(dsinit.eq.0) voffset=factor
-#ifndef noMPI
-          if(plmode.eq.1) call mpi_bcast(voffset,1,&
-               mpi_double_precision,0,mpi_comm_world,ierror)    ! MPI
-#endif
+          voffset=factor
           voffset_initialized = .true.
        endif
        factor=factor-voffset               ! shifted by offset
