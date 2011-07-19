@@ -183,18 +183,18 @@ contains
     return
   end subroutine sltpstn
   !
-  subroutine get_molecule_com(target, com)
+  subroutine get_molecule_com(target_mol, com)
     use engmain, only: numatm, specatm, numsite
 
     implicit none
-    integer, intent(in) :: target
+    integer, intent(in) :: target_mol
     real, intent(out) :: com(3)
     integer :: centag(1:numatm), ati, sid, stmax
 
-    centag(ati)=0
-    stmax=numsite(target)
+    centag(:)=0
+    stmax=numsite(target_mol)
     do sid=1,stmax
-       ati=specatm(sid,target)
+       ati=specatm(sid,target_mol)
        centag(ati)=1
     end do
     call getcen(centag,com)

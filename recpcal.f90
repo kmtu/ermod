@@ -275,7 +275,7 @@ contains
                 fac2 = fac1 * splslv(cg2,2,ptrnk)
                 rc2=modulo(grdslv(2,ptrnk)-cg2,ms2max)
                 grid1=grdslv(1,ptrnk)
-                if(grid1 >= splodr-1) then
+                if(grid1 >= splodr-1 .and. grid1 < ms1max) then
                    do cg1=0,splodr-1
                       fac3 = fac2 * splslv(cg1,1,ptrnk)
                       rc1=grid1-cg1
