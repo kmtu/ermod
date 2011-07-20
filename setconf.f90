@@ -886,7 +886,7 @@ contains
                          slttype,sltpick,refpick,inscfg,ljformat,&
                          moltype,numsite,sluvid,refmlid,&
                          bfcoord,sitemass,charge,ljene,ljlen,&
-                         specatm,sitepos, mol_begin_index, belong_to
+                         specatm,sitepos, mol_begin_index, belong_to, mol_charge
       use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
                          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
                          OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
@@ -995,6 +995,7 @@ contains
       allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
       allocate(sitepos(3,numatm))
       allocate(mol_begin_index(nummol + 1))
+      allocate(mol_charge(nummol))
       allocate(belong_to(numatm))
 
       do 7301 sid=1,maxsite                ! initial setting to zero
@@ -1101,6 +1102,11 @@ contains
 !     == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
       charge(1:numatm)=18.22261721e0 * charge(1:numatm)
       
+! get molecule-wise charges
+      do i = 1, nummol
+         mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
+      end do
+
       return
     end subroutine
 

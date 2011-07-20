@@ -168,6 +168,7 @@ module engmain
   real, dimension(:),      allocatable :: sitemass
   real, dimension(:),      allocatable :: charge,ljene,ljlen
   real, dimension(:,:),    allocatable :: sitepos
+  real, allocatable :: mol_charge(:)
   integer, allocatable :: mol_begin_index(:), belong_to(:)
   real, dimension(3,3)                 :: cell,invcl
   real :: celllen(3)
