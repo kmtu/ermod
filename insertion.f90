@@ -49,7 +49,7 @@ contains
 
     call instwgt(wgtslcf,caltype)
 
-    if(caltype.eq.'init') unrn=real(iseed)
+    if(caltype.eq.'init') call urand_init(iseed)
     if((caltype.eq.'init').or.(caltype.eq.'last')) then
        if(slttype.eq.3) call getsolute(0,caltype)       ! flexible solute
        return
@@ -418,19 +418,33 @@ contains
     endif
     return
   end subroutine instwgt
-!
-  ! FIXME: remove urand
-  subroutine URAND(rndm)          ! uniform random number generator
-    real rndm,mtpl,mdls
-    integer gen1,gen2,rat
-    parameter(gen1=16807,gen2=2147483647)
-    mdls=real(gen2)
-    mtpl=unrn*real(gen1)
-    rat=int(mtpl/mdls)
-    mtpl=mtpl-mdls*real(rat)
-    unrn=mtpl
-    rndm=unrn/mdls
-  end subroutine URAND
+
+  ! returns random value from [0,1)
+  ! Any sane compiler implements random_number
+  ! (which is included in fortran 95 standards)
+  subroutine urand(rndm)          ! uniform random number generator
+    implicit none
+    real, intent(out) :: rndm
+    call random_number(rndm)
+  end subroutine urand
+
+  subroutine urand_init(seed)
+    use mpiproc, only: myrank
+    implicit none
+    integer, intent(in) :: seed
+    integer :: seedsize
+    integer, allocatable :: seedarray(:)
+
+    call random_seed(size = seedsize)
+    allocate(seedarray(seedsize))
+    seedarray(:) = 0
+
+    seedarray(1) = myrank + seed
+    if(seed == 0) call system_clock(count = seedarray(1))
+
+    call random_seed(put = seedarray)
+    deallocate(seedarray)
+  end subroutine urand_init
 !
   subroutine refmc(caltype)
     use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,&
