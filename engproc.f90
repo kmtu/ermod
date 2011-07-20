@@ -473,7 +473,7 @@ contains
        call mpi_reduce(sve1,eself,esmax,&
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
        deallocate( sve1 )                                             ! MPI
-       call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
+       if(slttype == CAL_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
     endif                                                             ! MPI
     allocate( sve1(0:numslv),sve2(0:numslv) )                         ! MPI
     do pti=0,numslv                                                   ! MPI
@@ -522,7 +522,6 @@ contains
     !
     if(myrank.ne.0) go to 7999                                       ! MPI
     division = stnum / (maxcnf / engdiv)
-    print *, "stnum = ", stnum, "division = ", division
     if(slttype.eq.1) then
        do pti=1,numslv
           aveuv(division,pti)=slnuv(pti)/engnorm

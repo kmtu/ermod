@@ -58,6 +58,7 @@ contains
   ! helper library for reduce variables
   ! Note: mpi_reduce(mpi_in_place, ...) seems to be allowed only on MPI 2.2+
   subroutine mympi_reduce_real(data, size, operation, rootrank)
+    implicit none
     real, intent(inout) :: data(size)
     integer, intent(in) :: size, operation, rootrank
     real, allocatable :: buf(:)
