@@ -239,7 +239,8 @@ contains
 
   subroutine engclear
     use engmain, only: corrcal,slttype,ermax,numslv,esmax,&
-         edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl
+         edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl, &
+         CAL_SOLN
     implicit none
     integer iduv,iduvp,pti
     edens(1:ermax)=0.0e0
@@ -249,7 +250,7 @@ contains
 
     eself(1:esmax)=0.0e0
 
-    if(slttype.eq.1) then
+    if(slttype == CAL_SOLN) then
        slnuv(1:numslv)=0.0e0
     endif
     avslf=0.0e0
@@ -335,6 +336,7 @@ contains
     allocate(flceng_stored(maxdst))
     allocate(flceng(numslv, maxdst))
     flceng_stored(:) = .false.
+    flceng(:, :) = 0
 
     if(myrank < nactiveproc) then
        ! Initialize reciprocal space - grid and charges
@@ -374,13 +376,15 @@ contains
        allocate(flceng_g(maxdst, slvmax, nprocs))
        allocate(flceng_stored_g(maxdst, nprocs))
 
+#ifndef noMPI
        ! gather flceng values to rank 0
        call mpi_gather(flceng_stored, maxdst, mpi_logical, &
             flceng_stored_g, maxdst, mpi_logical, &
-            0, mpi_comm_world)
+            0, mpi_comm_world, ierror)
        call mpi_gather(flceng, slvmax * maxdst, mpi_double_precision, &
             flceng_g, slvmax * maxdst, mpi_double_precision, &
-            0, mpi_comm_world)
+            0, mpi_comm_world, ierror)
+#endif
 
        if(myrank == 0) then
           do irank = 1, nactiveproc
@@ -429,24 +433,26 @@ contains
     !
 
     ! synchronize voffset
-    voffset_local = voffset
+    if(wgtslf == 1) then
+       voffset_local = voffset
 #ifndef noMPI
-    call mpi_allreduce(mpi_in_place, voffset, 1,&
-         mpi_double_precision, mpi_max, mpi_comm_world, ierror)   ! MPI
-    ! scale histograms accoording to the maximum voffset
-    select case(slttype)
-    case (CAL_SOLN)
-       voffset_scale = exp((voffset_local - voffset)/temp)
-    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-       voffset_scale = exp(-(voffset_local - voffset)/temp)
-    end select
+       call mpi_allreduce(mpi_in_place, voffset, 1,&
+            mpi_double_precision, mpi_max, mpi_comm_world, ierror)   ! MPI
+       ! scale histograms accoording to the maximum voffset
+       select case(slttype)
+       case (CAL_SOLN)
+          voffset_scale = exp((voffset_local - voffset)/temp)
+       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+          voffset_scale = exp(-(voffset_local - voffset)/temp)
+       end select
 
-    engnorm = engnorm * voffset_scale
-    eself(:) = eself(:) * voffset_scale
-    if(slttype == CAL_SOLN) slnuv(:) = slnuv * voffset_scale
-    edens(:) = edens(:) * voffset_scale
-    if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
+       engnorm = engnorm * voffset_scale
+       eself(:) = eself(:) * voffset_scale
+       if(slttype == CAL_SOLN) slnuv(:) = slnuv(:) * voffset_scale
+       edens(:) = edens(:) * voffset_scale
+       if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
 #endif
+    endif
 
     ! Gather all information to Master node
 #ifndef noMPI
@@ -467,6 +473,7 @@ contains
        call mpi_reduce(sve1,eself,esmax,&
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
        deallocate( sve1 )                                             ! MPI
+       call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
     endif                                                             ! MPI
     allocate( sve1(0:numslv),sve2(0:numslv) )                         ! MPI
     do pti=0,numslv                                                   ! MPI
@@ -515,6 +522,7 @@ contains
     !
     if(myrank.ne.0) go to 7999                                       ! MPI
     division = stnum / (maxcnf / engdiv)
+    print *, "stnum = ", stnum, "division = ", division
     if(slttype.eq.1) then
        do pti=1,numslv
           aveuv(division,pti)=slnuv(pti)/engnorm
@@ -598,7 +606,6 @@ contains
        endfile(71)
        close(71)
 7199   continue
-7011   continue
     end do
 7999 continue                                                         ! MPI
     !

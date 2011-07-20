@@ -43,7 +43,7 @@ program trjmain
   ! initialize
   call enganal_init()
 
-  stnum = 1
+  stnum = 0
   frames_per_div = maxcnf / skpcnf / engdiv
   if(frames_per_div <= 0) call halt_with_error("par")
 
@@ -52,7 +52,7 @@ program trjmain
 
      do iframe = 1, frames_per_div, nprocs
         call getconf_parallel(frames_per_div - iframe + 1, nread)
-        call enganal(stnum + myrank, nread)
+        call enganal(stnum + myrank + 1, nread)
         stnum = stnum + nread
      end do
      call engstore(stnum)

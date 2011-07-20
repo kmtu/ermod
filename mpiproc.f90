@@ -55,6 +55,29 @@ contains
 #endif
   end subroutine mpi_abend
 
+  ! helper library for reduce variables
+  ! Note: mpi_reduce(mpi_in_place, ...) seems to be allowed only on MPI 2.2+
+  subroutine mympi_reduce_real(data, size, operation, rootrank)
+    real, intent(inout) :: data(size)
+    integer, intent(in) :: size, operation, rootrank
+    real, allocatable :: buf(:)
+    integer :: mpitype
+
+    allocate(buf(size))
+    select case(kind(data))
+    case(4)
+       mpitype = mpi_real
+    case(8)
+       mpitype = mpi_double_precision
+    case default
+       stop "invalid kind(real) value"
+    end select
+
+    call mpi_reduce(data, buf, size, mpitype, operation, rootrank, mpi_comm_world, ierror)
+    data(:) = buf(:)
+    deallocate(buf)
+  end subroutine mympi_reduce_real
+
   ! Stop calculation with error message
   subroutine halt_with_error(type)
     use engmain, only: stdout
