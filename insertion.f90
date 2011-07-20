@@ -437,7 +437,7 @@ contains
 
     call random_seed(size = seedsize)
     allocate(seedarray(seedsize))
-    seedarray(:) = 0
+    seedarray(:) = 1
 
     seedarray(1) = myrank + seed
     if(seed == 0) call system_clock(count = seedarray(1))
