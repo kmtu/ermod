@@ -23,7 +23,7 @@ endif
 ermod_gromacs_SOURCES = $(ersources) vmdfio_if.f90 vmdfio.c
 ermod_gromacs_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
 ermod_gromacs_FCFLAGS = -DGROMACS -DVMDPLUGINS $(FFTFLAGS)
-ermod_gromacs_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm
+ermod_gromacs_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
 
 extra_flags = 
 

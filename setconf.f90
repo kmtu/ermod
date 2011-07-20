@@ -163,6 +163,7 @@ contains
 
     call OUTinitial
     use_mdlib = .false.
+
 #if defined(GROMACS) && defined(MDLIB)
 !     GROMACS + MDLIB
     call open_gmtraj(gmxhandle, 0, status) ! 0 == HISTORY
@@ -855,10 +856,7 @@ contains
         if(slttype.eq.1) call set_stop('prs')
         if(inscnd.eq.3) call set_stop('ins')
       endif
-      plmode=0                    ! energy calculation parallelization mode
-      if((slttype.ge.2).and.(cltype.eq.2)) then      ! PME with insertion
-        if(maxins.gt.nprocs) plmode=1
-      endif
+      plmode=2                    ! energy calculation parallelization mode
 !
       return
       end subroutine
@@ -1105,14 +1103,21 @@ contains
       
       return
     end subroutine
-!
-!
-  subroutine getconf
+
+
+! Reads up to maxread coordinates serially and distributes frames
+! returns number of frames read (EXCLUDING skipped frames)
+  subroutine getconf_parallel(maxread, actual_read)
     use engmain, only: nummol,numatm,boxshp,&
-         numsite,sluvid,sitepos,cell
+         numsite,sluvid,sitepos,cell,skpcnf
     use OUTname, only: OUTconfig                     ! from outside
+    use mpiproc
+    implicit none
+    integer, intent(in) :: maxread
+    integer, intent(out) :: actual_read
+    
     real, dimension(:,:), allocatable :: OUTpos,OUTcell
-    integer i,m,k,OUTatm, iproc
+    integer i,m,k,OUTatm, iproc, nread
     character*3 rdconf
     
 #ifdef trjctry
@@ -1126,14 +1131,41 @@ contains
     end do
     allocate( OUTpos(3,OUTatm),OUTcell(3,3) )
     
-    call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
-    sitepos(:,1:OUTatm)=OUTpos(:,:)
-    cell(:,:)=OUTcell(:,:)
+    nread = min(nprocs, maxread)
+
+    if(myrank == 0) then
+       do iproc = 1, nread
+          ! get configuration and store in OUTpos / OUTcell
+          do i = 1, skpcnf
+             call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
+          end do
+          
+          if(iproc == 1) then ! copy to self
+             sitepos(:,1:OUTatm)=OUTpos(:,:)
+             cell(:,:)=OUTcell(:,:)
+          else
+#ifndef noMPI
+             ! FIXME: rewrite with grouping and scatter?
+             call mpi_send(OUTpos, 3 * OUTatm, &
+                  mpi_double_precision, iproc - 1, tag_coord, mpi_comm_world, ierror)
+             call mpi_send(OUTcell, 3 * 3, &
+                  mpi_double_precision, iproc - 1, tag_cell, mpi_comm_world, ierror)
+#endif
+          endif
+       end do
+    elseif(myrank < nread) then
+#ifndef noMPI
+       call mpi_recv(sitepos, 3 * OUTatm, &
+            mpi_double_precision, 0, tag_coord, mpi_comm_world, mpistatus, ierror)
+       call mpi_recv(cell, 3 * 3, &
+            mpi_double_precision, 0, tag_cell, mpi_comm_world, mpistatus, ierror)
+#endif
+    endif
+
     deallocate( OUTpos,OUTcell )
-    return
-  end subroutine getconf
-!
-!
+    actual_read = nread
+  end subroutine getconf_parallel
+
       subroutine set_stop(type)
       use engmain, only: io6
       use mpiproc                                                      ! MPI

@@ -2,12 +2,16 @@
 ! mpi module
 
 module mpiproc                                                   ! MPI
-  implicit none
 #ifndef noMPI
   ! MPI
-  include "mpif.h"
+  use mpi
 #endif
-  integer ierror,myrank,nprocs                                     ! MPI
+  implicit none
+
+  ! mpi common variables
+  integer ierror, mpistatus(mpi_status_size), myrank, nprocs         ! MPI
+  integer, parameter :: tag_cell = 11, tag_coord = 12
+
 contains
   subroutine mpi_setup(type)                                       ! MPI
     character*4 type                                                 ! MPI
@@ -19,19 +23,19 @@ contains
 #ifdef PERF
        walltime = MPI_WTIME()
 #endif
+       call mpi_info
     endif
     if(type.eq.'stop') then                                          ! MPI
 #ifdef PERF
        call CPU_TIME(cputime)
        print *, "rank = ", myrank, ", CPUtime = ", cputime
-       if(myrank == 1) then
+       if(myrank == 0) then
           print *, "Wall-clock time: ", MPI_WTIME() - walltime
        endif
 #endif
        call mpi_finalize(ierror)                                      ! MPI
     endif
 #endif
-    return
   end subroutine mpi_setup                                                   ! MPI
 
   subroutine mpi_info                                              ! MPI

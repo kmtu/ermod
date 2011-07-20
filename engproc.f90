@@ -2,9 +2,13 @@
 module engproc
   implicit none
   integer :: cntdst, slvmax
-  integer :: maxdst, dsinit, dsskip, ptinit, ptskip
+  integer :: maxdst
   integer :: tagslt
   integer, allocatable :: tagpt(:)
+
+  ! need to be output serialized
+  logical, allocatable :: flceng_stored(:)
+  real, allocatable :: flceng(:, :)
 
 contains
   !
@@ -17,8 +21,9 @@ contains
          uvcrd,edens,ecorr,escrd,eself,&
          voffset, &
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
-         ene_param, ene_confname
-    use mpiproc, only: halt_with_error
+         ene_param, ene_confname, &
+         io_flcuv, CAL_SOLN
+    use mpiproc, only: halt_with_error, myrank
     implicit none
     real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
     real eclbin,ecfbin,ec0bin,finfac,ectmvl
@@ -223,11 +228,15 @@ contains
     voffset = -infty
 
     call engclear
-    !
+
+    ! Output for energy fluctuation
+    if((slttype == CAL_SOLN).and.(myrank.eq.0)) then
+       open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
+    endif
+
     return
   end subroutine enginit
-  !
-  !
+
   subroutine engclear
     use engmain, only: corrcal,slttype,ermax,numslv,esmax,&
          edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl
@@ -248,9 +257,19 @@ contains
     engsmpl=0.0e0
     return
   end subroutine engclear
+
+  subroutine engproc_cleanup
+    use engmain, only: slttype, CAL_SOLN, io_flcuv
+    use mpiproc
+    implicit none
+    if((slttype == CAL_SOLN).and.(myrank.eq.0)) then
+       endfile(io_flcuv)
+       close(io_flcuv)
+    endif
+  end subroutine engproc_cleanup
   !
   !
-  subroutine engconst(stnum)
+  subroutine engconst(stnum, nactiveproc)
     use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
          maxins,ermax,numslv,esmax,uvspec,&
@@ -270,11 +289,14 @@ contains
          recpcal_self_energy
     use mpiproc                                                      ! MPI
     implicit none
-    integer, intent(in) :: stnum
+    integer, intent(in) :: stnum, nactiveproc
     integer i,pti,iduv,iduvp,k,q
+    integer :: irank
     real engnmfc,pairep,wgtslcf,factor
     integer, dimension(:), allocatable :: insdst,engdst,tplst
-    real, dimension(:),    allocatable :: uvengy,flceng,svfl
+    real, dimension(:),    allocatable :: uvengy,svfl
+    logical, allocatable :: flceng_stored_g(:,:)
+    real, allocatable :: flceng_g(:,:,:)
     real, save :: prevcl(3, 3)
     real, parameter :: tiny = 1.0e-20
     logical :: skipcond
@@ -282,9 +304,6 @@ contains
     logical, save :: pme_initialized = .false.
     call mpi_info                                                    ! MPI
     !
-    if((slttype == CAL_SOLN).and.(myrank.eq.0).and.(stnum.eq.skpcnf)) then
-       open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
-    endif
     !
     call sanity_check_sluvid()
 
@@ -297,18 +316,9 @@ contains
        maxdst=maxins
     end select
 
-    if(plmode.eq.0) then ! parallel over solvent molecules
-       ptinit=myrank ; ptskip=nprocs
-       dsinit=0 ; dsskip=1
-    endif
-    if(plmode.eq.1) then ! parallel over insertion
-       ptinit=0 ; ptskip=1
-       dsinit=myrank ; dsskip=nprocs
-    endif
-
     allocate( tplst(nummol) )
     slvmax=0
-    do i=1+ptinit,nummol,ptskip
+    do i=1,nummol
        if((slttype == CAL_SOLN) .or. &
             ((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX).and.(sluvid(i).eq.0))) then
           slvmax=slvmax+1
@@ -322,43 +332,76 @@ contains
     end do
     deallocate( tplst )
 
-    call get_inverted_cell
+    allocate(flceng_stored(maxdst))
+    allocate(flceng(numslv, maxdst))
+    flceng_stored(:) = .false.
 
-    ! Initialize reciprocal space - grid and charges
-    if(cltype == EL_PME) then
-       if(.not. pme_initialized) then
-          call recpcal_init(slvmax,tagpt)
+    if(myrank < nactiveproc) then
+       ! Initialize reciprocal space - grid and charges
+       call get_inverted_cell
+       if(cltype == EL_PME) then
+          if(.not. pme_initialized) then
+             call recpcal_init(slvmax,tagpt)
+          endif
+          
+          ! check whether cell size changes
+          ! recpcal is called only when cell size differ
+          if((.not. pme_initialized) .or. &
+               (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
+          prevcl(:, :) = cell(:, :)
+          
+          pme_initialized = .true.
+          
+          do k=1,slvmax
+             i=tagpt(k)
+             call recpcal_prepare_solvent(i)
+          end do
        endif
 
-       ! check whether cell size changes
-       ! recpcal is called only when cell size differ
-       if((.not. pme_initialized) .or. &
-            (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
-       prevcl(:, :) = cell(:, :)
-
-       pme_initialized = .true.
-
-       do k=1,slvmax
-          i=tagpt(k)
-          call recpcal_prepare_solvent(i)
+       ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
+       ! cntdst is the iteration no. of insertion (refs)
+       do cntdst=1,maxdst
+          call get_uv_energy(stnum, wgtslcf, uvengy(0:slvmax), skipcond)
+          if(skipcond) cycle
+          
+          call update_histogram(stnum, wgtslcf, uvengy(0:slvmax))
        end do
     endif
 
-    ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
-    ! cntdst is the iteration no. of insertion (refs)
-    do cntdst=1,maxdst
-       call get_uv_energy(stnum, wgtslcf, uvengy(0:slvmax), skipcond)
-       if(skipcond) cycle
+    ! for soln only: need to output flceng
+    if(slttype == CAL_SOLN) then
+       
+       allocate(flceng_g(maxdst, slvmax, nprocs))
+       allocate(flceng_stored_g(maxdst, nprocs))
 
-       call update_histogram(stnum, wgtslcf, uvengy(0:slvmax))
-    end do
+       ! gather flceng values to rank 0
+       call mpi_gather(flceng_stored, maxdst, mpi_logical, &
+            flceng_stored_g, maxdst, mpi_logical, &
+            0, mpi_comm_world)
+       call mpi_gather(flceng, slvmax * maxdst, mpi_double_precision, &
+            flceng_g, slvmax * maxdst, mpi_double_precision, &
+            0, mpi_comm_world)
 
-    if((slttype == CAL_SOLN).and.(myrank.eq.0).and.(stnum.eq.maxcnf)) then
-       endfile(io_flcuv)
-       close(io_flcuv)                   ! close flcuv file
+       if(myrank == 0) then
+          do irank = 1, nactiveproc
+             do i = 1, maxdst
+                if(flceng_stored_g(maxdst, irank)) then
+                   if(maxdst.eq.1) then
+                      write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+                   else
+                      write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+                   endif
+911                format(i9,999f15.5)
+912                format(2i9,999f15.5)
+                endif
+             enddo
+          enddo
+       endif
+       deallocate(flceng_g, flceng_stored_g)
     endif
 
     deallocate( tagpt,uvengy )
+    deallocate(flceng, flceng_stored)
 
     return
   end subroutine engconst
@@ -374,7 +417,7 @@ contains
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use mpiproc                                                      ! MPI
     implicit none
-    integer stnum,i,pti,j,iduv,iduvp,k,q,cntdst
+    integer stnum,i,pti,j,iduv,iduvp,k,q,cntdst, division
     character*10, parameter :: numbers='0123456789'
     character*9 engfile
     character*3 suffeng
@@ -407,7 +450,7 @@ contains
 
     ! Gather all information to Master node
 #ifndef noMPI
-    if(plmode.eq.1) then                                              ! MPI
+    if(plmode == 2) then                                              ! MPI
        call mpi_reduce(avslf,factor,1,&
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
        avslf=factor                                                   ! MPI
@@ -471,17 +514,17 @@ contains
     avslf=avslf/engnorm
     !
     if(myrank.ne.0) go to 7999                                       ! MPI
-    i=stnum/(maxcnf/engdiv)
+    division = stnum / (maxcnf / engdiv)
     if(slttype.eq.1) then
        do pti=1,numslv
-          aveuv(i,pti)=slnuv(pti)/engnorm
+          aveuv(division,pti)=slnuv(pti)/engnorm
        end do
     endif
-    avediv(i,1)=engnorm/engsmpl
-    if(slttype.eq.1) avediv(i,2)=voffset-temp*log(avslf)
-    if(slttype.ge.2) avediv(i,2)=voffset+temp*log(avslf)
+    avediv(division,1)=engnorm/engsmpl
+    if(slttype.eq.1) avediv(division,2)=voffset-temp*log(avslf)
+    if(slttype.ge.2) avediv(division,2)=voffset+temp*log(avslf)
     !
-    if(stnum.eq.maxcnf) then
+    if(division == engdiv) then
        if(slttype.eq.1) then
           open(unit=75,file='aveuv.tt',status='new')
           do k=1,engdiv
@@ -515,8 +558,8 @@ contains
 773    format(i5,f15.5,g18.5)
     endif
     !
-    j=i/10
-    k=i-10*j
+    j=division/10
+    k=division-10*j
     if(engdiv.eq.1) suffeng='.tt'
     if(engdiv.gt.1) suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
     do cntdst=1,3
@@ -613,10 +656,6 @@ contains
        endif
 
        initialized = .true.
-       if(mod(cntdst-1,dsskip).ne.dsinit) then
-          has_error = .true.
-          return
-       endif
     end select
 
     uvengy(:) = 0
@@ -669,7 +708,7 @@ contains
     real, intent(in) :: uvengy(0:slvmax), stat_weight
 
     integer, allocatable :: insdst(:), engdst(:)
-    real, allocatable :: flceng(:), svfl(:)
+    real, allocatable :: svfl(:)
 
     integer :: i, k, q, iduv, iduvp, pti
     real :: factor, engnmfc, pairep
@@ -677,7 +716,6 @@ contains
     logical, save :: voffset_initialized = .false.
 
     allocate(insdst(ermax), engdst(ermax))
-    allocate(flceng(numslv), svfl(numslv))
 
     if(wgtslf.eq.0) engnmfc=1.0e0
     if(wgtslf.eq.1) then
@@ -715,7 +753,8 @@ contains
     maxuv(0) = max(maxuv(0), uvengy(0))
 
     insdst(:) = 0
-    flceng(:) = 0.0e0                     ! sum of solute-solvent energy
+    flceng(:, cntdst) = 0.0e0                     ! sum of solute-solvent energy
+    flceng_stored(cntdst) = .true.
     ! interaction energy histogram
     do k = 1, slvmax
        i=tagpt(k)
@@ -727,41 +766,22 @@ contains
        call getiduv(pti,pairep,iduv)
 
        insdst(iduv)=insdst(iduv)+1
-       flceng(pti)=flceng(pti)+pairep    ! sum of solute-solvent energy
+       flceng(pti, cntdst) = flceng(pti, cntdst) + pairep    ! sum of solute-solvent energy
 
        minuv(pti) = min(minuv(pti), pairep)
        maxuv(pti) = max(maxuv(pti), pairep)
     end do
-    !
-#ifndef noMPI
-    if(plmode.eq.0) then
-       call mpi_allreduce(insdst,engdst,ermax,&
-            mpi_integer,mpi_sum,mpi_comm_world,ierror)       ! MPI
-       insdst(:) = engdst(:)
-       call mpi_allreduce(flceng,svfl,numslv,mpi_double_precision,&
-            mpi_sum,mpi_comm_world,ierror)                   ! MPI
-       flceng(:) = svfl(:)
-    endif
-#endif
+
     if(slttype == CAL_SOLN) then
-       slnuv(:) = slnuv(:) + flceng(:) * engnmfc
-       if(myrank.eq.0) then
-          if(maxdst.eq.1) then
-             write(io_flcuv, 911) stnum,(flceng(pti), pti=1,numslv)
-          else
-             write(io_flcuv, 912) cntdst,stnum, (flceng(pti), pti=1,numslv)
-          endif
-       endif
-911    format(i9,999f15.5)
-912    format(2i9,999f15.5)
+       slnuv(:) = slnuv(:) + flceng(:, cntdst) * engnmfc
     endif
-    !
-    do iduv=1+ptinit,ermax,ptskip
+
+    do iduv=1,ermax
        k=insdst(iduv)
        if(k.gt.0) edens(iduv)=edens(iduv)+engnmfc*real(k)
     enddo
     if(corrcal.eq.1) then
-       do iduv=1+ptinit,ermax,ptskip
+       do iduv=1,ermax
           k=insdst(iduv)
           if(k == 0) cycle
 
@@ -775,7 +795,6 @@ contains
     endif
 
     deallocate(insdst, engdst)
-    deallocate(flceng, svfl)
   end subroutine update_histogram
 
   subroutine realcal(i,j,pairep)

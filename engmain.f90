@@ -94,10 +94,8 @@
 !   ew1max,ew2max,ew3max : number of reciprocal vectors along one direction
 !   ms1max,ms2max,ms3max : number of meshes in PME along one direction
 !   plmode : parallelization mode for calculation of solute-solvent interaction
-!        0 : parallel over solvent molecules and serial over insertion
-!        1 : serial over solvent molecules and parallel over insertion
-!      default = 0 if slttype = 1 or ( slttype >= 2 and cltype = 0 or 1)
-!              = 1 if slttype >= 2 and cltype = 2
+!        2 : each process is assigned a single frame and calculates in parallel
+!        default = 2
 !   specatm : specification of the site
 !   sitepos : coordiantes of interaction site
 !   cell : unit cell vector
