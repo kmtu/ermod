@@ -6,7 +6,9 @@ module engproc
   integer :: tagslt
   integer, allocatable :: tagpt(:)
 
-  ! need to be output serialized
+  integer(8) :: solute_hash = 0
+
+  ! flceng needs to be output in-order
   logical, allocatable :: flceng_stored(:)
   real, allocatable :: flceng(:, :)
 
@@ -635,6 +637,7 @@ contains
     logical, intent(out) :: has_error
 
     integer :: i, k, q
+    integer(8) :: current_solute_hash
     real :: pairep, factor
     real, save :: usreal
     logical, save :: initialized = .false.
@@ -655,12 +658,6 @@ contains
        if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
           call instslt(weighting,'last')
        endif
-       if(slttype == CAL_REFS_RIGID) then
-          if(.not. initialized) then
-             if(cltype == EL_PME) call realcal_self(tagslt,usreal)
-          endif
-       endif
-
        initialized = .true.
     end select
 
@@ -673,11 +670,14 @@ contains
 
     ! solute-solute self energy
     pairep = 0.0
-    if(slttype == CAL_REFS_RIGID) then ! rigid solute: self energy never changes
-       pairep=usreal
+    current_solute_hash = get_solute_hash()
+    if(current_solute_hash == solute_hash) then
+       pairep = usreal ! reuse
     else
        call realcal_self(tagslt, pairep) ! calculate self-interaction
+       usreal = pairep
     endif
+    solute_hash = current_solute_hash
     uvengy(0) = uvengy(0) + pairep
 
     ! solute-solvent pair
@@ -1163,6 +1163,15 @@ contains
     if(distance > lwreg .and. distance < upreg) return
     is_invalid = .true.
   end subroutine check_mol_configuration_impl
+
+  ! get the hashed function of solute coordinate
+  integer(8) function get_solute_hash()
+    use utility, only: hash
+    use engmain, only: sitepos, mol_begin_index, numsite
+    implicit none
+
+    get_solute_hash = hash(sitepos(1:3, mol_begin_index(tagslt):(mol_begin_index(tagslt+1) - 1)), numsite(tagslt) * 3)
+  end function get_solute_hash
 
   subroutine repval(iduv,factor,pti,caltype)
     use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
