@@ -308,11 +308,14 @@ contains
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v
     real :: crdu(3), crdv(3), d(3), dist, r
-    real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm
+    real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
+    real :: upljcut2
     
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
     
+    upljcut2 = upljcut ** 2
+
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
        belong_u = belong_solu(ui) ! FIXME: not used in later calculation
@@ -332,19 +335,19 @@ contains
           
           dist = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
           r = sqrt(dist)
-          if(r >= upljcut) then
+          if(dist >= upljcut2) then
              elj = 0.0
           else
              ljeps = ljene(va) * ljene(ua)
              select case (cmbrule)
                 case (0)
-                   ljsgm = (ljlen(va) + ljlen(ua)) * 0.5
+                   ljsgm2 = ((ljlen(va) + ljlen(ua)) * 0.5) ** 2
                 case (1)
-                   ljsgm = sqrt(ljlen(va) * ljlen(ua))
+                   ljsgm2 = ljlen(va) * ljlen(ua)
                 case default
                    stop "Unknown coulomb type @ realcal%pairenergy"
              end select
-             rtp1 = ljsgm * ljsgm / dist
+             rtp1 = ljsgm2 / dist
              rtp2 = rtp1 * rtp1 * rtp1
              elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
              if(r > lwljcut) then    ! CHARMM form of switching function
