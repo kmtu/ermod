@@ -4,8 +4,8 @@ bin_PROGRAMS = ermod_gromacs ermod_namd slvfe
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
-ersources = enganal.f90 engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 mpiproc.f90 engproc.f90 recpcal.f90 insertion.f90 setconf.f90
-EXTRA_DIST = parameters_er.example gromacsfio.c
+ersources = enganal.f90 engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 mpiproc.f90 engproc.f90 recpcal.f90 insertion.f90 setconf.f90 utility.f90 hash_real.c
+EXTRA_DIST = parameters_er.example 
 EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
 EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE

@@ -249,7 +249,7 @@ AC_ARG_ENABLE([perf],
 	AS_IF([test x$enable_perf = xyes],
 		     [FFLAGS="$FFLAGS -fno-omit-frame-pointer -DPERF"
 	              FCFLAGS="$FCFLAGS -fno-omit-frame-pointer -DPERF"
-                      CCFLAGS="$CCFLAGS -fno-omit-frame-pointer"
+                      CFLAGS="$CFLAGS -fno-omit-frame-pointer"
                       LDFLAGS="$LDFLAGS -lprofiler"]))
 
 AS_IF([test "x$use_mpi" = "xyes"],
