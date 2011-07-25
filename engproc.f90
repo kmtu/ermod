@@ -883,25 +883,25 @@ contains
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          screen,cltype,&
          charge,specatm,sitepos,&
-         cell,invcl,pi
+         cell,invcl,EL_COULOMB, pi
     implicit none
     integer, intent(in) :: i
     real, intent(inout) :: pairep
     integer is,js,ismax,ati,atj,m,k
     real reelcut,chr2,rst,dis2,rtp1
     real epcl,xst(3),clm(3),swth
-    !
+
     pairep=0.0e0
+    if(cltype == EL_COULOMB) return
+
     ismax=numsite(i)
-    !
+
     do is=1,ismax
        ati=specatm(is,i)
 
        ! Atom residual
        chr2=charge(ati)*charge(ati)
-       if(cltype.eq.0) rtp1=real(0) ! bare Coulomb
-       if(cltype.ne.0) rtp1=screen ! Ewald and PME
-       epcl=-chr2*rtp1/sqrt(pi)
+       epcl=-chr2*screen/sqrt(pi)
 
        pairep = pairep + epcl
 
@@ -922,18 +922,13 @@ contains
           dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
           rst=sqrt(dis2)
           chr2=charge(ati)*charge(atj)
-
-          if(cltype.eq.0) rtp1=real(0) ! bare Coulomb
-          if(cltype.ne.0) rtp1=screen*rst ! Ewald and PME
-          epcl=-chr2*derf(rtp1)/rst
+          epcl=-chr2*derf(screen*rst)/rst
 
           pairep=pairep+epcl
        enddo
     enddo
-    !
-    if(cltype.ne.0) then                                 ! Ewald and PME
-       call residual_ene(i, i, pairep)
-    endif
+
+    call residual_ene(i, i, pairep)
   end subroutine realcal_self
   !
   subroutine residual_ene(i, j, pairep)
