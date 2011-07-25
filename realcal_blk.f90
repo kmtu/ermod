@@ -335,7 +335,7 @@ contains
           if(r >= upljcut) then
              elj = 0.0
           else
-             ljeps = sqrt(ljene(va)*ljene(ua))
+             ljeps = ljene(va) * ljene(ua)
              select case (cmbrule)
                 case (0)
                    ljsgm = (ljlen(va) + ljlen(ua)) * 0.5

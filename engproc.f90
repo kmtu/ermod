@@ -849,7 +849,7 @@ contains
           if(rst > upljcut) then
              eplj=0.0e0
           else
-             ljeps=sqrt(ljene(ati)*ljene(atj))
+             ljeps=ljene(ati) * ljene(atj)
 
              if(cmbrule.eq.0) ljsgm=(ljlen(ati)+ljlen(atj))/2.0e0
              if(cmbrule.eq.1) ljsgm=sqrt(ljlen(ati)*ljlen(atj))

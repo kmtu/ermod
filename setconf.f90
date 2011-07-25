@@ -1098,14 +1098,17 @@ contains
 5001  continue
       deallocate( psite )
 
-!     conversion to (kcal/mol angstrom)^(1/2)
-!     == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
+      ! conversion to (kcal/mol angstrom)^(1/2)
+      ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
       charge(1:numatm)=18.22261721e0 * charge(1:numatm)
       
-! get molecule-wise charges
+      ! get molecule-wise charges
       do i = 1, nummol
          mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
       end do
+
+      ! set L-J epsilon value to be square-rooted, because these values are only used in sqrt-form.
+      ljene(:) = sqrt(ljene(:))
 
       return
     end subroutine
