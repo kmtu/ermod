@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.59])
-#AC_INIT(enerepr, 0.1.%rev%, Matubayasi Laboratory)
-AC_INIT(enerepr, 0.1.221, Matubayasi Laboratory)
+#AC_INIT(enerepr, 0.2.%rev%, Matubayasi Laboratory)
+AC_INIT(enerepr, 0.2.387, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
