@@ -375,7 +375,7 @@ contains
     ! for soln only: need to output flceng
     if(slttype == CAL_SOLN) then
        
-       allocate(flceng_g(maxdst, slvmax, nprocs))
+       allocate(flceng_g(numslv, maxdst, nprocs))
        allocate(flceng_stored_g(maxdst, nprocs))
 
 #ifndef noMPI
@@ -383,8 +383,8 @@ contains
        call mpi_gather(flceng_stored, maxdst, mpi_logical, &
             flceng_stored_g, maxdst, mpi_logical, &
             0, mpi_comm_world, ierror)
-       call mpi_gather(flceng, slvmax * maxdst, mpi_double_precision, &
-            flceng_g, slvmax * maxdst, mpi_double_precision, &
+       call mpi_gather(flceng, numslv * maxdst, mpi_double_precision, &
+            flceng_g, numslv * maxdst, mpi_double_precision, &
             0, mpi_comm_world, ierror)
 #endif
 
@@ -670,6 +670,7 @@ contains
 
     ! solute-solute self energy
     pairep = 0.0
+    ! FIXME TODO: invalidate if NPT condition
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
     if(current_solute_hash == solute_hash) then
        pairep = usreal ! reuse

@@ -38,7 +38,7 @@ ermod_namd_SOURCES = $(ersources)
 ermod_namd_FCFLAGS = -DNAMD $(FFTFLAGS)
 ermod_namd_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS)
 
-ermod_namd-engproc.$(OBJEXT): engproc.f90 param_eng ermod_namd-insertion.$(OBJEXT) ermod_namd-recpcal.$(OBJEXT) ermod_namd-recpcal.$(OBJEXT) ermod_namd-realcal_blk.$(OBJEXT) ermod_namd-utility.$(OBJEXT)
+ermod_namd-engproc.$(OBJEXT): engproc.f90 ermod_namd-insertion.$(OBJEXT) ermod_namd-recpcal.$(OBJEXT) ermod_namd-recpcal.$(OBJEXT) ermod_namd-realcal_blk.$(OBJEXT) ermod_namd-utility.$(OBJEXT)
 ermod_namd-enganal.$(OBJEXT): enganal.f90 ermod_namd-engproc.$(OBJEXT) ermod_namd-setconf.$(OBJEXT)
 ermod_namd-recpcal.$(OBJEXT): recpcal.f90 ermod_namd-spline.$(OBJEXT) ermod_namd-fft_iface.$(OBJEXT)
 ermod_namd-insertion.$(OBJEXT): insertion.f90 ermod_namd-setconf.$(OBJEXT)
