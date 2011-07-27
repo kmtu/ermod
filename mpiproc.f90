@@ -57,14 +57,14 @@ contains
 
   ! helper library for reduce variables
   ! Note: mpi_reduce(mpi_in_place, ...) seems to be allowed only on MPI 2.2+
-  subroutine mympi_reduce_real(data, size, operation, rootrank)
+  subroutine mympi_reduce_real(data, data_size, operation, rootrank)
     implicit none
-    real, intent(inout) :: data(size)
-    integer, intent(in) :: size, operation, rootrank
+    integer, intent(in) :: data_size, operation, rootrank
+    real, intent(inout) :: data(data_size)
     real, allocatable :: buf(:)
     integer :: mpitype
 
-    allocate(buf(size))
+    allocate(buf(data_size))
     select case(kind(data))
     case(4)
        mpitype = mpi_real
@@ -74,7 +74,7 @@ contains
        stop "invalid kind(real) value"
     end select
 
-    call mpi_reduce(data, buf, size, mpitype, operation, rootrank, mpi_comm_world, ierror)
+    call mpi_reduce(data, buf, data_size, mpitype, operation, rootrank, mpi_comm_world, ierror)
     data(:) = buf(:)
     deallocate(buf)
   end subroutine mympi_reduce_real
