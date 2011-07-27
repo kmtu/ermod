@@ -6,8 +6,8 @@ module utility
 contains
   integer(8) function hash(arr, size) 
     implicit none
-    real, intent(in) :: arr(size)
     integer, intent(in) :: size
+    real, intent(in) :: arr(size)
     integer(8) :: ret
     external hash_double, hash_float
     select case(kind(arr))
