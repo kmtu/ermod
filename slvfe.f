@@ -1280,7 +1280,8 @@ c
             valcp=chmpt(pti,prmcnt,1)
             factor=valcp-chmpt(pti,grref,1)
             write(6,661) group,inft,valcp,factor
-            if((pti.eq.0).and.(inft.eq.0)) mshdif(group)=abs(factor)
+            if((pti.eq.0).and.(inft.eq.0) .and.
+     &           (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(factor)
 5196      continue
 5195    continue
 661     format(i4,i7,f17.5,f18.5)
@@ -1362,7 +1363,9 @@ c
           endif
           write(6,671) group,inft,avecp,stdcp,avecp-avcp0
 671       format(i4,i7,f17.5,2f18.5)
-          if((pti.eq.0).and.(inft.eq.0)) mshdif(group)=abs(avecp-avcp0)
+          
+          if((pti.eq.0).and.(inft.eq.0) .and.
+     &         (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(avecp-avcp0)
 9985    continue
 9984    continue
 9983  continue
