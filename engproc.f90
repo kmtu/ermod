@@ -438,7 +438,7 @@ contains
     if(wgtslf == 1) then
        voffset_local = voffset
 #ifndef noMPI
-       call mpi_allreduce(mpi_in_place, voffset, 1,&
+       call mpi_allreduce(voffset_local, voffset, 1,&
             mpi_double_precision, mpi_max, mpi_comm_world, ierror)   ! MPI
        ! scale histograms accoording to the maximum voffset
        select case(slttype)
