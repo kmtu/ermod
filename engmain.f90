@@ -94,7 +94,7 @@
 !   ew1max,ew2max,ew3max : number of reciprocal vectors along one direction
 !   ms1max,ms2max,ms3max : number of meshes in PME along one direction
 !   plmode : parallelization mode for calculation of solute-solvent interaction
-!        2 : each process is assigned a single frame and calculates in parallel
+!        2 : each trajectory snapshot is assigned to each processor and calculated in parallel
 !        default = 2
 !   specatm : specification of the site
 !   sitepos : coordiantes of interaction site
