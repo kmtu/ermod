@@ -64,6 +64,7 @@ contains
     real, allocatable :: buf(:)
     integer :: mpitype
 
+#ifndef noMPI
     allocate(buf(data_size))
     select case(kind(data))
     case(4)
@@ -77,6 +78,7 @@ contains
     call mpi_reduce(data, buf, data_size, mpitype, operation, rootrank, mpi_comm_world, ierror)
     data(:) = buf(:)
     deallocate(buf)
+#endif
   end subroutine mympi_reduce_real
 
   ! Stop calculation with error message

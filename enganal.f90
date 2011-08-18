@@ -25,7 +25,7 @@ end subroutine enganal
 !     
 program trjmain
   use engmain, only: maxcnf, skpcnf, engdiv
-  use OUTname, only: opentrj,closetrj, OUTinitial
+  use OUTname, only: opentrj, closetrj, OUTinitial, initconf, finiconf
   use setconf, only: getconf_parallel
   use vmdfio_interface, only: init_vmdplugins, finish_vmdplugins
   use engproc, only: engclear,engstore, engproc_cleanup
@@ -34,11 +34,14 @@ program trjmain
   integer :: stnum, iproc, iskip, idiv, frames_per_div, nread, iframe
 
   call mpi_setup('init')    ! MPI
+  call initconf()
 
+  if(myrank == 0) then
 #ifdef VMDPLUGINS
-  call init_vmdplugins()
+     call init_vmdplugins()
 #endif
-  call opentrj()
+     call opentrj()
+  end if
 
   ! initialize
   call enganal_init()
@@ -59,11 +62,14 @@ program trjmain
   end do
   call engproc_cleanup
 
-  call closetrj
+  if(myrank == 0) then
+     call closetrj
 #ifdef VMDPLUGINS
-  call finish_vmdplugins()
+     call finish_vmdplugins()
 #endif
+  end if
 
+  call finiconf
   call mpi_setup('stop')    ! MPI
   stop
 end program trjmain

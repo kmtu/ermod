@@ -149,6 +149,7 @@ contains
     return
   end subroutine OUTinitial
 
+
   subroutine opentrj
 #ifdef VMDPLUGINS
     integer :: status
@@ -160,10 +161,7 @@ contains
     integer :: status
     external open_gmtraj
 #endif
-
-    call OUTinitial
     use_mdlib = .false.
-
 #if defined(GROMACS) && defined(MDLIB)
 !     GROMACS + MDLIB
     call open_gmtraj(gmxhandle, 0, status) ! 0 == HISTORY
@@ -185,9 +183,14 @@ contains
             form='unformatted')
     endif
     if(cltrd.eq.'yes') open(unit=cltrj,file=celfile,status='old')
+  end subroutine opentrj
+
+  subroutine initconf
+    call OUTinitial
+
     if(mdird.eq.'yes') open(unit=mdinf,file=inffile,status='old')
     return
-  end subroutine opentrj
+  end subroutine initconf
 
   subroutine closetrj
 #if defined(GROMACS) && defined(MDLIB)
@@ -206,10 +209,13 @@ contains
        close(iotrj)                                 ! trajectory file
     endif
     if(cltrd.eq.'yes') close(cltrj)                ! cell trajectory file
-    if(mdird.eq.'yes') close(mdinf)                ! MD info
     use_mdlib = .false.                            ! Clear for next
     return
   end subroutine closetrj
+
+  subroutine finiconf
+    if(mdird.eq.'yes') close(mdinf)                ! MD info
+  end subroutine finiconf
 !
   ! Initialization 2nd phase - read topologies from mother MD program, or read MDinfo
   subroutine OUTrename
@@ -717,9 +723,10 @@ contains
 !
 ! Utility function to skip trajectories (FIXME: what's the call from insertion?)
   subroutine OUTskip(fileio,ioform,skpmax)
+    use mpiproc, only: myrank
     integer fileio,skpcnt,skpmax
     character*3 ioform
-    if(skpmax.gt.0) then
+    if(skpmax.gt.0 .and. myrank == 0) then
        do skpcnt=1,skpmax
           if(ioform.eq.'yes') read(fileio,*)
           if(ioform.eq.'not') read(fileio)
