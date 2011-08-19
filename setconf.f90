@@ -164,318 +164,289 @@ contains
          ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,&
          block_threshold,&
          force_calculation
-      use OUTname, only: OUTintprm,&                            ! from outside
-           OUTens,OUTbxs,OUTtemp,&                ! from outside
-           OUTelc,OUTlwl,OUTupl,&                 ! from outside
-           OUTcmb,OUTclt,OUTscr,OUTspo,&          ! from outside
-           OUTew1,OUTew2,OUTew3,&                 ! from outside
-           OUTms1,OUTms2,OUTms3                   ! from outside
-      use mpiproc                                                      ! MPI
-      real, parameter :: tiny=1.0e-20
-      real :: real_seed
-      character*3 scrtype
-      call mpi_info                                                    ! MPI
-!
-#ifndef trjctry
-      intprm=0                    ! combined with parent MD program
-#else
-      intprm=1                    ! trajectory reading
-#endif
-      if(intprm.eq.0) then        ! from parent MD setup
-        call OUTintprm
-        estype=OUTens ; boxshp=OUTbxs ; inptemp=OUTtemp
-        elecut=OUTelc ; lwljcut=OUTlwl ; upljcut=OUTupl
-        cmbrule=OUTcmb ; cltype=OUTclt ; screen=OUTscr ; splodr=OUTspo
-        ew1max=OUTew1 ; ew2max=OUTew2 ; ew3max=OUTew3
-        ms1max=OUTms1 ; ms2max=OUTms2 ; ms3max=OUTms3
-      endif
-      if(intprm.eq.1) then        ! default settings for trajectory reading
-        estype=2                                     ! constant pressure
-        boxshp=1                                     ! periodic boundary
-        cltype=2 ; ms1max=64                         ! PME
-        inptemp=300.0e0                              ! Kelvin
-        engdiv=1                                     ! number of divisions
-        screen=0.0e0 ; ewtoler=0.0e0
-#ifdef GROMACS
-        ewtoler=1.0e-5 ; elecut=10.0e0                          ! GROMACS
-        splodr=6 ; scrtype='rel'                                ! GROMACS
-        upljcut=14.0e0 ; lwljcut=upljcut                        ! GROMACS
-#endif
-#ifdef NAMD
-        ewtoler=1.0e-6 ; elecut=12.0e0                          ! NAMD
-        splodr=4 ; scrtype='dis'                                ! NAMD
-        upljcut=elecut ; lwljcut=upljcut-2.0e0                  ! NAMD
-#endif
-      endif
-      block_threshold = 4.0 ! block-wise calculation
-      force_calculation = .false.
-!     only part of constants set here
-      call init_params()
-!
-!  default settings
-#ifndef trjctry
-      if(slttype.eq.1) skpcnf=5
-      if(slttype.ge.2) skpcnf=50
-#else
-      skpcnf=1                    ! no skip for trajectory reading
-#endif
-      if(slttype.eq.1) corrcal=0
-      if(slttype.ge.2) corrcal=1
-      wgtslf=0 ; wgtins=0
-      if((slttype.ge.2).and.(cltype.ne.0)) wgtslf=1  ! Ewald and PME
-      sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1
-      maxins=1000 ; inscnd=0 ; inscfg=0 ; lwreg=0.0e0 ; upreg=5.0e0
-      if(intprm.ne.0) then
-        cmbrule=0
-        ew2max=ew1max ; ew3max=ew1max
-        ms2max=ms1max ; ms3max=ms1max
-      endif
-!  default settings done
-!
-!     read again for non-default constants
-      call init_params()
+    use OUTname, only: OUTintprm,&                            ! from outside
+         OUTens,OUTbxs,OUTtemp,&                ! from outside
+         OUTelc,OUTlwl,OUTupl,&                 ! from outside
+         OUTcmb,OUTclt,OUTscr,OUTspo,&          ! from outside
+         OUTew1,OUTew2,OUTew3,&                 ! from outside
+         OUTms1,OUTms2,OUTms3                   ! from outside
+    use mpiproc                                                      ! MPI
+    real, parameter :: tiny=1.0e-20
+    real :: real_seed
+    character*3 scrtype
+    call mpi_info                                                    ! MPI
 
-      if(iseed == 0) then
-        CALL RANDOM_SEED
-        CALL RANDOM_NUMBER(real_seed)
-        iseed = 100000 + int(899999 * real_seed)
-      endif
+    intprm=1                    ! trajectory reading
+    if(intprm.eq.1) then        ! default settings for trajectory reading
+       estype=2                                     ! constant pressure
+       boxshp=1                                     ! periodic boundary
+       cltype=2 ; ms1max=64                         ! PME
+       inptemp=300.0e0                              ! Kelvin
+       engdiv=1                                     ! number of divisions
+       screen=0.0e0 ; ewtoler=0.0e0
+       ewtoler=1.0e-6 ; elecut=12.0e0
+       splodr=4 ; scrtype='dis'
+       upljcut=elecut ; lwljcut=upljcut-2.0e0
+    endif
+    block_threshold = 4.0 ! block-wise calculation, corresponds to 13 atoms / box
+    force_calculation = .false.
+    ! only part of constants set here
+    call init_params()
 
-      temp=inptemp*8.314510e-3/4.184e0               ! kcal/mol
-      if((screen.le.tiny).and.(cltype.ne.0)) then    ! Ewald and PME
-        if(ewtoler.le.tiny) call set_stop('ewa')
-        screen=getscrn(ewtoler,elecut,scrtype)
-      endif
-      if(cltype.eq.1) then                           ! Ewald
-        if(ew1max*ew2max*ew3max.eq.0) call set_stop('ewa')
-      endif
-      if(cltype.eq.2) then                           ! PME
-        if(ms1max*ms2max*ms3max.eq.0) call set_stop('ewa')
-      endif
-      if((slttype.lt.1).or.(slttype.gt.3)) then      ! check slttype parameter
-        call set_stop('slt')
-      endif
-      if(boxshp.eq.0) then        ! check the consistency in parameters
-        if((estype.eq.2).or.(cltype.ne.0)) call set_stop('prs')
-      endif
-      if(wgtins.eq.1) then        ! check the consistency of insertion scheme
-        if(slttype.ne.3) call set_stop('ins')
-      endif
-      if(slttype.eq.1) inscfg=0   ! inscfg is effective only for insertion
-      if((inscfg.lt.0).or.(inscfg.gt.2)) then        ! check inscfg parameter
-        call set_stop('ins')
-      endif
-      if(inscfg.ne.0) then        ! check the consistency against inscfg
-        if(slttype.eq.1) call set_stop('prs')
-        if(inscnd.eq.3) call set_stop('ins')
-      endif
-      plmode=2                    ! energy calculation parallelization mode
-!
-      return
-      end subroutine
-!
-!
-      real function getscrn(ewtoler,elecut,scrtype)
-      character*3 scrtype
-      real ewtoler,elecut,ewasml,ewalrg,scrfac,factor
-      real, parameter :: error=1.0e-20
-      factor=error+1.0e0 ; ewasml=0.0e0 ; ewalrg=1.0e3
-      do 5511 while(factor.gt.error)
-        scrfac=(ewasml+ewalrg)/2.0e0
-        factor=erfc(scrfac*elecut)
-        if(scrtype.eq.'dis') factor=factor/elecut
-        if(factor.gt.ewtoler) ewasml=scrfac
-        if(factor.le.ewtoler) ewalrg=scrfac
-        factor=abs(factor-ewtoler)
-5511  continue
-      getscrn=scrfac
-      return
-    end function
-!
-!
-    ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
-    subroutine setparam
-      use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
-                         slttype,sltpick,refpick,inscfg,ljformat,&
-                         moltype,numsite,sluvid,refmlid,&
-                         bfcoord,sitemass,charge,ljene,ljlen,&
-                         specatm,sitepos, mol_begin_index, belong_to, mol_charge
-      use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
-                         OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
-                         OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
-      use mpiproc, only: halt_with_error
-      implicit none
-      integer, parameter :: large=1000000
-      ! only integer power is allowed as the initialization expression (7.1.6.1)
-      real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
-      real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
-      real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
-      integer pti,stmax,uvtype,rftype,cmin,cmax,sid,i,ati,m
-      real factor,xst(3)
-      integer, dimension(:), allocatable :: pttype,ptcnt
-      real, dimension(:,:), allocatable :: psite
-      character*8 prmread,atmtype
-      character*7 molfile
-      character(*), parameter :: sltfile='SltInfo'
-      character(*), parameter :: prmfile='MolPrm'
-      character(*), parameter :: numbers='123456789'
-      integer, parameter :: sltio=71                 ! IO for sltfile
-      integer, parameter :: molio=72                 ! IO for molfile
-!
-      call OUTinitial                ! initialization of OUTname module
-      call iniparam                  ! initialization of parameters
-      call OUTrename                 ! matching with outside variables
-      maxcnf=OUTnrun                                     ! from outside
-      if(slttype.eq.1) numtype=OUTntype                  ! from outside
-      if(slttype.ge.2) numtype=OUTntype+1                ! from outside
-!
-      allocate( pttype(numtype),ptcnt(numtype) )
-      do 1101 pti=1,numtype
-        ati=9
-        if((slttype.eq.1).or.(pti.lt.numtype))  ati=0  ! physical particle
-        if((slttype.ge.2).and.(pti.eq.numtype)) ati=1  ! test particle
-        if((ati.ne.0).and.(ati.ne.1)) call set_stop('slt')
-        pttype(pti)=ati
-        if(pti.le.OUTntype) ptcnt(pti)=OUTnmol(pti)      ! from outside
-        if(pti.gt.OUTntype) ptcnt(pti)=1
-1101  continue
-!
-      nummol=0
-      do 1102 pti=1,numtype
-        nummol=nummol+ptcnt(pti)
-1102  continue
-!
-      allocate( moltype(nummol),numsite(nummol) )
-      allocate( sluvid(nummol),refmlid(nummol) )
-!
-      cmin=1
-      cmax=0
-      do 1201 pti=1,numtype
-        cmax=cmax+ptcnt(pti)
-        do 1202 i=cmin,cmax                ! sequential identification
+    ! default settings
+    skpcnf=1                    ! no skip for trajectory reading
+    
+    if(slttype.eq.1) corrcal=0
+    if(slttype.ge.2) corrcal=1
+    wgtslf=0 ; wgtins=0
+    if((slttype.ge.2).and.(cltype.ne.0)) wgtslf=1  ! Ewald and PME
+    sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1
+    maxins=1000 ; inscnd=0 ; inscfg=0 ; lwreg=0.0e0 ; upreg=5.0e0
+    if(intprm.ne.0) then
+       cmbrule=0
+       ew2max=ew1max ; ew3max=ew1max
+       ms2max=ms1max ; ms3max=ms1max
+    endif
+    ! default settings done
+
+    ! read again for non-default constants
+    call init_params()
+
+    ! initialize random seed
+    if(iseed == 0) then
+       CALL RANDOM_SEED
+       CALL RANDOM_NUMBER(real_seed)
+       iseed = 100000 + int(899999 * real_seed)
+    endif
+    
+    temp=inptemp*8.314510e-3/4.184e0               ! kcal/mol
+    if((screen.le.tiny).and.(cltype.ne.0)) then    ! Ewald and PME
+       if(ewtoler.le.tiny) call set_stop('ewa')
+       screen=getscrn(ewtoler,elecut,scrtype)
+    endif
+    if(cltype.eq.1) then                           ! Ewald
+       if(ew1max*ew2max*ew3max.eq.0) call set_stop('ewa')
+    endif
+    if(cltype.eq.2) then                           ! PME
+       if(ms1max*ms2max*ms3max.eq.0) call set_stop('ewa')
+    endif
+    if((slttype.lt.1).or.(slttype.gt.3)) then      ! check slttype parameter
+       call set_stop('slt')
+    endif
+    if(boxshp.eq.0) then        ! check the consistency in parameters
+       if((estype.eq.2).or.(cltype.ne.0)) call set_stop('prs')
+    endif
+    if(wgtins.eq.1) then        ! check the consistency of insertion scheme
+       if(slttype.ne.3) call set_stop('ins')
+    endif
+    if(slttype.eq.1) inscfg=0   ! inscfg is effective only for insertion
+    if((inscfg.lt.0).or.(inscfg.gt.2)) then        ! check inscfg parameter
+       call set_stop('ins')
+    endif
+    if(inscfg.ne.0) then        ! check the consistency against inscfg
+       if(slttype.eq.1) call set_stop('prs')
+       if(inscnd.eq.3) call set_stop('ins')
+    endif
+    plmode=2                    ! energy calculation parallelization mode
+
+    return
+  end subroutine iniparam
+
+  real function getscrn(ewtoler,elecut,scrtype)
+    character*3 scrtype
+    real ewtoler,elecut,ewasml,ewalrg,scrfac,factor
+    real, parameter :: error=1.0e-20
+    factor=error+1.0e0 ; ewasml=0.0e0 ; ewalrg=1.0e3
+    do while(factor.gt.error)
+       scrfac=(ewasml+ewalrg)/2.0e0
+       factor=erfc(scrfac*elecut)
+       if(scrtype.eq.'dis') factor=factor/elecut
+       if(factor.gt.ewtoler) ewasml=scrfac
+       if(factor.le.ewtoler) ewalrg=scrfac
+       factor=abs(factor-ewtoler)
+    end do
+    getscrn=scrfac
+    return
+  end function getscrn
+
+  ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
+  subroutine setparam
+    use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
+         slttype,sltpick,refpick,inscfg,ljformat,&
+         moltype,numsite,sluvid,refmlid,&
+         bfcoord,sitemass,charge,ljene,ljlen,&
+         specatm,sitepos, mol_begin_index, belong_to, mol_charge
+    use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
+         OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
+         OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
+    use mpiproc, only: halt_with_error
+    implicit none
+    integer, parameter :: large=1000000
+    ! only integer power is allowed as the initialization expression (7.1.6.1)
+    real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
+    real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
+    real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
+    integer pti,stmax,uvtype,rftype,cmin,cmax,sid,i,ati,m
+    real factor,xst(3)
+    integer, dimension(:), allocatable :: pttype,ptcnt
+    real, dimension(:,:), allocatable :: psite
+    character*8 prmread,atmtype
+    character*7 molfile
+    character(*), parameter :: sltfile='SltInfo'
+    character(*), parameter :: prmfile='MolPrm'
+    character(*), parameter :: numbers='123456789'
+    integer, parameter :: sltio=71                 ! IO for sltfile
+    integer, parameter :: molio=72                 ! IO for molfile
+
+    call OUTinitial                ! initialization of OUTname module
+    call iniparam                  ! initialization of parameters
+    call OUTrename                 ! matching with outside variables
+    maxcnf=OUTnrun                                     ! from outside
+    if(slttype.eq.1) numtype=OUTntype                  ! from outside
+    if(slttype.ge.2) numtype=OUTntype+1                ! from outside
+
+    allocate( pttype(numtype),ptcnt(numtype) )
+    do pti=1,numtype
+       ati=9
+       if((slttype.eq.1).or.(pti.lt.numtype))  ati=0  ! physical particle
+       if((slttype.ge.2).and.(pti.eq.numtype)) ati=1  ! test particle
+       if((ati.ne.0).and.(ati.ne.1)) call set_stop('slt')
+       pttype(pti)=ati
+       if(pti.le.OUTntype) ptcnt(pti)=OUTnmol(pti)      ! from outside
+       if(pti.gt.OUTntype) ptcnt(pti)=1
+    end do
+
+    nummol=0
+    do pti=1,numtype
+       nummol=nummol+ptcnt(pti)
+    end do
+
+    allocate( moltype(nummol),numsite(nummol) )
+    allocate( sluvid(nummol),refmlid(nummol) )
+
+    cmin=1
+    cmax=0
+    do pti=1,numtype
+       cmax=cmax+ptcnt(pti)
+       do i=cmin,cmax                ! sequential identification
           moltype(i)=pti
-1202    continue
-        cmin=cmax+1
-1201  continue
-      if(cmax.ne.nummol) call set_stop('num')
-!
-      do 1251 i=1,nummol
+       end do
+       cmin=cmax+1
+    end do
+    if(cmax.ne.nummol) call set_stop('num')
+
+    do i=1,nummol
         pti=moltype(i)
         if(pttype(pti).eq.0) stmax=OUTsite(pti)          ! from outside
         if(pttype(pti).eq.1) then                        ! read from file
           open(unit=sltio,file=sltfile,status='old')
           stmax=0
-          do 1211 sid=1,large
-            if(slttype.eq.2) read(sltio,*,END=1219) m,atmtype,&
-                                       (xst(m), m=1,3),(xst(m), m=1,3)
-            if(slttype.eq.3) read(sltio,*,END=1219) m,atmtype,&
-                                                       (xst(m), m=1,3)
-            stmax=stmax+1
-1211      continue
+          do sid=1,large
+             if(slttype.eq.2) read(sltio,*,END=1219) m,atmtype,&
+                  (xst(m), m=1,3),(xst(m), m=1,3)
+             if(slttype.eq.3) read(sltio,*,END=1219) m,atmtype,&
+                  (xst(m), m=1,3)
+             stmax=stmax+1
+          end do
 1219      continue
           close(sltio)
-        endif
-        if(slttype.eq.1) then
+       endif
+       if(slttype.eq.1) then
           m=1                                  ! default
           if((1.le.sltpick).and.(sltpick.le.numtype)) m=sltpick
-        endif
-        if(slttype.ge.2) m=numtype             ! default
-        if((slttype.ge.2).and.(refpick.eq.numtype)) call set_stop('ref')
-        if(pti.ne.m) then                  ! solvent
+       endif
+       if(slttype.ge.2) m=numtype             ! default
+       if((slttype.ge.2).and.(refpick.eq.numtype)) call set_stop('ref')
+       if(pti.ne.m) then                  ! solvent
           uvtype=0
           rftype=0                             ! default
           if(pti.eq.refpick) rftype=1          ! superposition reference
-        endif
-        if(pti.eq.m) then                  ! solute
+       endif
+       if(pti.eq.m) then                  ! solute
           uvtype=slttype
           rftype=2
-        endif
-        numsite(i)=stmax
-        sluvid(i)=uvtype
-        refmlid(i)=rftype
-1251  continue
-      deallocate( pttype,ptcnt )
-!
-      maxsite=0
-      numatm=0
-      do 1281 i=1,nummol
-        stmax=numsite(i)
-        if(stmax.gt.maxsite) maxsite=stmax
-        numatm=numatm+stmax
-1281  continue
-!
-      allocate( bfcoord(3,maxsite),sitemass(numatm) )
-      allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
-      allocate(sitepos(3,numatm))
-      allocate(mol_begin_index(nummol + 1))
-      allocate(mol_charge(nummol))
-      allocate(belong_to(numatm))
+       endif
+       numsite(i)=stmax
+       sluvid(i)=uvtype
+       refmlid(i)=rftype
+    end do
+    deallocate( pttype,ptcnt )
 
-      do 7301 sid=1,maxsite                ! initial setting to zero
-        do 7302 m=1,3
+    maxsite=0
+    numatm=0
+    do i=1,nummol
+       stmax=numsite(i)
+       if(stmax.gt.maxsite) maxsite=stmax
+       numatm=numatm+stmax
+    end do
+
+    allocate( bfcoord(3,maxsite),sitemass(numatm) )
+    allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
+    allocate(sitepos(3,numatm))
+    allocate(mol_begin_index(nummol + 1))
+    allocate(mol_charge(nummol))
+    allocate(belong_to(numatm))
+
+    do sid=1,maxsite                ! initial setting to zero
+       do m=1,3
           bfcoord(m,sid)=0.0e0
-7302    continue
-7301  continue
-      do 7305 ati=1,numatm
+       end do
+    end do
+    do ati=1,numatm
         sitemass(ati)=0.0e0
         charge(ati)=0.0e0
         ljene(ati)=0.0e0
         ljlen(ati)=0.0e0
-7305  continue
+     end do
 
-      ! initialize mol_begin_index
-      ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
-      mol_begin_index(1) = 1
-      do i = 1, nummol
-         mol_begin_index(i + 1) = mol_begin_index(i) + numsite(i)
-      end do
-      if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("bug")
+     ! initialize mol_begin_index
+     ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
+     mol_begin_index(1) = 1
+     do i = 1, nummol
+        mol_begin_index(i + 1) = mol_begin_index(i) + numsite(i)
+     end do
+     if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("bug")
+     
+     ! initialize belong_to
+     do i = 1, nummol
+        belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
+     end do
 
-      ! initialize belong_to
-      do i = 1, nummol
-         belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
-      end do
-
-      ati=0                                ! specifying the site in molecule
-      do 1501 i=1,nummol
+     ati=0                                ! specifying the site in molecule
+     do i=1,nummol
         stmax=numsite(i)
-        do 1512 sid=1,stmax
-          ati=ati+1
-1512    continue
-1501  continue
-      if(ati.ne.numatm) call set_stop('num')
+        do sid=1,stmax
+           ati=ati+1
+        end do
+     end do
+     if(ati.ne.numatm) call set_stop('num')
 !
-      allocate( psite(3,maxsite) )         ! temporary set of coordinates
-      do 5001 i=1,nummol
+     allocate( psite(3,maxsite) )         ! temporary set of coordinates
+     do i=1,nummol
         uvtype=sluvid(i)
-#ifndef trjctry
-        if(uvtype.le.1) prmread='internal'           ! physical particle
-        if(uvtype.ge.2) prmread='external'           ! test particle
-#else
         prmread='external'
-#endif
         stmax=numsite(i)
         if(prmread.eq.'internal') then     ! read through translation module
-          do 5101 sid=1,stmax
+          do sid=1,stmax
             ati=specatm(sid,i)                       ! from outside
             sitemass(ati)=OUTstmass(ati)             ! from outside
             charge(ati)=OUTcharge(ati)               ! from outside
             ljene(ati)=OUTljene(ati)                 ! from outside
             ljlen(ati)=OUTljlen(ati)                 ! from outside
-5101      continue
+         end do
         endif
         if(prmread.eq.'external') then     ! read from file
           if(uvtype.eq.0) then                       ! solvent
             pti=moltype(i)
             m=pti
-            do 5087 sid=1,nummol
+            do sid=1,nummol
               if((sluvid(sid).ge.1).and.(moltype(sid).lt.pti)) m=m-1
-5087        continue
+           end do
             molfile=prmfile//numbers(m:m)
           endif
           if(uvtype.ge.1) molfile=sltfile            ! solute
           open(unit=molio,file=molfile,status='old')
-          do 7111 sid=1,stmax
+          do sid=1,stmax
             if(uvtype.eq.2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
                                           (psite(m,sid), m=1,3)
             if(uvtype.ne.2) read(molio,*) m,atmtype,(xst(m), m=1,3)
@@ -495,36 +466,36 @@ contains
             endif
             ljene(ati)=xst(2)
             ljlen(ati)=xst(3)
-7111      continue
+         end do
           close(molio)
         endif
 !
         if(uvtype.eq.2) then        ! setting the center of mass to zero
-          if(inscfg.ne.2) call molcen(i,psite,xst,'com')
-          do 5251 sid=1,stmax
-            do 5252 m=1,3
-              if(inscfg.ne.2) bfcoord(m,sid)=psite(m,sid)-xst(m)
-              if(inscfg.eq.2) bfcoord(m,sid)=psite(m,sid)
-5252        continue
-5251      continue
+           if(inscfg.ne.2) call molcen(i,psite,xst,'com')
+           do sid=1,stmax
+              do m=1,3
+                 if(inscfg.ne.2) bfcoord(m,sid)=psite(m,sid)-xst(m)
+                 if(inscfg.eq.2) bfcoord(m,sid)=psite(m,sid)
+
+              end do
+           end do
         endif
-5001  continue
-      deallocate( psite )
+     end do
+     deallocate( psite )
+     
+     ! conversion to (kcal/mol angstrom)^(1/2)
+     ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
+     charge(1:numatm)=18.22261721e0 * charge(1:numatm)
+     
+     ! get molecule-wise charges
+     do i = 1, nummol
+        mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
+     end do
 
-      ! conversion to (kcal/mol angstrom)^(1/2)
-      ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
-      charge(1:numatm)=18.22261721e0 * charge(1:numatm)
-      
-      ! get molecule-wise charges
-      do i = 1, nummol
-         mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
-      end do
-
-      ! set L-J epsilon value to be square-rooted, because these values are only used in sqrt-form.
-      ljene(:) = sqrt(ljene(:))
-
-      return
-    end subroutine
+     ! set L-J epsilon value to be square-rooted, because these values are only used in sqrt-form.
+     ljene(:) = sqrt(ljene(:))
+     
+   end subroutine setparam
 
 
 ! Reads up to maxread coordinates serially and distributes frames
