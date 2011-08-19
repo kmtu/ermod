@@ -36,15 +36,18 @@ contains
   ! [status] is non-zero if any error occurs. In such a case, [crd] and [cell] can be an arbitrary value.
   ! [cell] may be an arbitrary value if the trajectory does not contain cell information.
   ! The coordinate is not guaranteed to be within a unit cell.
-  subroutine read_trajectory(htraj, natom, crd, cell, status)
+  subroutine read_trajectory(htraj, natom, is_periodic, crd, cell, status)
     implicit none
     type(handle), intent(in) :: htraj
     integer, intent(in) :: natom
-    real(8), intent(out) :: crd(3,natom)
-    real(8), intent(out) :: cell(3,3)
+    logical, intent(in) :: is_periodic
+    real, intent(out) :: crd(3,natom)
+    real, intent(out) :: cell(3,3)
     integer, intent(out) :: status
     
     external vmdfio_read_traj_step
+
+    if(kind(crd) /= 8) stop "vmdfio: write interfacing wrapper"
 
     call vmdfio_read_traj_step(htraj%vmdhandle, crd, cell, natom, status)
   end subroutine read_trajectory

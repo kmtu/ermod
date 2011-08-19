@@ -16,6 +16,9 @@ contains
     call vmdfio_fini_traj
   end subroutine finish_vmdplugins
 
+
+
+
 end module vmdfio_interface
 
 

@@ -14,7 +14,6 @@ contains
     implicit none
     type(handle), intent(inout) :: htraj
     character(len=*), intent(in) :: fname
-    integer :: dcd_header(21)
 
     ! use form="FORMATTED" for human-redable file format
     open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="UNFORMATTED")
@@ -38,10 +37,11 @@ contains
   ! [status] is non-zero if any error occurs. In such a case, [crd] and [cell] can be an arbitrary value.
   ! [cell] may be an arbitrary value if the trajectory does not contain cell information.
   ! The coordinate is not guaranteed to be within a unit cell.
-  subroutine read_trajectory(htraj, natom, crd, cell, status)
+  subroutine read_trajectory(htraj, natom, is_periodic, crd, cell, status)
     implicit none
     type(handle), intent(in) :: htraj
     integer, intent(in) :: natom
+    logical, intent(in) :: is_periodic
     real(8), intent(out) :: crd(3,natom)
     real(8), intent(out) :: cell(3,3)
     integer, intent(out) :: status

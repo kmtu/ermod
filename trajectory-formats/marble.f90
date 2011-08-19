@@ -1,8 +1,7 @@
-! module for DCD I/O, as an example of fortran I/O module
+! MARBLE trajectory I/O
 module trajectory
   type handle
      integer :: iohandle
-     logical :: have_cell_info
   end type handle
   
 contains
@@ -14,16 +13,10 @@ contains
     implicit none
     type(handle), intent(inout) :: htraj
     character(len=*), intent(in) :: fname
-    integer(4) :: dcd_header(21)
-    integer(4), parameter :: dcd_magic = X'434f5244'
 
-    open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="UNFORMATTED")
-    ! Check dcd magic
-    read(htraj%iohandle) dcd_header(:)
-    if(dcd_header(1) /= dcd_magic) stop "incorrect dcd format (maybe different endian?)"
-    htraj%have_cell_info = (dcd_header(12) == 1)
+    open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="FORMATTED")
     read(htraj%iohandle)
-    read(htraj%iohandle)
+
   end subroutine open_trajectory
 
   ! Close trajectory specified by handle
@@ -46,22 +39,15 @@ contains
     real(8), intent(out) :: crd(3,natom)
     real(8), intent(out) :: cell(3,3)
     integer, intent(out) :: status
-    real(4), allocatable :: buffer(:)
+    integer :: i, j
 
-    cell(:, :) = 0.
-    if(is_periodic) then
-       if(.not. htraj%have_cell_info) stop "Cell info is requested, but does not exist!"
-       read(htraj%iohandle) cell(1,1), cell(1,2), cell(2,2), cell(1,3), cell(2,3), cell(3,3)
-    end if
+    do i = 1, natom
+       read(htraj%iohandle, *) crd(:, i)
+    end do
+    do i = 1, 3
+       read(htraj%iohandle, *) cell(:, i)
+    end do
 
-    allocate(buffer(natom))
-    read(htraj%iohandle) buffer(:)
-    crd(1, :) = buffer(:)
-    read(htraj%iohandle) buffer
-    crd(2, :) = buffer
-    read(htraj%iohandle) buffer
-    crd(3, :) = buffer
-    deallocate(buffer)
   end subroutine read_trajectory
 
 end module trajectory

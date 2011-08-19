@@ -528,13 +528,13 @@ contains
     OUTcell(:, :) = 0.0e0
 
     if(trjID == iotrj) then
-       call read_trajectory(history_trajectory, OUTatm, OUTpos, OUTcell, status)
+       call read_trajectory(history_trajectory, OUTatm, (OUTbox == 1), OUTpos, OUTcell, status)
     else
-       call read_trajectory(solute_trajectory, OUTatm, OUTpos, OUTcell, status)
+       call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)
        if(status /= 0) then
           call close_trajectory(solute_trajectory)
           call open_trajectory(solute_trajectory, "SltConf")
-          call read_trajectory(solute_trajectory, OUTatm, OUTpos, OUTcell, status)
+          call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)
           if(status /= 0) then
              stop "Failed to wrap around solute trajectory"
           endif
