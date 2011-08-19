@@ -377,7 +377,6 @@ contains
     call mpi_bcast(psite, 3 * stmax, mpi_double_precision, &
          0, mpi_comm_activeprocs, ierror)
 #endif
-    print *, "Node", myrank, psite
     goto 3195
     !
     if(toptp.eq.'int') then
