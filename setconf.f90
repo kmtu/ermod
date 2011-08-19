@@ -126,11 +126,9 @@ contains
     character*8 dumchr
     integer :: status
 !
-    if(OUTtrj.eq.0) trjID=iotrj
-    if(OUTtrj.ne.0) trjID=OUTtrj
+    
     OUTcell(:, :) = 0.0e0
-
-    if(trjID == iotrj) then
+    if(OUTtrj == 0) then
        call read_trajectory(history_trajectory, OUTatm, (OUTbox == 1), OUTpos, OUTcell, status)
     else
        call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)
