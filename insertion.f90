@@ -337,7 +337,7 @@ contains
     use trajectory, only: open_trajectory, close_trajectory, read_trajectory
     use engmain, only: nummol,maxsite,inscfg,numsite,bfcoord
     use setconf, only: molcen
-    use OUTname, only: iofmt,bxiso,toptp,skpio,OUTconfig,OUTskip, solute_trajectory
+    use OUTname, only: iofmt,bxiso,toptp, OUTconfig, solute_trajectory
     use mpiproc
     character*4 caltype
     integer i,sid,stmax,m
@@ -365,35 +365,11 @@ contains
        call OUTconfig(psite,dumcl,stmax,sid,slcnf,'trj')
     endif
 #ifndef noMPI
+    ! distribute to non rank-0 nodes
     call mpi_bcast(psite, 3 * stmax, mpi_double_precision, &
          0, mpi_comm_activeprocs, ierror)
 #endif
-    goto 3195
-    !
-    if(toptp.eq.'int') then
-       if(iofmt.eq.'yes') read(slcnf,*,END=3199) m
-       if(iofmt.eq.'not') read(slcnf,END=3199) m
-    endif
-    if(toptp.eq.'rlv') then
-       if(iofmt.eq.'yes') read(slcnf,*,END=3199) factor
-       if(iofmt.eq.'not') read(slcnf,END=3199) factor
-    endif
-    if(toptp.eq.'rsg') then
-       if(iofmt.eq.'yes') read(slcnf,*,END=3199) sglfct
-       if(iofmt.eq.'not') read(slcnf,END=3199) sglfct
-    endif
-    if(toptp.eq.'chr') then
-       if(iofmt.eq.'yes') read(slcnf,*,END=3199) rddum
-       if(iofmt.eq.'not') read(slcnf,END=3199) rddum
-    endif
-    !
-    backspace(slcnf)
 
-    goto 3195
-3199 rewind(slcnf)
-    call OUTskip(slcnf,iofmt,skpio)
-3195 continue
-!
     if(inscfg.ne.2) call molcen(i,psite,xst,'com')
     do sid=1,stmax
        do m=1,3

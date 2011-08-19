@@ -118,7 +118,7 @@ contains
     use trajectory, only: read_trajectory, open_trajectory, close_trajectory
     implicit none
     integer, intent(in) :: OUTatm, OUTbox, OUTtrj
-    real, intent(out) :: OUTpos(3,OUTatm),OUTcell(3,3)
+    real, intent(out) :: OUTpos(3, OUTatm), OUTcell(3, 3)
     character(len=3), intent(in) :: rdconf
     integer :: status
 !
