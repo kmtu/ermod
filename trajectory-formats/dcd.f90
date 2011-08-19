@@ -1,8 +1,8 @@
-! module that governs trajectory I/O
-
+! module for DCD I/O, as an example of fortran I/O module
 module trajectory
   type handle
-     integer(8) :: vmdhandle
+     integer :: iohandle
+     logical :: have_cell_info
   end type handle
   
 contains
@@ -10,17 +10,20 @@ contains
   ! Open trajectory and returns handle as htraj. 
   ! Should open fails, the program abends.
   subroutine open_trajectory(htraj, fname)
+    use utility, only: newunit
     implicit none
     type(handle), intent(inout) :: htraj
     character(len=*), intent(in) :: fname
+    integer(4) :: dcd_header(21)
+    integer(4), parameter :: dcd_magic = X'434f5244'
 
-    integer :: status
-    external vmdfio_open_traj
-
-    call vmdfio_open_traj(htraj%vmdhandle, fname, len_trim(fname), status)
-    if(status /= 0) then
-       stop "vmdfio_open_traj: unable to open trajectory. HISTORY must be a symlink"
-    endif
+    open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="UNFORMATTED")
+    ! Check dcd magic
+    read(htraj%iohandle) dcd_header(:)
+    if(dcd_header(1) /= dcd_magic) stop "incorrect dcd format (maybe different endian?)"
+    htraj%have_cell_info = (dcd_header(12) == 1)
+    read(htraj%iohandle)
+    read(htraj%iohandle)
   end subroutine open_trajectory
 
   ! Close trajectory specified by handle
@@ -28,8 +31,7 @@ contains
     implicit none
     type(handle), intent(inout) :: htraj
 
-    external vmdfio_close_traj
-    call vmdfio_close_traj(htraj%vmdhandle)
+    close(htraj%iohandle)
   end subroutine close_trajectory
 
   ! Read trajectory and returns [crd] as a coordinates, and [cell] as a periodic cell, represented in Angstrom.
@@ -43,10 +45,21 @@ contains
     real(8), intent(out) :: crd(3,natom)
     real(8), intent(out) :: cell(3,3)
     integer, intent(out) :: status
-    
-    external vmdfio_read_traj_step
+    real(4), allocatable :: buffer(:)
 
-    call vmdfio_read_traj_step(htraj%vmdhandle, crd, cell, natom, status)
+    cell(:, :) = 0.
+    if(htraj%have_cell_info) then
+       read(htraj%iohandle) cell(1,1), cell(1,2), cell(2,2), cell(1,3), cell(2,3), cell(3,3)
+    end if
+
+    allocate(buffer(natom))
+    read(htraj%iohandle) buffer(:)
+    crd(1, :) = buffer(:)
+    read(htraj%iohandle) buffer
+    crd(2, :) = buffer
+    read(htraj%iohandle) buffer
+    crd(3, :) = buffer
+    deallocate(buffer)
   end subroutine read_trajectory
 
 end module trajectory

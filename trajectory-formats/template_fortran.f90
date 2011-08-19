@@ -1,8 +1,8 @@
-! module that governs trajectory I/O
-
+! Trajectory module template file
+! If you would like to make custom trajectory I/O module, use this file as a template.
 module trajectory
   type handle
-     integer(8) :: vmdhandle
+     integer :: iohandle
   end type handle
   
 contains
@@ -10,17 +10,17 @@ contains
   ! Open trajectory and returns handle as htraj. 
   ! Should open fails, the program abends.
   subroutine open_trajectory(htraj, fname)
+    use utility, only: newunit
     implicit none
     type(handle), intent(inout) :: htraj
     character(len=*), intent(in) :: fname
+    integer :: dcd_header(21)
 
-    integer :: status
-    external vmdfio_open_traj
+    ! use form="FORMATTED" for human-redable file format
+    open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="UNFORMATTED")
 
-    call vmdfio_open_traj(htraj%vmdhandle, fname, len_trim(fname), status)
-    if(status /= 0) then
-       stop "vmdfio_open_traj: unable to open trajectory. HISTORY must be a symlink"
-    endif
+    ! Read header info, skip header, etc.
+
   end subroutine open_trajectory
 
   ! Close trajectory specified by handle
@@ -28,8 +28,10 @@ contains
     implicit none
     type(handle), intent(inout) :: htraj
 
-    external vmdfio_close_traj
-    call vmdfio_close_traj(htraj%vmdhandle)
+    close(htraj%iohandle)
+
+    ! release extra resources if necessary
+
   end subroutine close_trajectory
 
   ! Read trajectory and returns [crd] as a coordinates, and [cell] as a periodic cell, represented in Angstrom.
@@ -43,10 +45,10 @@ contains
     real(8), intent(out) :: crd(3,natom)
     real(8), intent(out) :: cell(3,3)
     integer, intent(out) :: status
-    
-    external vmdfio_read_traj_step
 
-    call vmdfio_read_traj_step(htraj%vmdhandle, crd, cell, natom, status)
+    read(htraj%iohandle) ! read cells, coodinates, etc.
+    ! if necessary, angles_to_cell_vector() in module utility will help
+
   end subroutine read_trajectory
 
 end module trajectory
