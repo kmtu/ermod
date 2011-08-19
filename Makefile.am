@@ -1,10 +1,11 @@
 ACLOCAL_AMFLAGS = -I m4
 
-bin_PROGRAMS = ermod_gromacs slvfe
+bin_PROGRAMS = ermod slvfe
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
 ersources = enganal.f90 engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 mpiproc.f90 engproc.f90 recpcal.f90 insertion.f90 setconf.f90 trajectory.f90 utility.f90 hash_real.c
+
 EXTRA_DIST = parameters_er.example 
 EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
@@ -20,32 +21,19 @@ if USE_MKL
 FFTFLAGS = -DMKL
 endif
 
-ermod_gromacs_SOURCES = $(ersources) vmdfio_if.f90 vmdfio.c
-ermod_gromacs_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
-ermod_gromacs_FCFLAGS = -DGROMACS -DVMDPLUGINS $(FFTFLAGS)
-ermod_gromacs_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
+ermod_SOURCES = $(ersources) vmdfio_if.f90 vmdfio.c
+ermod_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
+ermod_FCFLAGS = -DGROMACS -DVMDPLUGINS $(FFTFLAGS)
+ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
 
 extra_flags = 
 
-# extra dependencies added
-ermod_gromacs-engproc.$(OBJEXT): engproc.f90 ermod_gromacs-insertion.$(OBJEXT) ermod_gromacs-recpcal.$(OBJEXT) ermod_gromacs-recpcal.$(OBJEXT) ermod_gromacs-realcal_blk.$(OBJEXT) ermod_gromacs-utility.$(OBJEXT)
-ermod_gromacs-enganal.$(OBJEXT): enganal.f90 ermod_gromacs-engproc.$(OBJEXT) ermod_gromacs-setconf.$(OBJEXT) ermod_gromacs-vmdfio_if.$(OBJEXT)
-ermod_gromacs-recpcal.$(OBJEXT): recpcal.f90 ermod_gromacs-spline.$(OBJEXT) ermod_gromacs-fft_iface.$(OBJEXT)
-ermod_gromacs-insertion.$(OBJEXT): insertion.f90 ermod_gromacs-setconf.$(OBJEXT)
-ermod_gromacs-setconf.$(OBJEXT): setconf.f90 ermod_gromacs-engmain.$(OBJEXT) ermod_gromacs-mpiproc.$(OBJEXT) ermod_gromacs-trajectory.$(OBJEXT)
-
-ermod_namd_SOURCES = $(ersources)
-ermod_namd_FCFLAGS = -DNAMD $(FFTFLAGS)
-ermod_namd_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS)
-
-ermod_namd-engproc.$(OBJEXT): engproc.f90 ermod_namd-insertion.$(OBJEXT) ermod_namd-recpcal.$(OBJEXT) ermod_namd-recpcal.$(OBJEXT) ermod_namd-realcal_blk.$(OBJEXT) ermod_namd-utility.$(OBJEXT)
-ermod_namd-enganal.$(OBJEXT): enganal.f90 ermod_namd-engproc.$(OBJEXT) ermod_namd-setconf.$(OBJEXT)
-ermod_namd-recpcal.$(OBJEXT): recpcal.f90 ermod_namd-spline.$(OBJEXT) ermod_namd-fft_iface.$(OBJEXT)
-ermod_namd-insertion.$(OBJEXT): insertion.f90 ermod_namd-setconf.$(OBJEXT)
-ermod_namd-setconf.$(OBJEXT): setconf.f90 ermod_namd-engmain.$(OBJEXT) ermod_namd-mpiproc.$(OBJEXT) ermod_namd-trajectory.$(OBJEXT)
-
-
-
+# module dependencies
+ermod-engproc.$(OBJEXT): engproc.f90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal_blk.$(OBJEXT) ermod-utility.$(OBJEXT)
+ermod-enganal.$(OBJEXT): enganal.f90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-vmdfio_if.$(OBJEXT)
+ermod-recpcal.$(OBJEXT): recpcal.f90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT)
+ermod-insertion.$(OBJEXT): insertion.f90 ermod-setconf.$(OBJEXT)
+ermod-setconf.$(OBJEXT): setconf.f90 ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-trajectory.$(OBJEXT)
 
 slvfe_SOURCES = slvfe.f
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)
