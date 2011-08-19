@@ -334,9 +334,11 @@ contains
 !
 !
   subroutine getsolute(i,caltype)
+    use trajectory, only: open_trajectory, close_trajectory, read_trajectory
     use engmain, only: nummol,maxsite,inscfg,numsite,bfcoord
     use setconf, only: molcen
-    use OUTname, only: iofmt,bxiso,toptp,skpio,OUTconfig,OUTskip
+    use OUTname, only: iofmt,bxiso,toptp,skpio,OUTconfig,OUTskip, solute_trajectory
+    use mpiproc
     character*4 caltype
     integer i,sid,stmax,m
     real xst(3),dumcl(3,3),factor
@@ -345,6 +347,10 @@ contains
     real, dimension(:,:), allocatable :: psite
 !
     if(caltype.eq.'init') then
+       if(myrank /= 0) return
+       call open_trajectory(solute_trajectory, slttrj)
+       return
+
 ! FIXME: move this entire section into setconf.f
        if(iofmt.eq.'yes') open(unit=slcnf,file=slttrj,status='old')
        if(iofmt.eq.'not') open(unit=slcnf,file=slttrj,status='old',&
@@ -353,6 +359,9 @@ contains
        return
     endif
     if(caltype.eq.'last') then
+       if(myrank /= 0) return
+       call close_trajectory(solute_trajectory)
+       return
        close(slcnf)
        return
     endif
@@ -361,7 +370,15 @@ contains
     allocate( psite(3,stmax) )
     if(bxiso.eq.'not') sid=0
     if(bxiso.eq.'yes') sid=1
-    call OUTconfig(psite,dumcl,stmax,sid,slcnf,'trj')
+    if(myrank == 0) then
+       call OUTconfig(psite,dumcl,stmax,sid,slcnf,'trj')
+    endif
+#ifndef noMPI
+    call mpi_bcast(psite, 3 * stmax, mpi_double_precision, &
+         0, mpi_comm_activeprocs, ierror)
+#endif
+    print *, "Node", myrank, psite
+    goto 3195
     !
     if(toptp.eq.'int') then
        if(iofmt.eq.'yes') read(slcnf,*,END=3199) m

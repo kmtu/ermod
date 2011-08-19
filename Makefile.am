@@ -1,6 +1,6 @@
 ACLOCAL_AMFLAGS = -I m4
 
-bin_PROGRAMS = ermod_gromacs ermod_namd slvfe
+bin_PROGRAMS = ermod_gromacs slvfe
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
@@ -32,7 +32,7 @@ ermod_gromacs-engproc.$(OBJEXT): engproc.f90 ermod_gromacs-insertion.$(OBJEXT) e
 ermod_gromacs-enganal.$(OBJEXT): enganal.f90 ermod_gromacs-engproc.$(OBJEXT) ermod_gromacs-setconf.$(OBJEXT) ermod_gromacs-vmdfio_if.$(OBJEXT)
 ermod_gromacs-recpcal.$(OBJEXT): recpcal.f90 ermod_gromacs-spline.$(OBJEXT) ermod_gromacs-fft_iface.$(OBJEXT)
 ermod_gromacs-insertion.$(OBJEXT): insertion.f90 ermod_gromacs-setconf.$(OBJEXT)
-ermod_gromacs-setconf.$(OBJEXT): setconf.f90 ermod_gromacs-engmain.$(OBJEXT) ermod_gromacs-mpiproc.$(OBJEXT)
+ermod_gromacs-setconf.$(OBJEXT): setconf.f90 ermod_gromacs-engmain.$(OBJEXT) ermod_gromacs-mpiproc.$(OBJEXT) ermod_gromacs-trajectory.$(OBJEXT)
 
 ermod_namd_SOURCES = $(ersources)
 ermod_namd_FCFLAGS = -DNAMD $(FFTFLAGS)
@@ -42,7 +42,7 @@ ermod_namd-engproc.$(OBJEXT): engproc.f90 ermod_namd-insertion.$(OBJEXT) ermod_n
 ermod_namd-enganal.$(OBJEXT): enganal.f90 ermod_namd-engproc.$(OBJEXT) ermod_namd-setconf.$(OBJEXT)
 ermod_namd-recpcal.$(OBJEXT): recpcal.f90 ermod_namd-spline.$(OBJEXT) ermod_namd-fft_iface.$(OBJEXT)
 ermod_namd-insertion.$(OBJEXT): insertion.f90 ermod_namd-setconf.$(OBJEXT)
-ermod_namd-setconf.$(OBJEXT): setconf.f90 ermod_namd-engmain.$(OBJEXT) ermod_namd-mpiproc.$(OBJEXT)
+ermod_namd-setconf.$(OBJEXT): setconf.f90 ermod_namd-engmain.$(OBJEXT) ermod_namd-mpiproc.$(OBJEXT) ermod_namd-trajectory.$(OBJEXT)
 
 
 

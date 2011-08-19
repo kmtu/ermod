@@ -26,6 +26,7 @@ end module OUTglobal
 module OUTname
 !  renaming outside parameters and parameters to avoid conflict
   use OUTglobal
+  use trajectory, only: handle
 !
 #ifndef trjctry
 #ifdef MPDyn
@@ -104,6 +105,9 @@ module OUTname
   integer TotAtm
   logical :: use_mdlib
 
+  type(handle) :: history_trajectory
+  type(handle) :: solute_trajectory
+
 #ifdef GROMACS
   character(len=80) :: buffer
 #ifdef MDLIB
@@ -151,6 +155,7 @@ contains
 
 
   subroutine opentrj
+    use trajectory, only: open_trajectory
 #ifdef VMDPLUGINS
     integer :: status
     external vmdfio_open_traj
@@ -161,6 +166,13 @@ contains
     integer :: status
     external open_gmtraj
 #endif
+
+
+    
+    call open_trajectory(history_trajectory, trjfile)
+    return
+
+
     use_mdlib = .false.
 #if defined(GROMACS) && defined(MDLIB)
 !     GROMACS + MDLIB
@@ -193,6 +205,12 @@ contains
   end subroutine initconf
 
   subroutine closetrj
+    use trajectory, only: close_trajectory
+
+    call close_trajectory(history_trajectory)
+    return
+
+#if 0
 #if defined(GROMACS) && defined(MDLIB)
 !     GROMACS + MDLIB
     external close_gmtraj
@@ -204,6 +222,7 @@ contains
     external vmdfio_close_traj
     call vmdfio_close_traj(vmdhisthandle)
     use_mdlib = .true.
+#endif
 #endif
     if(.not.use_mdlib) then
        close(iotrj)                                 ! trajectory file
@@ -488,11 +507,13 @@ contains
 
   ! Get molecular configuration
   subroutine OUTconfig(OUTpos,OUTcell,OUTatm,OUTbox,OUTtrj,rdconf)
+    use trajectory, only: read_trajectory, open_trajectory, close_trajectory
     implicit none
     integer OUTatm,OUTbox,OUTtrj,trjID,i,m,k
     real OUTpos(3,OUTatm),OUTcell(3,3),xst(9),factor
     character*3 rdconf
     character*8 dumchr
+    integer :: status
 #ifdef NAMD
     real*4, dimension(:), allocatable :: snglcrd   ! used to read DCD file
 #endif
@@ -505,6 +526,21 @@ contains
     if(OUTtrj.eq.0) trjID=iotrj
     if(OUTtrj.ne.0) trjID=OUTtrj
     OUTcell(:, :) = 0.0e0
+
+    if(trjID == iotrj) then
+       call read_trajectory(history_trajectory, OUTatm, OUTpos, OUTcell, status)
+    else
+       call read_trajectory(solute_trajectory, OUTatm, OUTpos, OUTcell, status)
+       if(status /= 0) then
+          call close_trajectory(solute_trajectory)
+          call open_trajectory(solute_trajectory, "SltConf")
+          call read_trajectory(solute_trajectory, OUTatm, OUTpos, OUTcell, status)
+          if(status /= 0) then
+             stop "Failed to wrap around solute trajectory"
+          endif
+       endif
+    end if
+    return
 
 #ifndef trjctry
     if(rdconf.eq.'fly') then

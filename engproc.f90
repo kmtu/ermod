@@ -306,6 +306,7 @@ contains
     logical, save :: voffset_initialized = .false.
     logical, save :: pme_initialized = .false.
     call mpi_info                                                    ! MPI
+    call mpi_init_active_group(nactiveproc)
     !
     !
     call sanity_check_sluvid()
@@ -370,45 +371,46 @@ contains
           
           call update_histogram(stnum, wgtslcf, uvengy(0:slvmax))
        end do
-    endif
 
-    ! for soln only: need to output flceng
-    if(slttype == CAL_SOLN) then
-       
-       allocate(flceng_g(numslv, maxdst, nprocs))
-       allocate(flceng_stored_g(maxdst, nprocs))
-
+       ! for soln only: need to output flceng
+       if(slttype == CAL_SOLN) then
+          
+          allocate(flceng_g(numslv, maxdst, nactiveproc))
+          allocate(flceng_stored_g(maxdst, nactiveproc))
+          
 #ifndef noMPI
-       ! gather flceng values to rank 0
-       call mpi_gather(flceng_stored, maxdst, mpi_logical, &
-            flceng_stored_g, maxdst, mpi_logical, &
-            0, mpi_comm_world, ierror)
-       call mpi_gather(flceng, numslv * maxdst, mpi_double_precision, &
-            flceng_g, numslv * maxdst, mpi_double_precision, &
-            0, mpi_comm_world, ierror)
+          ! gather flceng values to rank 0
+          call mpi_gather(flceng_stored, maxdst, mpi_logical, &
+               flceng_stored_g, maxdst, mpi_logical, &
+               0, mpi_comm_activeprocs, ierror)
+          call mpi_gather(flceng, numslv * maxdst, mpi_double_precision, &
+               flceng_g, numslv * maxdst, mpi_double_precision, &
+               0, mpi_comm_activeprocs, ierror)
 #endif
-
-       if(myrank == 0) then
-          do irank = 1, nactiveproc
-             do i = 1, maxdst
-                if(flceng_stored_g(maxdst, irank)) then
-                   if(maxdst.eq.1) then
-                      write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
-                   else
-                      write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+          
+          if(myrank == 0) then
+             do irank = 1, nactiveproc
+                do i = 1, maxdst
+                   if(flceng_stored_g(maxdst, irank)) then
+                      if(maxdst.eq.1) then
+                         write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+                      else
+                         write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+                      endif
+911                   format(i9,999f15.5)
+912                   format(2i9,999f15.5)
                    endif
-911                format(i9,999f15.5)
-912                format(2i9,999f15.5)
-                endif
+                enddo
              enddo
-          enddo
+          endif
+          deallocate(flceng_g, flceng_stored_g)
        endif
-       deallocate(flceng_g, flceng_stored_g)
     endif
 
     deallocate( tagpt,uvengy )
     deallocate(flceng, flceng_stored)
 
+    call mpi_finish_active_group()
     return
   end subroutine engconst
   !

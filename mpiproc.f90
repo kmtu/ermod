@@ -11,6 +11,7 @@ module mpiproc                                                   ! MPI
   ! mpi common variables
   integer ierror, mpistatus(mpi_status_size), myrank, nprocs         ! MPI
   integer, parameter :: tag_cell = 11, tag_coord = 12
+  integer :: mpi_comm_activeprocs
 
 contains
   subroutine mpi_setup(type)                                       ! MPI
@@ -55,6 +56,41 @@ contains
 #endif
   end subroutine mpi_abend
 
+  subroutine mpi_init_active_group(nproc)
+    implicit none
+    integer, intent(in) :: nproc
+    integer, allocatable :: grpprocs(:)
+    integer :: i
+    integer :: allgrp, activegrp
+
+    allocate(grpprocs(nproc))
+    do i = 1, nproc
+       grpprocs(i) = i - 1
+    end do
+#ifndef noMPI
+    call mpi_comm_group(mpi_comm_world, allgrp, ierror)
+    call mpi_group_incl(allgrp, nproc, grpprocs, activegrp, ierror)
+    call mpi_comm_create(mpi_comm_world, activegrp, mpi_comm_activeprocs, ierror)
+    call mpi_group_free(activegrp, ierror)
+    call mpi_group_free(allgrp, ierror)
+
+    if(myrank >= nproc .and. mpi_comm_activeprocs /= mpi_comm_null) then
+       stop "failed @ mpi_init_active_group"
+    endif
+#endif
+    
+    deallocate(grpprocs)
+  end subroutine mpi_init_active_group
+
+  subroutine mpi_finish_active_group()
+    implicit none
+#ifndef noMPI
+    if(mpi_comm_activeprocs /= mpi_comm_null) then
+       call mpi_comm_free(mpi_comm_activeprocs, ierror)
+    end if
+#endif
+  end subroutine mpi_finish_active_group
+
   ! helper library for reduce variables
   ! Note: mpi_reduce(mpi_in_place, ...) seems to be allowed only on MPI 2.2+
   subroutine mympi_reduce_real(data, data_size, operation, rootrank)
@@ -80,6 +116,8 @@ contains
     deallocate(buf)
 #endif
   end subroutine mympi_reduce_real
+
+
 
   ! Stop calculation with error message
   subroutine halt_with_error(type)
