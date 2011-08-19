@@ -288,6 +288,7 @@ contains
     real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
     real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
     integer pti,stmax,uvtype,rftype,cmin,cmax,sid,i,ati,m
+    integer :: solute_index
     real factor,xst(3)
     integer, dimension(:), allocatable :: pttype,ptcnt
     real, dimension(:,:), allocatable :: psite
@@ -298,28 +299,34 @@ contains
     character(*), parameter :: numbers='123456789'
     integer, parameter :: sltio=71                 ! IO for sltfile
     integer, parameter :: molio=72                 ! IO for molfile
+    integer, parameter :: PT_PHYSICAL = 0, PT_TEST = 1
 
     call OUTinitial                ! initialization of OUTname module
     call iniparam                  ! initialization of parameters
     call OUTrename                 ! matching with outside variables
+
     maxcnf=OUTnrun                                     ! from outside
-    if(slttype.eq.1) numtype=OUTntype                  ! from outside
-    if(slttype.ge.2) numtype=OUTntype+1                ! from outside
+    if(slttype == CAL_SOLN) then
+       numtype=OUTntype                  ! from outside
+    else
+       numtype=OUTntype+1                ! from outside
+    end if
 
     ! pttype is particle type for each molecule group
     allocate( pttype(numtype),ptcnt(numtype) )
-    pttype(:) = 0                            ! Default is physical particle, i.e. coordinate exists in (HISTORY) trajectory
+    pttype(:) = PT_PHYSICAL                  ! Default is physical particle, i.e. coordinate exists in (HISTORY) trajectory
     ptcnt(1:OUTntype) = OUTnmol(1:OUTntype)  ! Default: same as written in MDinfo
     if(slttype /= CAL_SOLN) then
-       pttype(numtype) = 1 ! Last particle is test particle (for insertion)
-       ptcnt(numtype) = 1 ! Test particle can only be one molecule
+       pttype(numtype) = PT_TEST             ! Last particle is test particle (for insertion)
+       ptcnt(numtype) = 1                    ! Test particle can only be one molecule
     endif
 
-    nummol=sum(ptcnt(1:numtype))
+    nummol = sum(ptcnt(1:numtype))
 
     allocate( moltype(nummol),numsite(nummol) )
     allocate( sluvid(nummol),refmlid(nummol) )
 
+    ! make mapping from molecule no. [1..nummol] to particle type [1..numtype]
     cmin=1
     cmax=0
     do pti = 1, numtype
@@ -329,34 +336,38 @@ contains
     end do
     if(cmax.ne.nummol) call set_stop('num')
 
+    ! Determine which molecule is solute?
+    if(slttype == CAL_SOLN) then
+       solute_index = 1                   ! default
+       if((1.le.sltpick).and.(sltpick.le.numtype)) solute_index = sltpick
+    else
+       solute_index = numtype             ! default
+    endif
+    if((slttype /= CAL_SOLN).and.(refpick == numtype)) call set_stop('ref')
+
     do i = 1, nummol
        pti = moltype(i)
-       if(pttype(pti).eq.0) stmax=OUTsite(pti)          ! from outside
-       if(pttype(pti).eq.1) then                        ! read from file
+       if(pttype(pti) == PT_PHYSICAL) stmax=OUTsite(pti)      ! from outside
+       if(pttype(pti) == PT_TEST) then                        ! read from file
           open(unit=sltio,file=sltfile,status='old')
           stmax=0
           do sid=1,large
-             if(slttype.eq.2) read(sltio,*,END=1219) m,atmtype,&
+             if(slttype == CAL_REFS_RIGID) read(sltio,*,END=1219) m,atmtype,&
                   (xst(m), m=1,3),(xst(m), m=1,3)
-             if(slttype.eq.3) read(sltio,*,END=1219) m,atmtype,&
+             if(slttype == CAL_REFS_FLEX)  read(sltio,*,END=1219) m,atmtype,&
                   (xst(m), m=1,3)
              stmax=stmax+1
           end do
 1219      continue
           close(sltio)
        endif
-       if(slttype.eq.1) then
-          m=1                                  ! default
-          if((1.le.sltpick).and.(sltpick.le.numtype)) m=sltpick
-       endif
-       if(slttype.ge.2) m=numtype             ! default
-       if((slttype.ge.2).and.(refpick.eq.numtype)) call set_stop('ref')
-       if(pti.ne.m) then                  ! solvent
+
+       if(pti.ne.solute_index) then                  ! solvent
           uvtype=0
           rftype=0                             ! default
           if(pti.eq.refpick) rftype=1          ! superposition reference
        endif
-       if(pti.eq.m) then                  ! solute
+       if(pti.eq.solute_index) then                  ! solute
           uvtype=slttype
           rftype=2
        endif
@@ -366,13 +377,9 @@ contains
     end do
     deallocate( pttype,ptcnt )
 
-    maxsite=0
-    numatm=0
-    do i=1,nummol
-       stmax=numsite(i)
-       if(stmax.gt.maxsite) maxsite=stmax
-       numatm=numatm+stmax
-    end do
+    ! set max and total no. of atoms 
+    maxsite = maxval(numsite(1:nummol))
+    numatm = sum(numsite(1:nummol))
 
     allocate( bfcoord(3,maxsite),sitemass(numatm) )
     allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
@@ -396,14 +403,10 @@ contains
     end do
     if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("bug")
 
-    ! initialize belong_to
+    ! initialize belong_to(map from atom number to molecule no)
     do i = 1, nummol
        belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
     end do
-
-    ati=0                                ! specifying the site in molecule
-    ati = sum(numsite(1:nummol))
-    if(ati.ne.numatm) call set_stop('num')
 
     allocate( psite(3,maxsite) )         ! temporary set of coordinates
     do i=1,nummol
