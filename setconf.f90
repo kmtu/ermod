@@ -39,7 +39,6 @@ module OUTname
   character*3, save :: mdird      ! seperate file for MD info
   character*3, save :: bxiso      ! PBC adopted for single-molecule MD
   character*3, save :: toptp      ! type of first variable in each line
-  integer, save :: skpio          ! number of first skipped lines
   real, save :: sgmcnv,chgcnv,engcnv,lencnv      ! unit conversion factor
 
   integer OUTens,OUTbxs,OUTcmb,OUTclt,OUTspo
@@ -60,7 +59,7 @@ contains
 
   subroutine OUTinitial
     iofmt='yes' ; cltrd='not' ; mdird='yes'      ! default
-    bxiso='not' ; toptp='int' ; skpio=0          ! default
+    bxiso='not' ; toptp='int'                    ! default
     sgmcnv=2.0e0**(5.0e0/6.0e0)                  ! from Rmin/2 to sigma
     chgcnv=1.0e0/1.60217653e-19                  ! from C to elementary
     engcnv=6.0221415e23/4.184e3                  ! from J to kcal/mol
@@ -141,19 +140,6 @@ contains
     return
   end subroutine
 !
-! Utility function to skip trajectories (FIXME: what's the call from insertion?)
-  subroutine OUTskip(fileio,ioform,skpmax)
-    use mpiproc, only: myrank
-    integer fileio,skpcnt,skpmax
-    character*3 ioform
-    if(skpmax.gt.0 .and. myrank == 0) then
-       do skpcnt=1,skpmax
-          if(ioform.eq.'yes') read(fileio,*)
-          if(ioform.eq.'not') read(fileio)
-       end do
-    endif
-    return
-  end subroutine OUTskip
 end module
 !
 !
