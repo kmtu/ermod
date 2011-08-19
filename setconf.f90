@@ -345,6 +345,7 @@ contains
     endif
     if((slttype /= CAL_SOLN).and.(refpick == numtype)) call set_stop('ref')
 
+    ! Read solute specification
     do i = 1, nummol
        pti = moltype(i)
        if(pttype(pti) == PT_PHYSICAL) stmax=OUTsite(pti)      ! from outside
@@ -409,17 +410,17 @@ contains
     end do
 
     allocate( psite(3,maxsite) )         ! temporary set of coordinates
-    do i=1,nummol
-       uvtype=sluvid(i)
-       stmax=numsite(i)
+    do i = 1, nummol
+       uvtype = sluvid(i)
+       stmax = numsite(i)
 
        if(uvtype.eq.0) then                       ! solvent
-          pti=moltype(i)
-          m=pti
-          do sid=1,nummol
-             if((sluvid(sid).ge.1).and.(moltype(sid).lt.pti)) m=m-1
+          pti = moltype(i)
+          m = pti
+          do sid = 1, nummol
+             if((sluvid(sid).ge.1) .and. (moltype(sid).lt.pti)) m = m - 1
           end do
-          molfile=prmfile//numbers(m:m)
+          molfile = prmfile//numbers(m:m)
        endif
        if(uvtype.ge.1) molfile=sltfile            ! solute
        open(unit=molio,file=molfile,status='old')
@@ -447,12 +448,12 @@ contains
        close(molio)
 
        if(uvtype.eq.2) then        
-          if(inscfg.eq.2) bfcoord(1:3,1:stmax)=psite(1:3,1:stmax)
+          if(inscfg.eq.2) bfcoord(1:3,1:stmax) = psite(1:3,1:stmax)
           if(inscfg.ne.2) then 
              ! setting the center of mass to zero
              call molcen(i,psite,xst,'com')
-             do sid=1,stmax
-                bfcoord(1:3,sid)=psite(1:3,sid)-xst(1:3)
+             do sid = 1,stmax
+                bfcoord(1:3,sid) = psite(1:3,sid)-xst(1:3)
              end do
           endif
        endif
@@ -461,7 +462,7 @@ contains
 
     ! conversion to (kcal/mol angstrom)^(1/2)
     ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
-    charge(1:numatm)=18.22261721e0 * charge(1:numatm)
+    charge(1:numatm) = 18.22261721e0 * charge(1:numatm)
 
     ! get molecule-wise charges
     do i = 1, nummol
@@ -489,16 +490,12 @@ contains
     integer i,m,k,OUTatm, iproc, nread
     character*3 rdconf
     
-#ifdef trjctry
     rdconf='trj'                                     ! reading from file
-#else
-    rdconf='fly'                                     ! on-the-fly reading
-#endif
     OUTatm=0
     do i=1,nummol
        if(sluvid(i).le.1) OUTatm=OUTatm+numsite(i) ! only solvent & solute; no test particles
     end do
-    allocate( OUTpos(3,OUTatm),OUTcell(3,3) )
+    allocate( OUTpos(3,OUTatm), OUTcell(3,3) )
     
     nread = min(nprocs, maxread)
 
@@ -510,8 +507,8 @@ contains
           end do
           
           if(iproc == 1) then ! copy to self
-             sitepos(:,1:OUTatm)=OUTpos(:,:)
-             cell(:,:)=OUTcell(:,:)
+             sitepos(:, 1:OUTatm) = OUTpos(:, :)
+             cell(:, :) = OUTcell(:, :)
           else
 #ifndef noMPI
              ! FIXME: rewrite with grouping and scatter?
@@ -535,100 +532,89 @@ contains
     actual_read = nread
   end subroutine getconf_parallel
 
-      subroutine set_stop(type)
-      use engmain, only: io6
-      use mpiproc                                                      ! MPI
-      character*3 type
-      if(type.eq.'slt') write(io6,991)
-      if(type.eq.'num') write(io6,992)
-      if(type.eq.'ref') write(io6,993)
-      if(type.eq.'prs') write(io6,994)
-      if(type.eq.'ins') write(io6,995)
-      if(type.eq.'ewa') write(io6,996)
-991   format(' The solute type is incorrectly set')
-992   format(' The number of molecules or atoms is incorrectly set')
-993   format(' The reference structure of solvent is incorrectly set')
-994   format(' The system parameters are incorrectly set')
-995   format(' The insertion parameters are incorrectly set')
-996   format(' The Ewald parameters are incorrectly set')
-      call mpi_setup('stop')                                           ! MPI
-      stop
-    end subroutine set_stop
-!
-!
-    subroutine getmass(stmass,atmtype)
-!
-      real stmass
-      real massH,massC,massO,massN,massS,massP
-      real massNa,massCa,massZn,massFe,massCu,massF,massCl,massBr
-      character*1 eltp1
-      character*2 eltp2
-      character*3 eltp3
-      character*5 atmtype
-!
-      massH=1.00794e0             ! mass number (hydrogen)
-      massC=12.0107e0             ! mass number (carbon)
-      massO=15.9994e0             ! mass number (oxygen)
-      massN=14.00674e0            ! mass number (nitrogen)
-      massS=32.066e0              ! mass number (sulfur)
-      massP=30.973761e0           ! mass number (phosphorus)
-      massNa=22.989770e0          ! mass number (sodium)
-      massCa=40.078e0             ! mass number (calcium)
-      massZn=65.409e0             ! mass number (zinc)
-      massFe=55.845e0             ! mass number (iron)
-      massCu=63.546e0             ! mass number (copper)
-      massF=18.9984032e0          ! mass number (fluorine)
-      massCl=35.4527e0            ! mass number (chlorine)
-      massBr=79.904e0             ! mass number (bromine)
-!
-      eltp1=atmtype(1:1)
-      if(eltp1.eq.'H') stmass=massH
-      if(eltp1.eq.'C') stmass=massC
-      if(eltp1.eq.'O') stmass=massO
-      if(eltp1.eq.'N') stmass=massN
-      if(eltp1.eq.'S') stmass=massS
-      if(eltp1.eq.'F') stmass=massF
-      if(eltp1.eq.'P') stmass=massP
-      eltp2=atmtype(1:2)
-      if(eltp2.eq.'Na') stmass=massNa
-      if(eltp2.eq.'Ca') stmass=massCa
-      if(eltp2.eq.'Zn') stmass=massZn
-      if(eltp2.eq.'Fe') stmass=massFe
-      if(eltp2.eq.'Cu') stmass=massCu
-      if(eltp2.eq.'Cl') stmass=massCl
-      if(eltp2.eq.'Br') stmass=massBr
-      if(eltp2.eq.'CH') stmass=massC+massH
-      eltp3=atmtype(1:3)
-      if(eltp3.eq.'CH2') stmass=massC+2.0e0*massH
-      if(eltp3.eq.'CH3') stmass=massC+3.0e0*massH
-!
-      return
-    end subroutine getmass
-!
-!
-    subroutine molcen(i,psite,cen,caltype)       ! getting molecular center
-      use engmain, only: nummol,maxsite,numatm,numsite,sitemass,specatm
-      integer i,ati,sid,stmax,m
-      real psite(3,maxsite),cen(3),wgt,sitm
-      character*3 caltype
-      wgt=0.0e0
-      do 3331 m=1,3
-        cen(m)=0.0e0
-3331  continue
-      stmax=numsite(i)
-      do 3332 sid=1,stmax
-        ati=specatm(sid,i)
-        if(caltype.eq.'cnt') sitm=1.0e0            ! centroid
-        if(caltype.eq.'com') sitm=sitemass(ati)    ! center of mass
-        wgt=wgt+sitm
-        do 3333 m=1,3
-          cen(m)=cen(m)+sitm*psite(m,sid)
-3333    continue
-3332  continue
-      do 3334 m=1,3
-        cen(m)=cen(m)/wgt
-3334  continue
-      return
-    end subroutine
-!
+  subroutine set_stop(type)
+    use engmain, only: io6
+    use mpiproc                                                      ! MPI
+    character*3 type
+    if(type.eq.'slt') write(io6,991)
+    if(type.eq.'num') write(io6,992)
+    if(type.eq.'ref') write(io6,993)
+    if(type.eq.'prs') write(io6,994)
+    if(type.eq.'ins') write(io6,995)
+    if(type.eq.'ewa') write(io6,996)
+991 format(' The solute type is incorrectly set')
+992 format(' The number of molecules or atoms is incorrectly set')
+993 format(' The reference structure of solvent is incorrectly set')
+994 format(' The system parameters are incorrectly set')
+995 format(' The insertion parameters are incorrectly set')
+996 format(' The Ewald parameters are incorrectly set')
+    call mpi_setup('stop')                                           ! MPI
+    stop
+  end subroutine set_stop
+
+  subroutine getmass(stmass,atmtype)
+    real stmass
+    real massH,massC,massO,massN,massS,massP
+    real massNa,massCa,massZn,massFe,massCu,massF,massCl,massBr
+    character*1 eltp1
+    character*2 eltp2
+    character*3 eltp3
+    character*5 atmtype
+
+    massH=1.00794e0             ! mass number (hydrogen)
+    massC=12.0107e0             ! mass number (carbon)
+    massO=15.9994e0             ! mass number (oxygen)
+    massN=14.00674e0            ! mass number (nitrogen)
+    massS=32.066e0              ! mass number (sulfur)
+    massP=30.973761e0           ! mass number (phosphorus)
+    massNa=22.989770e0          ! mass number (sodium)
+    massCa=40.078e0             ! mass number (calcium)
+    massZn=65.409e0             ! mass number (zinc)
+    massFe=55.845e0             ! mass number (iron)
+    massCu=63.546e0             ! mass number (copper)
+    massF=18.9984032e0          ! mass number (fluorine)
+    massCl=35.4527e0            ! mass number (chlorine)
+    massBr=79.904e0             ! mass number (bromine)
+
+    eltp1=atmtype(1:1)
+    if(eltp1.eq.'H') stmass=massH
+    if(eltp1.eq.'C') stmass=massC
+    if(eltp1.eq.'O') stmass=massO
+    if(eltp1.eq.'N') stmass=massN
+    if(eltp1.eq.'S') stmass=massS
+    if(eltp1.eq.'F') stmass=massF
+    if(eltp1.eq.'P') stmass=massP
+    eltp2=atmtype(1:2)
+    if(eltp2.eq.'Na') stmass=massNa
+    if(eltp2.eq.'Ca') stmass=massCa
+    if(eltp2.eq.'Zn') stmass=massZn
+    if(eltp2.eq.'Fe') stmass=massFe
+    if(eltp2.eq.'Cu') stmass=massCu
+    if(eltp2.eq.'Cl') stmass=massCl
+    if(eltp2.eq.'Br') stmass=massBr
+    if(eltp2.eq.'CH') stmass=massC+massH
+    eltp3=atmtype(1:3)
+    if(eltp3.eq.'CH2') stmass=massC+2.0e0*massH
+    if(eltp3.eq.'CH3') stmass=massC+3.0e0*massH
+    return
+  end subroutine getmass
+
+  subroutine molcen(i,psite,cen,caltype)       ! getting molecular center
+    use engmain, only: nummol,maxsite,numatm,numsite,sitemass,specatm
+    integer i,ati,sid,stmax,m
+    real psite(3,maxsite),cen(3),wgt,sitm
+    character*3 caltype
+    wgt = 0.0e0
+    cen(:) = 0.0e0
+    stmax = numsite(i)
+    do sid = 1, stmax
+       ati = specatm(sid, i)
+       if(caltype.eq.'cnt') sitm = 1.0e0            ! centroid
+       if(caltype.eq.'com') sitm = sitemass(ati)    ! center of mass
+       wgt = wgt + sitm
+       cen(:)=cen(:) + sitm * psite(:,sid)
+    end do
+    cen(:)=cen(:)/wgt
+    return
+  end subroutine molcen
 end module

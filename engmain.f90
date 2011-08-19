@@ -233,6 +233,7 @@ contains
 
   end subroutine init_params
 
+  ! returns atom no. for [i]th atom in [mol]th molecule
   integer function specatm(i, mol)
     implicit none
     integer, intent(in) :: i, mol
