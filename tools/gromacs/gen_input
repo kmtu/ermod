@@ -265,37 +265,14 @@ def symlink(src, dest):
             return
     os.symlink(src, dest)
 
-def convtraj(src, trunk):
-    if trunk == "HISTORY":
-        symlink(src, trunk)
-        return
-    logfile = "conv.log"
-    try:
-        retcode = os.system(" ".join(["trjconv", "-f", src, "-o", trunk + ".g96", "-novel", ">", logfile, "2>&1"]))
-    except OSError:
-        retcode = os.system(" ".join(["trjconv_d", "-f", src, "-o", trunk + ".g96", "-novel", ">", logfile, "2>&1"]))
-    if retcode != 0:
-        error("Error while converting trajectory: see " + logfile +  " for details")
-    symlink(trunk + ".g96", trunk)
-
 # link or generate trajectory
 (_, ext) = os.path.splitext(options.traj)
-if ext != ".g96":
-    log("Trajectory is not g96 file, converting files")
-    convtraj(options.traj, "HISTORY")
-else:
-    log("Trajectory is g96 file, linking to HISTORY")
-    symlink(options.traj, "HISTORY")
+symlink(options.traj, "HISTORY")
 
 if options.solute:
     # flexible
-    (_, ext) = os.path.splitext(options.solute)
-    if ext != ".g96":
-        log("Solute trajectory is not g96 file, converting files")
-        convtraj(options.solute, "SltConf")
-    else:
-        log("Solute trajectory is g96 file, linking to HISTORY")
-        symlink(options.solute, "SltConf")
+    symlink(options.solute, "SltConf")
+
 elif options.pdb or options.gro:
     def get_pdb_coord():
         # fixed
