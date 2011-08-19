@@ -275,7 +275,8 @@ contains
          slttype,sltpick,refpick,inscfg,ljformat,&
          moltype,numsite,sluvid,refmlid,&
          bfcoord,sitemass,charge,ljene,ljlen,&
-         specatm,sitepos, mol_begin_index, belong_to, mol_charge
+         specatm,sitepos, mol_begin_index, belong_to, mol_charge,&
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
          OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
@@ -305,38 +306,31 @@ contains
     if(slttype.eq.1) numtype=OUTntype                  ! from outside
     if(slttype.ge.2) numtype=OUTntype+1                ! from outside
 
+    ! pttype is particle type for each molecule group
     allocate( pttype(numtype),ptcnt(numtype) )
-    do pti=1,numtype
-       ati=9
-       if((slttype.eq.1).or.(pti.lt.numtype))  ati=0  ! physical particle
-       if((slttype.ge.2).and.(pti.eq.numtype)) ati=1  ! test particle
-       if((ati.ne.0).and.(ati.ne.1)) call set_stop('slt')
-       pttype(pti)=ati
-       if(pti.le.OUTntype) ptcnt(pti)=OUTnmol(pti)      ! from outside
-       if(pti.gt.OUTntype) ptcnt(pti)=1
-    end do
+    pttype(:) = 0                            ! Default is physical particle, i.e. coordinate exists in (HISTORY) trajectory
+    ptcnt(1:OUTntype) = OUTnmol(1:OUTntype)  ! Default: same as written in MDinfo
+    if(slttype /= CAL_SOLN) then
+       pttype(numtype) = 1 ! Last particle is test particle (for insertion)
+       ptcnt(numtype) = 1 ! Test particle can only be one molecule
+    endif
 
-    nummol=0
-    do pti=1,numtype
-       nummol=nummol+ptcnt(pti)
-    end do
+    nummol=sum(ptcnt(1:numtype))
 
     allocate( moltype(nummol),numsite(nummol) )
     allocate( sluvid(nummol),refmlid(nummol) )
 
     cmin=1
     cmax=0
-    do pti=1,numtype
+    do pti = 1, numtype
        cmax=cmax+ptcnt(pti)
-       do i=cmin,cmax                ! sequential identification
-          moltype(i)=pti
-       end do
+       moltype(cmin:cmax) = pti ! sequential identification
        cmin=cmax+1
     end do
     if(cmax.ne.nummol) call set_stop('num')
 
-    do i=1,nummol
-       pti=moltype(i)
+    do i = 1, nummol
+       pti = moltype(i)
        if(pttype(pti).eq.0) stmax=OUTsite(pti)          ! from outside
        if(pttype(pti).eq.1) then                        ! read from file
           open(unit=sltio,file=sltfile,status='old')
@@ -388,11 +382,11 @@ contains
     allocate(belong_to(numatm))
 
     ! initial setting to zero
-    bfcoord(1:3,1:maxsite)=0.0e0
+    bfcoord(1:3,1:maxsite) = 0.0e0
     sitemass(1:numatm) = 0.0e0
     charge(1:numatm) = 0.0e0
-    ljene(1:numatm)=0.0e0
-    ljlen(1:numatm)=0.0e0
+    ljene(1:numatm) = 0.0e0
+    ljlen(1:numatm) = 0.0e0
 
     ! initialize mol_begin_index
     ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
@@ -454,7 +448,7 @@ contains
           if(inscfg.ne.2) then 
              ! setting the center of mass to zero
              call molcen(i,psite,xst,'com')
-             do sid=1,stmax             
+             do sid=1,stmax
                 bfcoord(1:3,sid)=psite(1:3,sid)-xst(1:3)
              end do
           endif
