@@ -350,19 +350,10 @@ contains
        if(myrank /= 0) return
        call open_trajectory(solute_trajectory, slttrj)
        return
-
-! FIXME: move this entire section into setconf.f
-       if(iofmt.eq.'yes') open(unit=slcnf,file=slttrj,status='old')
-       if(iofmt.eq.'not') open(unit=slcnf,file=slttrj,status='old',&
-            form='unformatted')
-       call OUTskip(slcnf,iofmt,skpio)
-       return
     endif
     if(caltype.eq.'last') then
        if(myrank /= 0) return
        call close_trajectory(solute_trajectory)
-       return
-       close(slcnf)
        return
     endif
 !

@@ -46,9 +46,14 @@ contains
     real(8), intent(out) :: cell(3,3)
     integer, intent(out) :: status
 
-    read(htraj%iohandle) ! read cells, coodinates, etc.
+    read(htraj%iohandle, err = 999) ! read cells, coodinates, etc.
     ! if necessary, angles_to_cell_vector() in module utility will help
 
+    status = 0
+    return
+    
+999 status = 1
+    return
   end subroutine read_trajectory
 
 end module trajectory

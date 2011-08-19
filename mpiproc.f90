@@ -137,6 +137,7 @@ contains
     if(type.eq.'fst') write(stdout,982)
     if(type.eq.'slb') write(stdout,"(A)"), " Slab condition can only used in periodic system"
     if(type.eq.'bug') write(stdout,"(A)"), " Critical failure in the program detected"
+    if(type.eq.'trj') write(stdout,"(A)"), " Trajectory is shorter than specified in MDinfo"
 991 format(' The number of solute types is incorrectly set')
 992 format(' The number of solute molecules is incorrectly set')
 993 format(' The solute numbering is incorrect for insertion')

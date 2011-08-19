@@ -42,12 +42,16 @@ contains
     integer :: i, j
 
     do i = 1, natom
-       read(htraj%iohandle, *) crd(:, i)
+       read(htraj%iohandle, *, err=999) crd(:, i)
     end do
     do i = 1, 3
-       read(htraj%iohandle, *) cell(:, i)
+       read(htraj%iohandle, *, err=999) cell(:, i)
     end do
+    status = 0
+    return
 
+999 status = 1
+    return
   end subroutine read_trajectory
 
 end module trajectory

@@ -75,14 +75,11 @@ contains
 
   subroutine initconf
     call OUTinitial
-    return
   end subroutine initconf
 
   subroutine closetrj
     use trajectory, only: close_trajectory
-
     call close_trajectory(history_trajectory)
-    return
   end subroutine closetrj
 
   subroutine finiconf
@@ -91,8 +88,7 @@ contains
   ! Initialization 2nd phase - read topologies from mother MD program, or read MDinfo
   subroutine OUTrename
     implicit none
-    integer i,pti,sid,ctm
-    real trjene,trjlen
+    integer i
 
     open(unit=mdinf,file=inffile,status='old')
     read(mdinf,*) OUTnrun,OUTntype
@@ -118,18 +114,19 @@ contains
 
   ! Get molecular configuration
   subroutine OUTconfig(OUTpos,OUTcell,OUTatm,OUTbox,OUTtrj,rdconf)
+    use mpiproc, only: halt_with_error
     use trajectory, only: read_trajectory, open_trajectory, close_trajectory
     implicit none
-    integer OUTatm,OUTbox,OUTtrj,trjID,i,m,k
-    real OUTpos(3,OUTatm),OUTcell(3,3),xst(9),factor
-    character*3 rdconf
-    character*8 dumchr
+    integer, intent(in) :: OUTatm, OUTbox, OUTtrj
+    real, intent(out) :: OUTpos(3,OUTatm),OUTcell(3,3)
+    character(len=3), intent(in) :: rdconf
     integer :: status
 !
     
     OUTcell(:, :) = 0.0e0
     if(OUTtrj == 0) then
        call read_trajectory(history_trajectory, OUTatm, (OUTbox == 1), OUTpos, OUTcell, status)
+       if(status /= 0) call halt_with_error("trj")
     else
        call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)
        if(status /= 0) then
@@ -137,7 +134,7 @@ contains
           call open_trajectory(solute_trajectory, "SltConf")
           call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)
           if(status /= 0) then
-             stop "Failed to wrap around solute trajectory"
+             stop "Failed to reload solute trajectory"
           endif
        endif
     end if
