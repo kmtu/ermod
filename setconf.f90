@@ -336,9 +336,9 @@ contains
     if(cmax.ne.nummol) call set_stop('num')
 
     do i=1,nummol
-        pti=moltype(i)
-        if(pttype(pti).eq.0) stmax=OUTsite(pti)          ! from outside
-        if(pttype(pti).eq.1) then                        ! read from file
+       pti=moltype(i)
+       if(pttype(pti).eq.0) stmax=OUTsite(pti)          ! from outside
+       if(pttype(pti).eq.1) then                        ! read from file
           open(unit=sltio,file=sltfile,status='old')
           stmax=0
           do sid=1,large
@@ -393,109 +393,109 @@ contains
        end do
     end do
     do ati=1,numatm
-        sitemass(ati)=0.0e0
-        charge(ati)=0.0e0
-        ljene(ati)=0.0e0
-        ljlen(ati)=0.0e0
-     end do
+       sitemass(ati)=0.0e0
+       charge(ati)=0.0e0
+       ljene(ati)=0.0e0
+       ljlen(ati)=0.0e0
+    end do
 
-     ! initialize mol_begin_index
-     ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
-     mol_begin_index(1) = 1
-     do i = 1, nummol
-        mol_begin_index(i + 1) = mol_begin_index(i) + numsite(i)
-     end do
-     if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("bug")
-     
-     ! initialize belong_to
-     do i = 1, nummol
-        belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
-     end do
+    ! initialize mol_begin_index
+    ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
+    mol_begin_index(1) = 1
+    do i = 1, nummol
+       mol_begin_index(i + 1) = mol_begin_index(i) + numsite(i)
+    end do
+    if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("bug")
 
-     ati=0                                ! specifying the site in molecule
-     do i=1,nummol
-        stmax=numsite(i)
-        do sid=1,stmax
-           ati=ati+1
-        end do
-     end do
-     if(ati.ne.numatm) call set_stop('num')
-!
-     allocate( psite(3,maxsite) )         ! temporary set of coordinates
-     do i=1,nummol
-        uvtype=sluvid(i)
-        prmread='external'
-        stmax=numsite(i)
-        if(prmread.eq.'internal') then     ! read through translation module
+    ! initialize belong_to
+    do i = 1, nummol
+       belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
+    end do
+
+    ati=0                                ! specifying the site in molecule
+    do i=1,nummol
+       stmax=numsite(i)
+       do sid=1,stmax
+          ati=ati+1
+       end do
+    end do
+    if(ati.ne.numatm) call set_stop('num')
+    !
+    allocate( psite(3,maxsite) )         ! temporary set of coordinates
+    do i=1,nummol
+       uvtype=sluvid(i)
+       prmread='external'
+       stmax=numsite(i)
+       if(prmread.eq.'internal') then     ! read through translation module
           do sid=1,stmax
-            ati=specatm(sid,i)                       ! from outside
-            sitemass(ati)=OUTstmass(ati)             ! from outside
-            charge(ati)=OUTcharge(ati)               ! from outside
-            ljene(ati)=OUTljene(ati)                 ! from outside
-            ljlen(ati)=OUTljlen(ati)                 ! from outside
-         end do
-        endif
-        if(prmread.eq.'external') then     ! read from file
+             ati=specatm(sid,i)                       ! from outside
+             sitemass(ati)=OUTstmass(ati)             ! from outside
+             charge(ati)=OUTcharge(ati)               ! from outside
+             ljene(ati)=OUTljene(ati)                 ! from outside
+             ljlen(ati)=OUTljlen(ati)                 ! from outside
+          end do
+       endif
+       if(prmread.eq.'external') then     ! read from file
           if(uvtype.eq.0) then                       ! solvent
-            pti=moltype(i)
-            m=pti
-            do sid=1,nummol
-              if((sluvid(sid).ge.1).and.(moltype(sid).lt.pti)) m=m-1
-           end do
-            molfile=prmfile//numbers(m:m)
+             pti=moltype(i)
+             m=pti
+             do sid=1,nummol
+                if((sluvid(sid).ge.1).and.(moltype(sid).lt.pti)) m=m-1
+             end do
+             molfile=prmfile//numbers(m:m)
           endif
           if(uvtype.ge.1) molfile=sltfile            ! solute
           open(unit=molio,file=molfile,status='old')
           do sid=1,stmax
-            if(uvtype.eq.2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
-                                          (psite(m,sid), m=1,3)
-            if(uvtype.ne.2) read(molio,*) m,atmtype,(xst(m), m=1,3)
-            call getmass(factor,atmtype)
-            ati=specatm(sid,i)
-            sitemass(ati)=factor
-            charge(ati)=xst(1)
-            if(ljformat.eq.1) xst(3)=sgmcnv*xst(3)
-            if((ljformat.eq.3).or.(ljformat.eq.4).and.(xst(3).ne.0.0)) then
-              factor=(xst(2)/xst(3))**(1.0e0/6.0e0)
-              xst(2)=xst(3)/(4.0e0*(factor**6.0e0))
-              xst(3)=factor
-            endif
-            if((ljformat.eq.2).or.(ljformat.eq.4)) then
-              xst(2)=engcnv*xst(2)
-              xst(3)=lencnv*xst(3)
-            endif
-            ljene(ati)=xst(2)
-            ljlen(ati)=xst(3)
-         end do
+             if(uvtype.eq.2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
+                  (psite(m,sid), m=1,3)
+             if(uvtype.ne.2) read(molio,*) m,atmtype,(xst(m), m=1,3)
+             call getmass(factor,atmtype)
+             ati=specatm(sid,i)
+             sitemass(ati)=factor
+             charge(ati)=xst(1)
+             if(ljformat.eq.1) xst(3)=sgmcnv*xst(3)
+             if((ljformat.eq.3).or.(ljformat.eq.4).and.(xst(3).ne.0.0)) then
+                factor=(xst(2)/xst(3))**(1.0e0/6.0e0)
+                xst(2)=xst(3)/(4.0e0*(factor**6.0e0))
+                xst(3)=factor
+             endif
+             if((ljformat.eq.2).or.(ljformat.eq.4)) then
+                xst(2)=engcnv*xst(2)
+                xst(3)=lencnv*xst(3)
+             endif
+             ljene(ati)=xst(2)
+             ljlen(ati)=xst(3)
+          end do
           close(molio)
-        endif
-!
-        if(uvtype.eq.2) then        ! setting the center of mass to zero
-           if(inscfg.ne.2) call molcen(i,psite,xst,'com')
-           do sid=1,stmax
-              do m=1,3
-                 if(inscfg.ne.2) bfcoord(m,sid)=psite(m,sid)-xst(m)
-                 if(inscfg.eq.2) bfcoord(m,sid)=psite(m,sid)
+       endif
+       !
+       if(uvtype.eq.2) then        ! setting the center of mass to zero
+          if(inscfg.ne.2) call molcen(i,psite,xst,'com')
+          do sid=1,stmax
+             do m=1,3
+                if(inscfg.ne.2) bfcoord(m,sid)=psite(m,sid)-xst(m)
+                if(inscfg.eq.2) bfcoord(m,sid)=psite(m,sid)
 
-              end do
-           end do
-        endif
-     end do
-     deallocate( psite )
-     
-     ! conversion to (kcal/mol angstrom)^(1/2)
-     ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
-     charge(1:numatm)=18.22261721e0 * charge(1:numatm)
-     
-     ! get molecule-wise charges
-     do i = 1, nummol
-        mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
-     end do
+             end do
+          end do
+       endif
+    end do
+    deallocate( psite )
 
-     ! set L-J epsilon value to be square-rooted, because these values are only used in sqrt-form.
-     ljene(:) = sqrt(ljene(:))
-     
-   end subroutine setparam
+    ! conversion to (kcal/mol angstrom)^(1/2)
+    ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
+    charge(1:numatm)=18.22261721e0 * charge(1:numatm)
+
+    ! get molecule-wise charges
+    do i = 1, nummol
+       mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
+    end do
+
+    ! set L-J epsilon value to be square-rooted, because these values are only used in sqrt-form.
+    ljene(:) = sqrt(ljene(:))
+
+  end subroutine setparam
 
 
 ! Reads up to maxread coordinates serially and distributes frames
