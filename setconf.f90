@@ -31,8 +31,6 @@ module OUTname
   implicit none
   integer, parameter :: iotrj=99                 ! trajectory file IO
   character(*), parameter :: trjfile='HISTORY'   ! trajectory filename
-  integer, parameter :: cltrj=98                 ! cell trajectory file IO
-  character(*), parameter :: celfile='HISTCELL'  ! cell trajectory filename
   integer, parameter :: mdinf=89                 ! MD info file IO
   character(*), parameter :: inffile='MDinfo'    ! MD info filename
 
@@ -77,8 +75,6 @@ contains
 
   subroutine initconf
     call OUTinitial
-
-    if(mdird.eq.'yes') open(unit=mdinf,file=inffile,status='old')
     return
   end subroutine initconf
 
@@ -90,13 +86,15 @@ contains
   end subroutine closetrj
 
   subroutine finiconf
-    if(mdird.eq.'yes') close(mdinf)                ! MD info
   end subroutine finiconf
 !
   ! Initialization 2nd phase - read topologies from mother MD program, or read MDinfo
   subroutine OUTrename
+    implicit none
     integer i,pti,sid,ctm
     real trjene,trjlen
+
+    open(unit=mdinf,file=inffile,status='old')
     read(mdinf,*) OUTnrun,OUTntype
     allocate( OUTnmol(OUTntype),OUTsite(OUTntype) )
 
@@ -110,6 +108,7 @@ contains
     allocate( OUTstmass(TotAtm),OUTcharge(TotAtm) )
     allocate( OUTljene(TotAtm),OUTljlen(TotAtm) )
 
+    close(mdinf)
     return
   end subroutine OUTrename
 
