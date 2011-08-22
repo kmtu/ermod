@@ -212,11 +212,7 @@ contains
        xst(:) = sitepos(:,ati)
        do k=1,3
           factor = dot_product(invcl(k,:),xst(:))
-          if(factor.lt.0.0e0) factor=factor+1.0e0
-          if(factor.gt.1.0e0) factor=factor-1.0e0
-          if((factor.lt.0.0e0).or.(factor.gt.1.0e0)) then
-             call halt_with_error('crd')
-          endif
+          factor = factor - floor(factor)
           inm(k)=factor
        end do
        do m=1,3

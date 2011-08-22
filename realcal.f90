@@ -1,4 +1,4 @@
-module realcal_blk
+module realcal
   implicit none
   integer :: nsolu_atom, nsolv_atom
   integer, allocatable :: block_solu(:, :), block_solv(:, :)
@@ -14,8 +14,11 @@ module realcal_blk
   real :: laxes(3), invbox(3)
   
   ! "straight" coordinate system
-  real :: cell_str(3, 3)
+  real, allocatable :: sitepos_normal(:, :)
+  real :: cell_normal(3, 3), invcell_normal(3), cell_len_normal(3)
+
   real, allocatable :: sitepos_str(:, :)
+  real :: cell_str(3, 3)
 
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
@@ -425,4 +428,79 @@ contains
 #endif
     deallocate(work)
   end subroutine rotate_box
-end module realcal_blk
+
+
+  ! Rotate box and coordinate so that the cell(:,:) is upper triangular:
+  ! cell(2, 1) = cell(3, 1) = cell(3, 2) = 0
+  subroutine normalize_periodic
+    use engmain, only: cell, sitepos
+    implicit none
+    integer :: n
+    real :: newcell(3, 3), scale(3), qr(3,3)
+    integer :: lwork
+    real, allocatable :: work(:)
+    integer :: info, perm(3)
+    integer :: i
+    real :: dummy
+
+    n = size(sitepos, 2)
+    lwork = max(3 * 3 + 1, n)
+    allocate(work(lwork))
+
+    ! QR-factorize box vector
+    qr(:, :) = cell
+    perm(:) = 0
+
+    if(kind(dummy) == 8) then
+       call dgeqp3(3, 3, qr, 3, perm, scale, work, lwork, info)
+    else
+       call sgeqp3(3, 3, qr, 3, perm, scale, work, lwork, info)
+    endif
+    if(info /= 0) stop "engproc.f90, normalize_periodic: failed to factorize box vector"
+
+    ! reorganize R
+    ! AP = QR    <=>  Q^T AP = R
+    newcell(:, :) = cell(:, perm(:))
+
+    if(kind(dummy) == 8) then
+       call dormqr('L', 'T', 3, 3, 3, qr, 3, scale, newcell, 3, work, lwork, info)
+    else
+       call sormqr('L', 'T', 3, 3, 3, qr, 3, scale, newcell, 3, work, lwork, info)
+    endif
+    if(info /= 0) stop "engproc.f90, normalize_periodic: failed to rotate cell"
+
+    cell_normal(:, :) = newcell(:, :)
+    if(abs(newcell(2, 1)) > 1e-8 .or. &
+       abs(newcell(3, 1)) > 1e-8 .or. &
+       abs(newcell(3, 2)) > 1e-8) then
+       print *, newcell
+       stop "engproc.f90, normalize_periodic: assertion failed, box rotation is bugged"
+    endif
+
+    ! rotate coordinates
+    ! Note: sitepos does not need permutation. (the order of cell axis is not important)
+    sitepos_normal(:, :) = sitepos(:, :)
+    
+    if(kind(dummy) == 8) then
+       call dormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos_normal, 3, work, lwork, info)
+    else
+       call sormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos_normal, 3, work, lwork, info)
+    endif
+    if(info /= 0) stop "engproc.f90, normalize_periodic: failed to rotate coordinate"
+
+    deallocate(work)
+
+    do i = 1, 3
+       cell_len_normal(i) = cell_normal(i, i)
+    end do
+    invcell_normal(:) = 1 / cell_len_normal(:)
+
+    ! normalize coordinate within single periodicity
+    ! move all particles inside the cuboid spanned by (0 .. cell(1, 1)), (0 .. cell(2,2)), (0 .. cell(3,3))
+    do i = 1, 3
+       sitepos_normal(i, :) = sitepos_normal(i, :) - &
+            floor(sitepos_normal(i, :) * invcell_normal(i)) * cell_len_normal(i)
+    end do
+  end subroutine normalize_periodic
+
+end module realcal

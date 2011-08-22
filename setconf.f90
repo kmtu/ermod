@@ -275,8 +275,8 @@ contains
     use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
          slttype,sltpick,refpick,inscfg,ljformat,&
          moltype,numsite,sluvid,refmlid,&
-         bfcoord,sitemass,charge,ljene,ljlen,&
-         specatm,sitepos, mol_begin_index, belong_to, mol_charge,&
+         bfcoord, sitemass, charge, ljene, ljlen,&
+         specatm, sitepos, mol_begin_index, belong_to, mol_charge,&
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
@@ -383,7 +383,7 @@ contains
 
     allocate( bfcoord(3,maxsite),sitemass(numatm) )
     allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
-    allocate(sitepos(3,numatm))
+    allocate(sitepos(3, numatm))
     allocate(mol_begin_index(nummol + 1))
     allocate(mol_charge(nummol))
     allocate(belong_to(numatm))

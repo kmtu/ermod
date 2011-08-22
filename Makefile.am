@@ -4,7 +4,7 @@ bin_PROGRAMS = ermod slvfe
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
-ersources = enganal.f90 engmain.f90 realcal_blk.f90 spline.f90 fft_iface.f90 mpiproc.f90 engproc.f90 recpcal.f90 insertion.f90 setconf.f90 trajectory.f90 utility.f90 hash_real.c
+ersources = enganal.f90 engmain.f90 realcal.f90 spline.f90 fft_iface.f90 mpiproc.f90 engproc.f90 recpcal.f90 insertion.f90 setconf.f90 trajectory.f90 utility.f90 hash_real.c
 
 EXTRA_DIST = parameters_er.example 
 EXTRA_DIST += tools/NAMD/*
@@ -29,7 +29,7 @@ ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm
 extra_flags = 
 
 # module dependencies
-ermod-engproc.$(OBJEXT): engproc.f90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal_blk.$(OBJEXT) ermod-utility.$(OBJEXT)
+ermod-engproc.$(OBJEXT): engproc.f90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-utility.$(OBJEXT)
 ermod-enganal.$(OBJEXT): enganal.f90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-vmdfio_if.$(OBJEXT)
 ermod-recpcal.$(OBJEXT): recpcal.f90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT)
 ermod-insertion.$(OBJEXT): insertion.f90 ermod-setconf.$(OBJEXT)

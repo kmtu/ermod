@@ -307,8 +307,7 @@ contains
     logical, save :: pme_initialized = .false.
     call mpi_info                                                    ! MPI
     call mpi_init_active_group(nactiveproc)
-    !
-    !
+
     call sanity_check_sluvid()
 
     ! for soln: maxdst is number of solutes (multiple solute)
@@ -616,7 +615,7 @@ contains
 
   ! Calculate interaction energy between solute and solvent
   subroutine get_uv_energy(stnum, weighting, uvengy, has_error)
-    use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
+    use engmain, only: nummol,numatm,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
          maxins,ermax,numslv,esmax,uvspec,&
          edens,ecorr,eself,&
@@ -625,9 +624,10 @@ contains
          boxshp, cltype, cell, &
          SYS_NONPERIODIC, SYS_PERIODIC, &
          EL_COULOMB, EL_PME, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+         ES_NVT, ES_NPT
     use ptinsrt, only: instslt
-    use realcal_blk, only: realcal_proc
+    use realcal, only: realcal_proc, normalize_periodic, sitepos_normal
     use reciprocal, only: recpcal_init, &
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
@@ -663,6 +663,12 @@ contains
        initialized = .true.
     end select
 
+    ! At this moment all coordinate in the system is determined
+    allocate(sitepos_normal(3, numatm))
+
+    ! "Straighten" box, and normalize coordinate system
+    if(boxshp == SYS_PERIODIC) call normalize_periodic
+
     uvengy(:) = 0
     if(cltype == EL_PME) then
        call recpcal_prepare_solute(tagslt)
@@ -672,9 +678,8 @@ contains
 
     ! solute-solute self energy
     pairep = 0.0
-    ! FIXME TODO: invalidate if NPT condition
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
-    if(current_solute_hash == solute_hash) then
+    if(current_solute_hash == solute_hash .and. estype /= ES_NPT) then
        pairep = usreal ! reuse
     else
        call realcal_self(tagslt, pairep) ! calculate self-interaction
@@ -695,10 +700,12 @@ contains
           call recpcal_energy(tagslt, i, factor)
           pairep = pairep + factor
        else
-          call realcal(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
+          call realcal_bare(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
        endif
        uvengy(k) = uvengy(k) + pairep
     enddo
+
+    deallocate(sitepos_normal)
   end subroutine get_uv_energy
 
   subroutine update_histogram(stnum, stat_weight, uvengy)
@@ -808,15 +815,17 @@ contains
 
   ! Calculate i-j interaction energy.
   ! This routine is called as a dispatcher to realcal_self or bare coulomb interaction
-  subroutine realcal(i,j,pairep)
+  subroutine realcal_bare(i,j,pairep)
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
          charge,ljene,ljlen,specatm,sitepos,&
-         cell,invcl,volume,pi
+         cell,invcl,volume,pi,&
+         SYS_NONPERIODIC, SYS_PERIODIC
+    use realcal, only: sitepos_normal, cell_len_normal
     implicit none
     integer i,j,is,js,ismax,jsmax,ati,atj,m,k
     real reelcut,pairep,ljeps,ljsgm,chr2,rst,dis2,rtp1,rtp2
-    real eplj,epcl,xst(3),clm(3),swth
+    real :: eplj,epcl,xst(3),clm(3),swth, half_cell(3)
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
     if(i.eq.j) then
@@ -826,28 +835,23 @@ contains
 
     if(cltype /= 0) stop "cannot happen: realcal() is called only when cltype is 'bare coulomb'."
 
-    if(boxshp.eq.0) reelcut=infty
-    if(boxshp.ne.0) reelcut=elecut
-    !
+    if(boxshp == SYS_NONPERIODIC) reelcut=infty
+    if(boxshp == SYS_PERIODIC) then
+       reelcut=elecut
+       half_cell(:) = 0.5 * cell_len_normal(:)
+    endif
+
     pairep=0.0e0
     ismax=numsite(i)
     jsmax=numsite(j)
-    !
+
     do is=1,ismax
        do js=1,jsmax
           ati=specatm(is,i)
           atj=specatm(js,j)
-          xst(:) = sitepos(:,ati) - sitepos(:,atj)
-          if(boxshp.ne.0) then              ! when the system is periodic
-             ! FIXME: is this correct for non-orthogonal system?
-             do k=1,3
-                rst=dot_product(invcl(k,:), xst(:))
-                clm(k)=real(nint(rst))
-             end do
-             do m=1,3
-                rst=dot_product(cell(m,:), clm(:))
-                xst(m)=xst(m)-rst             ! get the nearest distance between i,j
-             end do
+          xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
+          if(boxshp == SYS_PERIODIC) then              ! when the system is periodic
+             xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
           endif
           dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
           rst=sqrt(dis2)
@@ -882,22 +886,25 @@ contains
     end do
     !
     return
-  end subroutine realcal
+  end subroutine realcal_bare
 
   subroutine realcal_self(i, pairep)
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          screen,cltype,&
          charge,specatm,sitepos,&
          cell,invcl,EL_COULOMB, pi
+    use realcal, only: sitepos_normal, cell_len_normal
     implicit none
     integer, intent(in) :: i
     real, intent(inout) :: pairep
-    integer is,js,ismax,ati,atj,m,k
-    real reelcut,chr2,rst,dis2,rtp1
-    real epcl,xst(3),clm(3),swth
+    integer :: is,js,ismax,ati,atj,m,k
+    real :: reelcut,chr2,rst,dis2,rtp1
+    real :: epcl,xst(3),clm(3),swth, half_cell(3)
 
     pairep=0.0e0
     if(cltype == EL_COULOMB) return
+
+    half_cell(:) = 0.5 * cell_len_normal(:) 
 
     ismax=numsite(i)
 
@@ -912,20 +919,12 @@ contains
 
        do js=is+1,ismax
           atj=specatm(js,i)
-          xst(:)=sitepos(:,ati)-sitepos(:,atj)
+ 
+          xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
+          xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
 
-          ! FIXME BUG: for skewed system this is incorrect
-          if(boxshp.ne.0) then  ! when the system is periodic
-             do k=1,3
-                rst=dot_product(invcl(k,:), xst(:))
-                clm(k)=real(nint(rst))
-             enddo
-             do m=1,3
-                rst=dot_product(cell(m,:), clm(:))
-                xst(m)=xst(m)-rst ! get the nearest distance between i,j
-             enddo
-          endif
           dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
+
           rst=sqrt(dis2)
           chr2=charge(ati)*charge(atj)
           epcl=-chr2*derf(screen*rst)/rst
@@ -1174,6 +1173,7 @@ contains
     get_solute_hash = hash(sitepos(1:3, mol_begin_index(tagslt):(mol_begin_index(tagslt+1) - 1)), numsite(tagslt) * 3)
   end function get_solute_hash
 
+  
   subroutine repval(iduv,factor,pti,caltype)
     use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
     use mpiproc, only: halt_with_error
