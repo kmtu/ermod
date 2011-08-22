@@ -664,6 +664,7 @@ contains
     end select
 
     ! At this moment all coordinate in the system is determined
+    ! FIXME: move inside of realcal
     allocate(sitepos_normal(3, numatm))
     sitepos_normal(:, :) = sitepos(:, :)
 
