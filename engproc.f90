@@ -286,7 +286,7 @@ contains
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
          ES_NVT, ES_NPT
     use ptinsrt, only: instslt
-    use realcal_blk, only: realcal_proc
+    use realcal, only: realcal_proc
     use reciprocal, only: recpcal_init, &
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
