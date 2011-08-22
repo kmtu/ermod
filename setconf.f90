@@ -288,7 +288,7 @@ contains
     real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
     real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
     integer pti,stmax,uvtype,rftype,cmin,cmax,sid,i,ati,m
-    integer :: solute_index
+    integer :: solute_index, cur_solvent, prev_solvent_type
     real factor,xst(3)
     integer, dimension(:), allocatable :: pttype,ptcnt
     real, dimension(:,:), allocatable :: psite
@@ -353,15 +353,14 @@ contains
           open(unit=sltio,file=sltfile,status='old')
           stmax=0
           do sid=1,large
-             if(slttype == CAL_REFS_RIGID) read(sltio,*,END=1219) m,atmtype,&
-                  (xst(m), m=1,3),(xst(m), m=1,3)
-             if(slttype == CAL_REFS_FLEX)  read(sltio,*,END=1219) m,atmtype,&
-                  (xst(m), m=1,3)
+             ! here only counts no. of lines
+             read(sltio, *, end=1219) m, atmtype
              stmax=stmax+1
           end do
 1219      continue
           close(sltio)
        endif
+       numsite(i)=stmax
 
        if(pti.ne.solute_index) then                  ! solvent
           uvtype=0
@@ -372,7 +371,6 @@ contains
           uvtype=slttype
           rftype=2
        endif
-       numsite(i)=stmax
        sluvid(i)=uvtype
        refmlid(i)=rftype
     end do
@@ -410,17 +408,17 @@ contains
     end do
 
     allocate( psite(3,maxsite) )         ! temporary set of coordinates
+    cur_solvent = 0
+    prev_solvent_type = -1
     do i = 1, nummol
        uvtype = sluvid(i)
        stmax = numsite(i)
 
        if(uvtype.eq.0) then                       ! solvent
           pti = moltype(i)
-          m = pti
-          do sid = 1, nummol
-             if((sluvid(sid).ge.1) .and. (moltype(sid).lt.pti)) m = m - 1
-          end do
-          molfile = prmfile//numbers(m:m)
+          if(pti /= prev_solvent_type) cur_solvent = cur_solvent + 1
+          prev_solvent_type = pti
+          molfile = prmfile//numbers(cur_solvent:cur_solvent)
        endif
        if(uvtype.ge.1) molfile=sltfile            ! solute
        open(unit=molio,file=molfile,status='old')
