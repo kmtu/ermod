@@ -614,7 +614,8 @@ contains
     !
     return
   end subroutine engstore
-  !
+
+  ! Calculate interaction energy between solute and solvent
   subroutine get_uv_energy(stnum, weighting, uvengy, has_error)
     use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
@@ -806,6 +807,8 @@ contains
     deallocate(insdst, engdst)
   end subroutine update_histogram
 
+  ! Calculate i-j interaction energy.
+  ! This routine is called as a dispatcher to realcal_self or bare coulomb interaction
   subroutine realcal(i,j,pairep)
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
@@ -912,6 +915,7 @@ contains
           atj=specatm(js,i)
           xst(:)=sitepos(:,ati)-sitepos(:,atj)
 
+          ! FIXME BUG: for skewed system this is incorrect
           if(boxshp.ne.0) then  ! when the system is periodic
              do k=1,3
                 rst=dot_product(invcl(k,:), xst(:))

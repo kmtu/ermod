@@ -129,6 +129,7 @@ contains
     else
        call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)
        if(status /= 0) then
+          ! wrap around
           call close_trajectory(solute_trajectory)
           call open_trajectory(solute_trajectory, "SltConf")
           call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)

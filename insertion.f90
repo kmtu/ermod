@@ -88,7 +88,6 @@ contains
          boxshp,inscnd,inscfg,hostspec,&
          moltype,numsite,specatm,sitepos,cell,invcl,&
          lwreg,upreg
-    use mpiproc, only: halt_with_error
     integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
     real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen
     character*6 type
