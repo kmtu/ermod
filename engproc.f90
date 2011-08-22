@@ -625,7 +625,7 @@ contains
          SYS_NONPERIODIC, SYS_PERIODIC, &
          EL_COULOMB, EL_PME, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
-         ES_NVT, ES_NPT
+         ES_NVT, ES_NPT, sitepos ! FIXME: remove
     use ptinsrt, only: instslt
     use realcal, only: realcal_proc, normalize_periodic, sitepos_normal
     use reciprocal, only: recpcal_init, &
@@ -665,6 +665,7 @@ contains
 
     ! At this moment all coordinate in the system is determined
     allocate(sitepos_normal(3, numatm))
+    sitepos_normal(:, :) = sitepos(:, :)
 
     ! "Straighten" box, and normalize coordinate system
     if(boxshp == SYS_PERIODIC) call normalize_periodic
