@@ -83,6 +83,129 @@ contains
     deallocate(sitepos_normal)
   end subroutine realcal_cleanup
 
+
+  ! Calculate i-j interaction energy.
+  ! This routine is called as a dispatcher to realcal_self or bare coulomb interaction
+  subroutine realcal_bare(i,j,pairep)
+    use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
+         elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
+         charge,ljene,ljlen,specatm,sitepos,&
+         cell,invcl,volume,pi,&
+         SYS_NONPERIODIC, SYS_PERIODIC
+    implicit none
+    integer i,j,is,js,ismax,jsmax,ati,atj,m,k
+    real reelcut,pairep,ljeps,ljsgm,chr2,rst,dis2,rtp1,rtp2
+    real :: eplj,epcl,xst(3),clm(3),swth, half_cell(3)
+    real, parameter :: infty=1.0e50      ! essentially equal to infinity
+    !
+    if(i.eq.j) then
+       call realcal_self(i, pairep)
+       return
+    endif
+
+    if(cltype /= 0) stop "cannot happen: realcal() is called only when cltype is 'bare coulomb'."
+
+    if(boxshp == SYS_NONPERIODIC) reelcut=infty
+    if(boxshp == SYS_PERIODIC) then
+       reelcut=elecut
+       half_cell(:) = 0.5 * cell_len_normal(:)
+    endif
+
+    pairep=0.0e0
+    ismax=numsite(i)
+    jsmax=numsite(j)
+
+    do is=1,ismax
+       do js=1,jsmax
+          ati=specatm(is,i)
+          atj=specatm(js,j)
+          xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
+          if(boxshp == SYS_PERIODIC) then              ! when the system is periodic
+             xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
+          endif
+          dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
+          rst=sqrt(dis2)
+          if(rst > upljcut) then
+             eplj=0.0e0
+          else
+             ljeps=ljene(ati) * ljene(atj)
+
+             if(cmbrule.eq.0) ljsgm=(ljlen(ati)+ljlen(atj))/2.0e0
+             if(cmbrule.eq.1) ljsgm=sqrt(ljlen(ati)*ljlen(atj))
+
+             rtp1=ljsgm*ljsgm/dis2
+             rtp2=rtp1*rtp1*rtp1
+             eplj=4.0e0*ljeps*rtp2*(rtp2-1.0e0)
+             if(rst > lwljcut) then    ! CHARMM form of switching function
+                rtp1=lwljcut*lwljcut
+                rtp2=upljcut*upljcut
+                swth=(2.0e0*dis2+rtp2-3.0e0*rtp1)*(dis2-rtp2)*(dis2-rtp2)&
+                     /(rtp2-rtp1)/(rtp2-rtp1)/(rtp2-rtp1)
+                eplj=swth*eplj
+             endif
+          endif
+          if(rst >= reelcut) then
+             epcl=0.0e0
+          else
+             chr2=charge(ati)*charge(atj)
+
+             epcl=chr2 / rst
+          endif
+          pairep = pairep + (eplj + epcl)
+       end do
+    end do
+    !
+    return
+  end subroutine realcal_bare
+
+  subroutine realcal_self(i, pairep)
+    use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
+         screen,cltype,&
+         charge,specatm,sitepos,&
+         cell,invcl,EL_COULOMB, pi
+    implicit none
+    integer, intent(in) :: i
+    real, intent(inout) :: pairep
+    integer :: is,js,ismax,ati,atj,m,k
+    real :: reelcut,chr2,rst,dis2,rtp1
+    real :: epcl,xst(3),clm(3),swth, half_cell(3)
+
+    pairep=0.0e0
+    if(cltype == EL_COULOMB) return
+
+    half_cell(:) = 0.5 * cell_len_normal(:) 
+
+    ismax=numsite(i)
+
+    do is=1,ismax
+       ati=specatm(is,i)
+
+       ! Atom residual
+       chr2=charge(ati)*charge(ati)
+       epcl=-chr2*screen/sqrt(pi)
+
+       pairep = pairep + epcl
+
+       do js=is+1,ismax
+          atj=specatm(js,i)
+ 
+          xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
+          xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
+
+          dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
+
+          rst=sqrt(dis2)
+          chr2=charge(ati)*charge(atj)
+          epcl=-chr2*derf(screen*rst)/rst
+
+          pairep=pairep+epcl
+       enddo
+    enddo
+
+    call residual_ene(i, i, pairep)
+  end subroutine realcal_self
+
+
   integer function count_solv(solu, tagpt, slvmax)
     use engmain, only: numsite
     integer, intent(in) :: solu, tagpt(:), slvmax
@@ -370,6 +493,24 @@ contains
        end do
     end do
   end subroutine get_pair_energy_block
+
+  ! Calculate residual energy in Ewald / PME
+  subroutine residual_ene(i, j, pairep)
+    use engmain, only: screen, volume, numsite, mol_charge, cltype
+    implicit none
+    integer, intent(in) :: i, j
+    real, intent(inout) :: pairep
+    real :: rtp1, rtp2, epcl
+    integer :: is, js, ismax, jsmax, ati, atj
+    real, parameter :: pi = 3.141592653589793283462
+    if(cltype == 0) stop "Error: residual_ene: called when cltype == 0, cannot happen"
+
+    rtp1 = mol_charge(i)
+    rtp2 = mol_charge(j)
+    epcl=pi*rtp1*rtp2/screen/screen/volume
+    if(i.eq.j) epcl=epcl/2.0e0 ! self-interaction
+    pairep=pairep-epcl
+  end subroutine residual_ene
 
   ! Rotate box and coordinate so that the cell(:,:) is upper triangular:
   ! cell(2, 1) = cell(3, 1) = cell(3, 2) = 0
