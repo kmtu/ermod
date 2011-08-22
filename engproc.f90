@@ -627,7 +627,7 @@ contains
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
          ES_NVT, ES_NPT, sitepos ! FIXME: remove
     use ptinsrt, only: instslt
-    use realcal, only: realcal_proc, normalize_periodic, sitepos_normal
+    use realcal, only: realcal_proc, realcal_prepare, realcal_cleanup
     use reciprocal, only: recpcal_init, &
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
@@ -664,12 +664,7 @@ contains
     end select
 
     ! At this moment all coordinate in the system is determined
-    ! FIXME: move inside of realcal
-    allocate(sitepos_normal(3, numatm))
-    sitepos_normal(:, :) = sitepos(:, :)
-
-    ! "Straighten" box, and normalize coordinate system
-    if(boxshp == SYS_PERIODIC) call normalize_periodic
+    call realcal_prepare
 
     uvengy(:) = 0
     if(cltype == EL_PME) then
@@ -707,7 +702,7 @@ contains
        uvengy(k) = uvengy(k) + pairep
     enddo
 
-    deallocate(sitepos_normal)
+    call realcal_cleanup
   end subroutine get_uv_energy
 
   subroutine update_histogram(stnum, stat_weight, uvengy)

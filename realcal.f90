@@ -66,6 +66,23 @@ contains
     deallocate(subcell_neighbour)
   end subroutine realcal_proc
 
+  subroutine realcal_prepare
+    use engmain, only: numatm, sitepos, boxshp, SYS_PERIODIC
+    implicit none
+    
+    allocate(sitepos_normal(3, numatm))
+    sitepos_normal(:, :) = sitepos(:, :)
+
+    ! "Straighten" box, and normalize coordinate system
+    if(boxshp == SYS_PERIODIC) call normalize_periodic
+  end subroutine realcal_prepare
+
+  subroutine realcal_cleanup
+    implicit none
+
+    deallocate(sitepos_normal)
+  end subroutine realcal_cleanup
+
   integer function count_solv(solu, tagpt, slvmax)
     use engmain, only: numsite
     integer, intent(in) :: solu, tagpt(:), slvmax
@@ -404,8 +421,6 @@ contains
 
     ! rotate coordinates
     ! Note: sitepos does not need permutation. (the order of cell axis is not important)
-    sitepos_normal(:, :) = sitepos(:, :)
-    
     if(kind(dummy) == 8) then
        call dormqr('L', 'T', 3, n, 3, qr, 3, scale, sitepos_normal, 3, work, lwork, info)
     else
