@@ -323,8 +323,7 @@ contains
     allocate( tplst(nummol) )
     slvmax=0
     do i=1,nummol
-       if((slttype == CAL_SOLN) .or. &
-            ((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX).and.(sluvid(i).eq.0))) then
+       if(sluvid(i) == 0) then ! 0 == exists in trajectory
           slvmax=slvmax+1
           tplst(slvmax)=i ! which particle is treated by this node?
        end if
