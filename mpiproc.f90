@@ -117,7 +117,7 @@ contains
 #endif
   end subroutine mympi_reduce_real
 
-
+  
 
   ! Stop calculation with error message
   subroutine halt_with_error(type)

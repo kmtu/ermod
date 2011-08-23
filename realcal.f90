@@ -428,18 +428,23 @@ contains
 
   subroutine get_pair_energy_block(upos, vpos, energy_mat)
     use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge
+    implicit none
     integer, intent(in) :: upos, vpos
     real, intent(out) :: energy_mat(:, :)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v
     real :: crdu(3), crdv(3), d(3), dist, r
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
-    real :: upljcut2
+    real :: upljcut2, lwljcut2, elecut2, half_cell(3)
     
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
-    
+
+    half_cell(:) = 0.5 * cell_len_normal(:)
+
+    lwljcut2 = lwljcut ** 2
     upljcut2 = upljcut ** 2
+    elecut2 = elecut ** 2
 
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
@@ -451,7 +456,7 @@ contains
           crdv(:) = sitepos_normal(:, va)
 
           d(:) = crdv(:) - crdu(:)
-          d(:) = d(:) - cell_len_normal(:) * anint(invcell_normal(:) * d(:)) ! get nearest image
+          d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
           ! FIXME:
           ! assumes that only a single image matters for both electrostatic and LJ.
           ! if the box is very small and strongly anisotropic,
@@ -475,15 +480,15 @@ contains
              rtp1 = ljsgm2 / dist
              rtp2 = rtp1 * rtp1 * rtp1
              elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
-             if(r > lwljcut) then    ! CHARMM form of switching function
-                rtp1 = lwljcut * lwljcut
-                rtp2 = upljcut * upljcut
+             if(dist > lwljcut2) then    ! CHARMM form of switching function
+                rtp1 = lwljcut2
+                rtp2 = upljcut2
                 swth = (2.0e0 * dist + rtp2 - 3.0e0 * rtp1) * (dist - rtp2) * (dist - rtp2) &
                      / ((rtp2 - rtp1) * (rtp2 - rtp1) * (rtp2 - rtp1))
                 elj = swth * elj
              endif
           end if
-          if(r > elecut) then
+          if(dist > elecut2) then
              eel = 0.0
           else
              chr2 = charge(ua) * charge(va)

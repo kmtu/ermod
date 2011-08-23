@@ -667,6 +667,7 @@ contains
     call realcal_prepare
 
     uvengy(:) = 0
+    ! Calculate system-wide values
     if(cltype == EL_PME) then
        call recpcal_prepare_solute(tagslt)
        call realcal_proc(tagslt, tagpt, slvmax, uvengy)
