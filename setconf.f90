@@ -275,7 +275,8 @@ contains
     use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
          slttype,sltpick,refpick,inscfg,ljformat,&
          moltype,numsite,sluvid,refmlid,&
-         bfcoord, sitemass, charge, ljene, ljlen, ljtype, ljtype_max, &
+         bfcoord, sitemass, charge, &
+         ljene_mat, ljlensq_mat, ljtype, ljtype_max, cmbrule, &
          specatm, sitepos, mol_begin_index, belong_to, mol_charge, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
          PT_SOLVENT, PT_SOLUTE, PT_TEST_RIGID, PT_TEST_FLEX
@@ -293,6 +294,10 @@ contains
     integer :: solute_index, cur_solvent, prev_solvent_type, cur_atom
     real factor,xst(3)
     real, allocatable :: ljlen_temp(:), ljene_temp(:), sitemass_temp(:), charge_temp(:)
+    real, allocatable :: ljlen_temp_table(:), ljene_temp_table(:)
+    integer, allocatable :: ljtype_temp(:)
+    integer :: ljtype_found
+    logical :: lj_is_new
     integer, allocatable :: pttype(:), ptcnt(:), ptsite(:)
     real, dimension(:,:), allocatable :: psite
     character*8 atmtype
@@ -383,8 +388,8 @@ contains
 
     if(numatm /= sum(numsite(1:nummol))) stop "something is wrong in setconf::setparam, numatm"
 
-    allocate( bfcoord(3,maxsite),sitemass(numatm) )
-    allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
+    allocate(bfcoord(3,maxsite), sitemass(numatm))
+    allocate(charge(numatm), ljtype(numatm))
     allocate(sitepos(3, numatm))
     allocate(mol_begin_index(nummol + 1))
     allocate(mol_charge(nummol))
@@ -394,8 +399,6 @@ contains
     bfcoord(1:3,1:maxsite) = 0.0e0
     sitemass(1:numatm) = 0.0e0
     charge(1:numatm) = 0.0e0
-    ljene(1:numatm) = 0.0e0
-    ljlen(1:numatm) = 0.0e0
 
     ! initialize mol_begin_index
     ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
@@ -410,14 +413,19 @@ contains
        belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
     end do
 
+    ! large enough LJ table size
+    allocate(ljlen_temp_table(1:sum(ptsite(:))), &
+         ljene_temp_table(1:sum(ptsite(:))))
+
     ! temporary set of LJ & coordinates
     allocate(psite(3,maxsite), &
-         ljlen_temp(maxsite), ljene_temp(maxsite), &
+         ljlen_temp(maxsite), ljene_temp(maxsite), ljtype_temp(maxsite), &
          sitemass_temp(maxsite), &
          charge_temp(maxsite))
 
     cur_solvent = 0
     cur_atom = 1
+    ljtype_max = 0
 
     ! read molecules specification
     do pti = 1, numtype
@@ -452,9 +460,30 @@ contains
        end do
        close(molio)
 
-       do sid = 1, ptcnt(pti)
-          ljene(cur_atom:(cur_atom + stmax - 1)) = ljene_temp(1:stmax)
-          ljlen(cur_atom:(cur_atom + stmax - 1)) = ljlen_temp(1:stmax)
+       ! allocate LJ types
+       do sid = 1, stmax
+          lj_is_new = .true.
+          do i = 1, ljtype_max
+             ! linear search LJ table
+             if(ljlen_temp_table(i) == ljlen_temp(sid) .and. &
+                  ljene_temp_table(i) == ljene_temp(sid)) then
+                ljtype_found = i
+                lj_is_new = .false.
+                exit
+             endif
+          end do
+          if(lj_is_new) then
+             ! new LJ type
+             ljtype_max = ljtype_max + 1
+             ljlen_temp_table(ljtype_max) = ljlen_temp(sid)
+             ljene_temp_table(ljtype_max) = ljene_temp(sid)
+             ljtype_found = ljtype_max
+          endif
+          ljtype_temp(sid) = ljtype_found
+       end do
+          
+       do i = 1, ptcnt(pti)
+          ljtype(cur_atom:(cur_atom + stmax - 1)) = ljtype_temp(1:stmax)
           charge(cur_atom:(cur_atom + stmax - 1)) = charge_temp(1:stmax)
           sitemass(cur_atom:(cur_atom + stmax - 1)) = sitemass_temp(1:stmax)
           cur_atom = cur_atom + stmax
@@ -470,22 +499,31 @@ contains
              end do
           endif
        endif
-
     end do
 
-    deallocate( psite )
+    deallocate(psite, ljlen_temp, ljene_temp, ljtype_temp, charge_temp, sitemass_temp)
+
+    ! Fill LJ table
+    allocate(ljlensq_mat(ljtype_max, ljtype_max), ljene_mat(ljtype_max, ljtype_max))
+    do i = 1, ljtype_max
+       select case(cmbrule)
+       case(0) ! arithmetic mean
+          ljlensq_mat(:, i) = ((ljlen_temp_table(1:ljtype_max) + ljlen_temp_table(i)) * 0.5) ** 2
+       case(1) ! geometric mean
+          ljlensq_mat(:, i) = ljlen_temp_table(1:ljtype_max) * ljlen_temp_table(i)
+       end select
+       ljene_mat(:, i) = sqrt(ljene_temp_table(1:ljtype_max) * ljene_temp_table(i))
+    end do
+    deallocate(ljlen_temp_table, ljene_temp_table)
 
     ! conversion to (kcal/mol angstrom)^(1/2)
     ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
     charge(1:numatm) = 18.22261721e0 * charge(1:numatm)
-
+    
     ! get molecule-wise charges
     do i = 1, nummol
        mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
     end do
-
-    ! set L-J epsilon value to be square-rooted, because these values are only used in sqrt-form.
-    ljene(:) = sqrt(ljene(:))
 
     deallocate( pttype, ptcnt, ptsite )
   end subroutine setparam

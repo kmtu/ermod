@@ -170,7 +170,7 @@ module engmain
 
   integer :: ljtype_max
   integer, allocatable :: ljtype(:)
-  real, allocatable :: ljlen_mat(:, :), ljene_mat(:, :)
+  real, allocatable :: ljlensq_mat(:, :), ljene_mat(:, :)
   
   real, dimension(:,:),    allocatable :: sitepos
   real, allocatable :: mol_charge(:)

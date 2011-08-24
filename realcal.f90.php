@@ -92,13 +92,15 @@ contains
   subroutine realcal_bare(i,j,pairep)
     use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
          elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
-         charge,ljene,ljlen,specatm,sitepos,&
+         charge,specatm,sitepos,&
          cell,invcl,volume,pi,&
+         ljtype, ljtype_max, ljene_mat, ljlensq_mat,&
          SYS_NONPERIODIC, SYS_PERIODIC
     implicit none
     integer i,j,is,js,ismax,jsmax,ati,atj,m,k
     real reelcut,pairep,ljeps,ljsgm,chr2,rst,dis2,rtp1,rtp2
     real :: eplj,epcl,xst(3),clm(3),swth, half_cell(3)
+    integer :: ljtype_i, ljtype_j
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
     if(i.eq.j) then
@@ -123,6 +125,8 @@ contains
        do js=1,jsmax
           ati=specatm(is,i)
           atj=specatm(js,j)
+          ljtype_i = ljtype(ati)
+          ljtype_j = ljtype(atj)
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
           if(boxshp == SYS_PERIODIC) then              ! when the system is periodic
              xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
@@ -132,10 +136,8 @@ contains
           if(rst > upljcut) then
              eplj=0.0e0
           else
-             ljeps=ljene(ati) * ljene(atj)
-
-             if(cmbrule.eq.0) ljsgm=(ljlen(ati)+ljlen(atj))/2.0e0
-             if(cmbrule.eq.1) ljsgm=sqrt(ljlen(ati)*ljlen(atj))
+             ljeps=ljene_mat(ljtype_i, ljtype_j)
+             ljsgm=ljlensq_mat(ljtype_i, ljtype_j)
 
              rtp1=ljsgm*ljsgm/dis2
              rtp2=rtp1*rtp1*rtp1
@@ -452,12 +454,13 @@ contains
   ! I know this codegen is ugly...
   ! <?php echo "$sw: ". ($sw == 1 ? "With switching" : "Without switching") . "\n"; ?>
   subroutine get_pair_energy_block_impl<?php echo "$sw"; ?>(upos, vpos, energy_mat)
-    use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge
+    use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge,&
+         ljtype, ljtype_max, ljene_mat, ljlensq_mat
     implicit none
     integer, intent(in) :: upos, vpos
     real, intent(out) :: energy_mat(:, :)
     integer :: ui, vi, ua, va
-    integer :: belong_u, belong_v
+    integer :: belong_u, belong_v, ljtype_u, ljtype_v
     real :: crdu(3), crdv(3), d(3), dist, r
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
     real :: upljcut2, lwljcut2, elecut2, half_cell(3)
@@ -475,10 +478,12 @@ contains
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
        belong_u = belong_solu(ui) ! FIXME: not used in later calculation
+       ljtype_u = ljtype(ua)
        crdu(:) = sitepos_normal(:, ua)
        do vi = psum_solv(vpos), psum_solv(vpos + 1) - 1
           va = atomno_solv(vi)
           belong_v = belong_solv(vi)
+          ljtype_v = ljtype(va)
           crdv(:) = sitepos_normal(:, va)
 
           d(:) = crdv(:) - crdu(:)
@@ -493,15 +498,9 @@ contains
           if(dist >= upljcut2) then
              elj = 0.0
           else
-             ljeps = ljene(va) * ljene(ua)
-             select case (cmbrule)
-                case (0)
-                   ljsgm2 = ((ljlen(va) + ljlen(ua)) * 0.5) ** 2
-                case (1)
-                   ljsgm2 = ljlen(va) * ljlen(ua)
-                case default
-                   stop "Unknown coulomb type @ realcal%pairenergy"
-             end select
+             ljeps = ljene_mat(ljtype_v, ljtype_u)
+             ljsgm2 = ljlensq_mat(ljtype_v, ljtype_u)
+
              rtp1 = ljsgm2 / dist
              rtp2 = rtp1 * rtp1 * rtp1
              elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
