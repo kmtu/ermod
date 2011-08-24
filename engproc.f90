@@ -685,7 +685,7 @@ contains
        call realcal_self(tagslt, pairep) ! calculate self-interaction
        usreal = pairep
     endif
-    call residual_ene(i, i, residual)
+    call residual_ene(tagslt, tagslt, residual)
     solute_hash = current_solute_hash
     uvengy(0) = uvengy(0) + pairep + residual
 
