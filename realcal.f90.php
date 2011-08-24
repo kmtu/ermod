@@ -139,7 +139,7 @@ contains
              ljeps=ljene_mat(ljtype_i, ljtype_j)
              ljsgm=ljlensq_mat(ljtype_i, ljtype_j)
 
-             rtp1=ljsgm*ljsgm/dis2
+             rtp1=ljsgm/dis2
              rtp2=rtp1*rtp1*rtp1
              eplj=4.0e0*ljeps*rtp2*(rtp2-1.0e0)
              if(rst > lwljcut) then    ! CHARMM form of switching function
