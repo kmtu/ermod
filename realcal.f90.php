@@ -454,7 +454,7 @@ contains
   ! I know this codegen is ugly...
   ! <?php echo "$sw: ". ($sw == 1 ? "With switching" : "Without switching") . "\n"; ?>
   subroutine get_pair_energy_block_impl<?php echo "$sw"; ?>(upos, vpos, energy_mat)
-    use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge,&
+    use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, screen, charge,&
          ljtype, ljtype_max, ljene_mat, ljlensq_mat
     implicit none
     integer, intent(in) :: upos, vpos
