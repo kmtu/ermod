@@ -275,9 +275,10 @@ contains
     use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
          slttype,sltpick,refpick,inscfg,ljformat,&
          moltype,numsite,sluvid,refmlid,&
-         bfcoord, sitemass, charge, ljene, ljlen,&
-         specatm, sitepos, mol_begin_index, belong_to, mol_charge,&
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+         bfcoord, sitemass, charge, ljene, ljlen, ljtype, ljtype_max, &
+         specatm, sitepos, mol_begin_index, belong_to, mol_charge, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+         PT_SOLVENT, PT_SOLUTE, PT_TEST_RIGID, PT_TEST_FLEX
     use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
          OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
@@ -289,9 +290,10 @@ contains
     real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
     real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
     integer pti,stmax,uvtype,rftype,cmin,cmax,sid,i,ati,m
-    integer :: solute_index, cur_solvent, prev_solvent_type
+    integer :: solute_index, cur_solvent, prev_solvent_type, cur_atom
     real factor,xst(3)
-    integer, dimension(:), allocatable :: pttype,ptcnt
+    real, allocatable :: ljlen_temp(:), ljene_temp(:), sitemass_temp(:), charge_temp(:)
+    integer, allocatable :: pttype(:), ptcnt(:), ptsite(:)
     real, dimension(:,:), allocatable :: psite
     character*8 atmtype
     character*7 molfile
@@ -314,15 +316,41 @@ contains
     end if
 
     ! pttype is particle type for each molecule group
-    allocate( pttype(numtype),ptcnt(numtype) )
-    pttype(:) = PT_PHYSICAL                  ! Default is physical particle, i.e. coordinate exists in (HISTORY) trajectory
-    ptcnt(1:OUTntype) = OUTnmol(1:OUTntype)  ! Default: same as written in MDinfo
-    if(slttype /= CAL_SOLN) then
-       pttype(numtype) = PT_TEST             ! Last particle is test particle (for insertion)
-       ptcnt(numtype) = 1                    ! Test particle can only be one molecule
+    allocate(pttype(numtype), ptcnt(numtype), ptsite(numtype))
+    pttype(:) = PT_SOLVENT                  ! Default is physical particle, i.e. coordinate exists in (HISTORY) trajectory
+    ptcnt(1:OUTntype) = OUTnmol(1:OUTntype) ! Default: same as written in MDinfo
+    ptsite(1:OUTntype) = OUTsite(1:OUTntype)
+
+    if(slttype == CAL_SOLN) then
+       ! Determine which molecule is solute?
+       solute_index = 1                   ! default for soln
+       if((1 <= sltpick).and.(sltpick <= numtype)) solute_index = sltpick
+       pttype(solute_index) = PT_SOLUTE
+    else
+       ! Test particle information will be defined outside
+       ptcnt(numtype) = 1                   ! Test particle can only be one molecule
+
+       open(unit=sltio,file=sltfile,status='old')
+       stmax=0
+       do sid=1,large
+          ! here only counts no. of lines
+          read(sltio, *, end=99) m, atmtype
+          stmax=stmax+1
+       end do
+99     continue
+       close(sltio)
+       ptsite(numtype) = stmax
+       pttype(numtype) = slttype      ! Last particle is test particle (for insertion)       
+       solute_index = numtype
     endif
 
+    if((slttype /= CAL_SOLN).and.(refpick == numtype)) call set_stop('ref')
+
+    ! count up number of mols, 
+    ! set max and total no. of atoms 
     nummol = sum(ptcnt(1:numtype))
+    maxsite = maxval(ptsite(1:numtype))
+    numatm = sum(ptcnt(1:numtype) * ptsite(1:numtype))
 
     allocate( moltype(nummol),numsite(nummol) )
     allocate( sluvid(nummol),refmlid(nummol) )
@@ -337,49 +365,23 @@ contains
     end do
     if(cmax.ne.nummol) call set_stop('num')
 
-    ! Determine which molecule is solute?
-    if(slttype == CAL_SOLN) then
-       solute_index = 1                   ! default
-       if((1.le.sltpick).and.(sltpick.le.numtype)) solute_index = sltpick
-    else
-       solute_index = numtype             ! default
-    endif
-    if((slttype /= CAL_SOLN).and.(refpick == numtype)) call set_stop('ref')
-
     ! Read solute specification
     do i = 1, nummol
        pti = moltype(i)
-       if(pttype(pti) == PT_PHYSICAL) stmax=OUTsite(pti)      ! from outside
-       if(pttype(pti) == PT_TEST) then                        ! read from file
-          open(unit=sltio,file=sltfile,status='old')
-          stmax=0
-          do sid=1,large
-             ! here only counts no. of lines
-             read(sltio, *, end=1219) m, atmtype
-             stmax=stmax+1
-          end do
-1219      continue
-          close(sltio)
-       endif
-       numsite(i)=stmax
+       numsite(i) = ptsite(pti)
+       sluvid(i) = pttype(pti)
 
        if(pti.ne.solute_index) then                  ! solvent
-          uvtype=0
           rftype=0                             ! default
           if(pti.eq.refpick) rftype=1          ! superposition reference
        endif
        if(pti.eq.solute_index) then                  ! solute
-          uvtype=slttype
           rftype=2
        endif
-       sluvid(i)=uvtype
        refmlid(i)=rftype
     end do
-    deallocate( pttype,ptcnt )
 
-    ! set max and total no. of atoms 
-    maxsite = maxval(numsite(1:nummol))
-    numatm = sum(numsite(1:nummol))
+    if(numatm /= sum(numsite(1:nummol))) stop "something is wrong in setconf::setparam, numatm"
 
     allocate( bfcoord(3,maxsite),sitemass(numatm) )
     allocate( charge(numatm),ljene(numatm),ljlen(numatm) )
@@ -408,55 +410,69 @@ contains
        belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
     end do
 
-    allocate( psite(3,maxsite) )         ! temporary set of coordinates
-    cur_solvent = 0
-    prev_solvent_type = -1
-    do i = 1, nummol
-       uvtype = sluvid(i)
-       stmax = numsite(i)
+    ! temporary set of LJ & coordinates
+    allocate(psite(3,maxsite), &
+         ljlen_temp(maxsite), ljene_temp(maxsite), &
+         sitemass_temp(maxsite), &
+         charge_temp(maxsite))
 
-       if(uvtype.eq.0) then                       ! solvent
-          pti = moltype(i)
-          if(pti /= prev_solvent_type) cur_solvent = cur_solvent + 1
-          prev_solvent_type = pti
+    cur_solvent = 0
+    cur_atom = 1
+
+    ! read molecules specification
+    do pti = 1, numtype
+       uvtype = pttype(pti)
+       if(uvtype == PT_SOLVENT) then            ! solvent
+          cur_solvent = cur_solvent + 1
           molfile = prmfile//numbers(cur_solvent:cur_solvent)
+       else
+          molfile = sltfile            ! solute / test particle
        endif
-       if(uvtype.ge.1) molfile=sltfile            ! solute
-       open(unit=molio,file=molfile,status='old')
-       do sid=1,stmax
-          if(uvtype.eq.2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
+       stmax = ptsite(pti)
+       open(unit = molio, file = molfile, status='old')
+       do sid = 1, stmax
+          if(uvtype == 2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
                (psite(m,sid), m=1,3)
-          if(uvtype.ne.2) read(molio,*) m,atmtype,(xst(m), m=1,3)
-          call getmass(factor,atmtype)
-          ati=specatm(sid,i)
-          sitemass(ati)=factor
-          charge(ati)=xst(1)
-          if(ljformat.eq.1) xst(3)=sgmcnv*xst(3)
+          if(uvtype /= 2) read(molio,*) m,atmtype,(xst(m), m=1,3)
+          call getmass(sitemass_temp(sid), atmtype)
+
+          charge_temp(sid) = xst(1)
+          if(ljformat.eq.1) xst(3) = sgmcnv * xst(3)
           if((ljformat.eq.3).or.(ljformat.eq.4).and.(xst(3).ne.0.0)) then
-             factor=(xst(2)/xst(3))**(1.0e0/6.0e0)
-             xst(2)=xst(3)/(4.0e0*(factor**6.0e0))
-             xst(3)=factor
+             factor = (xst(2)/xst(3))**(1.0e0/6.0e0)
+             xst(2) = xst(3)/(4.0e0*(factor**6.0e0))
+             xst(3) = factor
           endif
           if((ljformat.eq.2).or.(ljformat.eq.4)) then
-             xst(2)=engcnv*xst(2)
-             xst(3)=lencnv*xst(3)
+             xst(2) = engcnv * xst(2)
+             xst(3) = lencnv * xst(3)
           endif
-          ljene(ati)=xst(2)
-          ljlen(ati)=xst(3)
+          ljene_temp(sid) = xst(2)
+          ljlen_temp(sid) = xst(3)
        end do
        close(molio)
 
+       do sid = 1, ptcnt(pti)
+          ljene(cur_atom:(cur_atom + stmax - 1)) = ljene_temp(1:stmax)
+          ljlen(cur_atom:(cur_atom + stmax - 1)) = ljlen_temp(1:stmax)
+          charge(cur_atom:(cur_atom + stmax - 1)) = charge_temp(1:stmax)
+          sitemass(cur_atom:(cur_atom + stmax - 1)) = sitemass_temp(1:stmax)
+          cur_atom = cur_atom + stmax
+       end do
+
        if(uvtype.eq.2) then        
-          if(inscfg.eq.2) bfcoord(1:3,1:stmax) = psite(1:3,1:stmax)
+          if(inscfg.eq.2) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
           if(inscfg.ne.2) then 
              ! setting the center of mass to zero
-             call molcen(i,psite,xst,'com')
+             call molcen(numtype, psite, xst, 'com')
              do sid = 1,stmax
-                bfcoord(1:3,sid) = psite(1:3,sid)-xst(1:3)
+                bfcoord(1:3,sid) = psite(1:3, sid) - xst(1:3)
              end do
           endif
        endif
+
     end do
+
     deallocate( psite )
 
     ! conversion to (kcal/mol angstrom)^(1/2)
@@ -471,6 +487,7 @@ contains
     ! set L-J epsilon value to be square-rooted, because these values are only used in sqrt-form.
     ljene(:) = sqrt(ljene(:))
 
+    deallocate( pttype, ptcnt, ptsite )
   end subroutine setparam
 
 

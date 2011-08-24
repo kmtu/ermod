@@ -167,6 +167,11 @@ module engmain
   real, dimension(:,:),    allocatable :: bfcoord
   real, dimension(:),      allocatable :: sitemass
   real, dimension(:),      allocatable :: charge,ljene,ljlen
+
+  integer :: ljtype_max
+  integer, allocatable :: ljtype(:)
+  real, allocatable :: ljlen_mat(:, :), ljene_mat(:, :)
+  
   real, dimension(:,:),    allocatable :: sitepos
   real, allocatable :: mol_charge(:)
   integer, allocatable :: mol_begin_index(:), belong_to(:)
@@ -201,6 +206,8 @@ module engmain
   integer, parameter :: EL_COULOMB = 0, EL_PME = 2
   integer, parameter :: CAL_SOLN = 1, CAL_REFS_RIGID = 2, CAL_REFS_FLEX = 3
   integer, parameter :: ES_NVT = 1, ES_NPT = 2
+  integer, parameter :: PT_SOLVENT = 0, PT_SOLUTE = 1, PT_TEST_RIGID = 2, PT_TEST_FLEX = 3
+  ! note: PT_SOLUTE to PT_TEST_FLEX should correspond to CAL_SOLN .. CAL_REFS_FLEX
 
   character(len=*), parameter :: ene_confname = "parameters_er"
 
