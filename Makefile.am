@@ -10,6 +10,7 @@ EXTRA_DIST = parameters_er.example
 EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
 EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE
+EXTRA_DIST += realcal.f90.php
 CLEANFILES = *.mod
 
 if USE_FFTW
@@ -37,3 +38,7 @@ ermod-setconf.$(OBJEXT): setconf.f90 ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJ
 
 slvfe_SOURCES = slvfe.f
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)
+
+.phony: generate
+generate: 
+	php5 realcal.f90.php > realcal.f90

@@ -1,3 +1,6 @@
+! -*- F90 -*-
+! DO NOT rewrite realcal.f90,
+! realcal.f90 is generated from realcal.f90.php.
 module realcal
   implicit none
   integer :: nsolu_atom, nsolv_atom
@@ -426,7 +429,29 @@ contains
     end do
   end subroutine get_pair_energy
 
+
   subroutine get_pair_energy_block(upos, vpos, energy_mat)
+    use engmain, only: upljcut, lwljcut
+    implicit none
+    integer, intent(in) :: upos, vpos
+    real, intent(out) :: energy_mat(:, :)
+    integer :: switching
+
+    switching = 1
+    if(lwljcut == upljcut) switching = 0
+    if(switching == 1) then
+       call get_pair_energy_block_impl1(upos, vpos, energy_mat)
+    else
+       call get_pair_energy_block_impl0(upos, vpos, energy_mat)
+    endif
+    
+  end subroutine get_pair_energy_block
+
+  ! <?php for($sw = 0; $sw < 2; $sw++){ ?>
+
+  ! I know this codegen is ugly...
+  ! <?php echo "$sw: ". ($sw == 1 ? "With switching" : "Without switching") . "\n"; ?>
+  subroutine get_pair_energy_block_impl<?php echo "$sw"; ?>(upos, vpos, energy_mat)
     use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, ljene, ljlen, cmbrule, screen, charge
     implicit none
     integer, intent(in) :: upos, vpos
@@ -436,6 +461,7 @@ contains
     real :: crdu(3), crdv(3), d(3), dist, r
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
     real :: upljcut2, lwljcut2, elecut2, half_cell(3)
+    integer, parameter :: switching = <?php echo "$sw\n" ?>
     
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
@@ -457,7 +483,6 @@ contains
 
           d(:) = crdv(:) - crdu(:)
           d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
-          ! FIXME:
           ! assumes that only a single image matters for both electrostatic and LJ.
           ! if the box is very small and strongly anisotropic,
           ! there is a risk that second nearest image still being inside the cutoff length.
@@ -480,7 +505,7 @@ contains
              rtp1 = ljsgm2 / dist
              rtp2 = rtp1 * rtp1 * rtp1
              elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
-             if(dist > lwljcut2) then    ! CHARMM form of switching function
+             if(switching == 1 .and. dist > lwljcut2) then    ! CHARMM form of switching function
                 rtp1 = lwljcut2
                 rtp2 = upljcut2
                 swth = (2.0e0 * dist + rtp2 - 3.0e0 * rtp1) * (dist - rtp2) * (dist - rtp2) &
@@ -497,7 +522,9 @@ contains
           energy_mat(belong_v, 1) = energy_mat(belong_v, 1) + elj + eel
        end do
     end do
-  end subroutine get_pair_energy_block
+  end subroutine get_pair_energy_block_impl<?php echo "$sw"; ?>
+
+  ! <?php } ?>
 
   ! Rotate box and coordinate so that the cell(:,:) is upper triangular:
   ! cell(2, 1) = cell(3, 1) = cell(3, 2) = 0
