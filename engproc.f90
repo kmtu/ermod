@@ -824,7 +824,7 @@ contains
     real :: rtp1, rtp2, epcl
     integer :: is, js, ismax, jsmax, ati, atj
     real, parameter :: pi = 3.141592653589793283462
-    if(cltype == 0) stop "Error: residual_ene: called when cltype == 0, cannot happen"
+    if(cltype == 0) return
 
     rtp1 = mol_charge(i)
     rtp2 = mol_charge(j)
