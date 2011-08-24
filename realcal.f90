@@ -499,24 +499,6 @@ contains
     end do
   end subroutine get_pair_energy_block
 
-  ! Calculate residual energy in Ewald / PME
-  subroutine residual_ene(i, j, pairep)
-    use engmain, only: screen, volume, numsite, mol_charge, cltype
-    implicit none
-    integer, intent(in) :: i, j
-    real, intent(inout) :: pairep
-    real :: rtp1, rtp2, epcl
-    integer :: is, js, ismax, jsmax, ati, atj
-    real, parameter :: pi = 3.141592653589793283462
-    if(cltype == 0) stop "Error: residual_ene: called when cltype == 0, cannot happen"
-
-    rtp1 = mol_charge(i)
-    rtp2 = mol_charge(j)
-    epcl=pi*rtp1*rtp2/screen/screen/volume
-    if(i.eq.j) epcl=epcl/2.0e0 ! self-interaction
-    pairep=pairep-epcl
-  end subroutine residual_ene
-
   ! Rotate box and coordinate so that the cell(:,:) is upper triangular:
   ! cell(2, 1) = cell(3, 1) = cell(3, 2) = 0
   ! (1st axis to be aligned to x-axis, 2nd axis to be within xy-plane)
