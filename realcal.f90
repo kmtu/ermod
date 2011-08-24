@@ -202,7 +202,6 @@ contains
        enddo
     enddo
 
-    call residual_ene(i, i, pairep)
   end subroutine realcal_self
 
 

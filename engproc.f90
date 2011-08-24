@@ -6,8 +6,6 @@ module engproc
   integer :: tagslt
   integer, allocatable :: tagpt(:)
 
-  integer(8) :: solute_hash = 0
-
   ! flceng needs to be output in-order
   logical, allocatable :: flceng_stored(:)
   real, allocatable :: flceng(:, :)
@@ -640,7 +638,8 @@ contains
 
     integer :: i, k, q
     integer(8) :: current_solute_hash
-    real :: pairep, factor
+    integer(8) :: solute_hash = 0
+    real :: pairep, residual, factor
     real, save :: usreal
     logical, save :: initialized = .false.
 
@@ -677,14 +676,18 @@ contains
     ! solute-solute self energy
     pairep = 0.0
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
-    if(current_solute_hash == solute_hash .and. estype /= ES_NPT) then
+    if(current_solute_hash == solute_hash .or. &
+         (slttype == CAL_REFS_RIGID .and. solute_hash /= 0)) then 
+       ! For refs part, the structure of solute may change because of rotation & translation upon insertion, 
+       ! though the self energy will not change.
        pairep = usreal ! reuse
     else
        call realcal_self(tagslt, pairep) ! calculate self-interaction
        usreal = pairep
     endif
+    call residual_ene(i, i, residual)
     solute_hash = current_solute_hash
-    uvengy(0) = uvengy(0) + pairep
+    uvengy(0) = uvengy(0) + pairep + residual
 
     ! solute-solvent pair
     do k=1,slvmax
@@ -1046,6 +1049,7 @@ contains
     use engmain, only: sitepos, mol_begin_index, numsite
     implicit none
 
+    print *, "DEBUG: ", mol_begin_index(tagslt), mol_begin_index(tagslt+1), numsite(tagslt)
     get_solute_hash = hash(sitepos(1:3, mol_begin_index(tagslt):(mol_begin_index(tagslt+1) - 1)), numsite(tagslt) * 3)
   end function get_solute_hash
 
