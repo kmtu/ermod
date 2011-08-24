@@ -99,6 +99,7 @@ contains
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
     if(i.eq.j) then
+       stop
        call realcal_self(i, pairep)
        return
     endif

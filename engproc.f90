@@ -675,6 +675,7 @@ contains
 
     ! solute-solute self energy
     pairep = 0.0
+    residual = 0.0
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
     if(current_solute_hash == solute_hash .or. &
          (slttype == CAL_REFS_RIGID .and. solute_hash /= 0)) then 
