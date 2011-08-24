@@ -1049,7 +1049,6 @@ contains
     use engmain, only: sitepos, mol_begin_index, numsite
     implicit none
 
-    print *, "DEBUG: ", mol_begin_index(tagslt), mol_begin_index(tagslt+1), numsite(tagslt)
     get_solute_hash = hash(sitepos(1:3, mol_begin_index(tagslt):(mol_begin_index(tagslt+1) - 1)), numsite(tagslt) * 3)
   end function get_solute_hash
 
