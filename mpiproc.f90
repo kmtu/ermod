@@ -138,7 +138,7 @@ contains
 
   subroutine perf_time(state)
     implicit none
-    character(len=4), intent(in), optional :: state
+    character(len=4), intent(in) :: state
     real(8) :: wall_time
 
 #ifndef noMPI
@@ -150,12 +150,10 @@ contains
     prev_time = wall_time
 
     prev_state_num = 0
-    if(present(state)) then
-       select case(state)
-       case("rblk")
-          prev_state_num = 1
-       end select
-    end if
+    select case(state)
+    case("rblk")
+       prev_state_num = 1
+    end select
 #endif
 #endif
   end subroutine perf_time
