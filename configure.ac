@@ -2,7 +2,7 @@
 
 AC_PREREQ([2.59])
 #AC_INIT(enerepr, 0.2.%rev%, Matubayasi Laboratory)
-AC_INIT(enerepr, 0.2.alpha1+refsfix, Matubayasi Laboratory)
+AC_INIT(enerepr, 0.2.alpha1+fft, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 

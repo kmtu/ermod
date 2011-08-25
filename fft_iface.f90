@@ -12,7 +12,7 @@ module fft_iface
 
   type fft_handle
 #ifdef MKL
-  type(Dfti_Descriptor), pointer :: desc
+     type(Dfti_Descriptor), pointer :: desc
 #endif
 #ifdef FFTW
      integer(8) :: plan
@@ -35,33 +35,56 @@ contains
   
   ! initialize FFT, real to complex, out-of-place
   subroutine fft_init_rtc(handle, in, out)
-    use MKL_DFTI
-    type(fft_handle), intent(out) :: handle
+    type(fft_handle), intent(inout) :: handle
     real, intent(inout) :: in(fftsize(1), fftsize(2), fftsize(3))
     complex, intent(inout) :: out(fftsize(1)/2+1, fftsize(2), fftsize(3))
+    call fft_init_impl(handle, .true.)
+  end subroutine fft_init_rtc
+
+  ! real to complex. Note that MKL's DFT interface is exactly the same for r2c and c2r, thus just pass the argument.
+  subroutine fft_init_ctr(handle, in, out)
+    type(fft_handle), intent(inout) :: handle
+    complex, intent(inout) :: in(fftsize(1)/2+1, fftsize(2), fftsize(3))
+    real, intent(inout) :: out(fftsize(1), fftsize(2), fftsize(3))
+    call fft_init_impl(handle, .false.)
+  end subroutine fft_init_ctr
+
+  subroutine fft_init_impl(handle, is_rtc)
+    use MKL_DFTI
+    type(fft_handle), intent(inout) :: handle
+    logical, intent(in) :: is_rtc
+
+    integer :: strides(4)
     integer :: stat
     real :: dummy
     if(kind(dummy) == 8) then
        stat = DftiCreateDescriptor(handle%desc, DFTI_DOUBLE, DFTI_REAL, 3, fftsize)
     else
-       stat = DftiCreateDescriptor(handle%desc, DFTI_FLOAT, DFTI_REAL, 3, fftsize)
+       stat = DftiCreateDescriptor(handle%desc, DFTI_SINGLE, DFTI_REAL, 3, fftsize)
     endif
     if(stat /= 0) stop "MKL-FFT: failed to execute DftiCreateDescriptor"
     stat = DftiSetValue(handle%desc, DFTI_PLACEMENT, DFTI_NOT_INPLACE)
     if(stat /= 0) stop "MKL-FFT: failed to set DFTI_NOT_INPLACE"
+    stat = DftiSetValue(handle%desc, DFTI_CONJUGATE_EVEN_STORAGE, DFTI_COMPLEX_COMPLEX)
+    if(stat /= 0) stop "MKL-FFT: failed to set DFTI_CONJUGATE_EVEN_STORAGE"
     stat = DftiSetValue(handle%desc, DFTI_PACKED_FORMAT, DFTI_CCE_FORMAT)
     if(stat /= 0) stop "MKL-FFT: failed to set DFTI_PACKED_FORMAT"
+
+    strides(1) = 0 ! offset
+    strides(2) = 1 
+    strides(3) = fftsize(1) / 2 + 1
+    strides(4) = strides(3) * fftsize(2)
+    if(is_rtc) then
+       stat = DftiSetValue(handle%desc, DFTI_OUTPUT_STRIDES, strides)
+       if(stat /= 0) stop "MKL-FFT: failed to set DFTI_OUTPUT_STRIDES"
+    else
+       stat = DftiSetValue(handle%desc, DFTI_INPUT_STRIDES, strides)
+       if(stat /= 0) stop "MKL-FFT: failed to set DFTI_INPUT_STRIDES"
+    endif
+
     stat = DftiCommitDescriptor(handle%desc)
     if(stat /= 0) stop "MKL-FFT: failed to execute DftiCommitDescriptor"
-  end subroutine fft_init_rtc
-
-  ! real to complex. Note that MKL's DFT interface is exactly the same for r2c and c2r, thus just pass the argument.
-  subroutine fft_init_ctr(handle, in, out)
-    type(fft_handle), intent(out) :: handle
-    complex, intent(inout) :: in(fftsize(1)/2+1, fftsize(2), fftsize(3))
-    real, intent(inout) :: out(fftsize(1), fftsize(2), fftsize(3))
-    call fft_init_rtc(handle, out, in)
-  end subroutine fft_init_ctr
+  end subroutine fft_init_impl
 
   ! real-to-complex, out-of-place FFT
   subroutine fft_rtc(handle, in, out)
