@@ -13,9 +13,22 @@ module mpiproc                                                   ! MPI
   integer, parameter :: tag_cell = 11, tag_coord = 12
   integer :: mpi_comm_activeprocs
 
+  ! for performance counter
+  integer :: prev_state_num
+  real(8) :: prev_time
+  real(8) :: times(6)
+  character(len=8), parameter :: timer_names(6) = (/&
+       "RealBlck", &
+       "undefs  ", &
+       "undefs  ", &
+       "undefs  ", &
+       "undefs  ", &
+       "undefs  " /)
+
 contains
   subroutine mpi_setup(type)                                       ! MPI
     character*4 type                                                 ! MPI
+    integer :: i
 #ifndef noMPI
     real(4) :: cputime                                               ! MPI
     real(8), save :: walltime                                        ! MPI
@@ -25,6 +38,7 @@ contains
        walltime = MPI_WTIME()
 #endif
        call mpi_info
+       times(:) = 0.0
     endif
     if(type.eq.'stop') then                                          ! MPI
 #ifdef PERF
@@ -32,6 +46,10 @@ contains
        print *, "rank = ", myrank, ", CPUtime = ", cputime
        if(myrank == 0) then
           print *, "Wall-clock time: ", MPI_WTIME() - walltime
+          print *, "Timing breakdown: "
+          do i = 1, size(times, 1)
+             print *, timer_names(i), times(i)
+          end do
        endif
 #endif
        call mpi_finalize(ierror)                                      ! MPI
@@ -117,6 +135,28 @@ contains
 #endif
   end subroutine mympi_reduce_real
 
+
+  subroutine perf_time(state)
+    implicit none
+    character(len=4), intent(in) :: state
+    real(8) :: wall_time
+
+#ifndef noMPI
+#ifdef PERF
+    wall_time = MPI_WTIME()
+    if(prev_state_num /= 0) then
+       times(prev_state_num) = times(prev_state_num) + (wall_time - prev_time)
+    endif
+    prev_time = wall_time
+
+    prev_state_num = 0
+    select case(state)
+    case("rblk")
+       prev_state_num = 1
+    end select
+#endif
+#endif
+  end subroutine perf_time
   
 
   ! Stop calculation with error message

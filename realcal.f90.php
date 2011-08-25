@@ -9,6 +9,8 @@ module realcal
   integer, allocatable :: atomno_solu(:), atomno_solv(:)
   integer, allocatable :: counts_solu(:, :, :), counts_solv(:, :, :)
   integer, allocatable :: psum_solu(:), psum_solv(:)
+  real, allocatable :: sitepos_solu(:, :), sitepos_solv(:, :)
+  integer, allocatable :: ljtype_solu(:, :), ljtype_solv(:, :)
 
   integer, allocatable :: subcell_neighbour(:, :) ! of (3, subcell_num_neighbour)
   integer :: subcell_num_neighbour
