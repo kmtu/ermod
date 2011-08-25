@@ -19,8 +19,8 @@ contains
          sitepos,invcl,volume,&
          pi
     use spline, only: spline_init
-    use fft_iface, only: fft_init_ctc, fft_init_inplace, &
-         fft_ctc, fft_inplace,&
+    use fft_iface, only: fft_init_ctc, fft_init_ctc_backward, fft_init_inplace, &
+         fft_ctc, fft_ctc_backward, fft_inplace,&
          fft_set_size
     implicit none
     integer, intent(in) :: slvmax, tagpt(slvmax)
@@ -63,6 +63,7 @@ contains
     ! init fft
     call fft_init_inplace(rcpslt)
     call fft_init_ctc(fft_buf, cnvslt)
+    call fft_init_ctc_backward(fft_buf, cnvslt)
   end subroutine recpcal_init
 
   subroutine init_spline_axis(imin, imax, splfc)
@@ -147,7 +148,7 @@ contains
 
   subroutine recpcal_prepare_solute(tagslt)
     use engmain, only: ms1max, ms2max, ms3max, sitepos, invcl, numsite, splodr, specatm, charge
-    use fft_iface, only: fft_ctc, fft_inplace
+    use fft_iface, only: fft_ctc, fft_inplace, fft_ctc_backward
     implicit none
     integer, intent(in) :: tagslt
     real :: xst(3), inm(3)
@@ -185,11 +186,11 @@ contains
        do rc2=rc2min,rc2max
           do rc1=rc1min,rc1max
              rcpi=cmplx(engfac(rc1,rc2,rc3),0.0e0)
-             fft_buf(rc1,rc2,rc3)=rcpi*conjg(rcpslt(rc1,rc2,rc3))
+             fft_buf(rc1,rc2,rc3)=rcpi*rcpslt(rc1,rc2,rc3)
           end do
        end do
     end do
-    call fft_ctc(fft_buf, cnvslt)                    ! 3D-FFT
+    call fft_ctc_backward(fft_buf, cnvslt)                    ! 3D-FFT
     deallocate( splval,grdval )
   end subroutine recpcal_prepare_solute
 

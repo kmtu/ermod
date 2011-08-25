@@ -14,7 +14,7 @@ module fft_iface
 #endif
 #ifdef FFTW
   ! unsupported
-  integer(8) :: plan_ctc, plan_inplace
+  integer(8) :: plan_ctc, plan_ctc_backward, plan_inplace
 #include "fftw3.f"
 #endif
   
@@ -44,6 +44,11 @@ contains
     stat = DftiCommitDescriptor(desc_ctc)
     if(stat /= 0) stop "MKL-FFT: failed to execute DftiCommitDescriptor"
   end subroutine fft_init_ctc
+
+  subroutine fft_init_ctc_backward(in, out)
+    complex :: in(fftsize(1), fftsize(2), fftsize(3)), out(fftsize(1), fftsize(2), fftsize(3))
+    call fft_init_ctc(in, out)
+  end subroutine fft_init_ctc_backward
   
   subroutine fft_init_inplace(inout)
     use MKL_DFTI
@@ -102,6 +107,17 @@ contains
     stat = DftiComputeForward(desc_ctc, in, out)
     if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_z_out (oops!)"
   end subroutine fft_ctc
+
+  ! complex-to-complex, out-of-place FFT, backward
+  subroutine fft_ctc_backward(in, out)
+    use MKL_DFTI
+    integer :: stat
+    ! use fortran77-style size to bypass type-check. Note that this invalidates type-check!
+    complex, intent(in) :: in(*)
+    complex, intent(out) :: out(*)
+    stat = DftiComputeBackward(desc_ctc, in, out)
+    if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_z_out (oops!)"
+  end subroutine fft_ctc_backward
 
   ! complex-to-complex, in-place FFT
   subroutine fft_inplace(inout)
@@ -162,8 +178,6 @@ contains
 #ifdef FFTW
   ! 3D-FFT, FFTW version
   ! This one is unsupported; use at your own risk.
-  ! Note the GPL! You cannot re-distribute the program if you linked the program with GPL-ed library.
-  ! It is YOUR responsibility that YOU obey the statment of GPL, if you link this program to GPL-ed software.
 
   subroutine fft_init_ctc(in, out)
     integer :: stat
@@ -184,6 +198,26 @@ contains
     end if
        
   end subroutine fft_init_ctc
+
+  subroutine fft_init_ctc_backward(in, out)
+    integer :: stat
+    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
+    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
+
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_import_system_wisdom(stat)
+       ! FIXME: change to FFTW_PATIENT if it becomes a REAL bottleneck
+       call dfftw_plan_dft_3d(plan_ctc_backward, fftsize(1), fftsize(2), fftsize(3), &
+            in, out, &
+            FFTW_BACKWARD, FFTW_MEASURE)
+    else
+       ! FFTW need separate compilation for single precision,
+       ! and many people incorrecly report this as a bug.
+       stop "fftw for single precision not supported"
+    end if
+       
+  end subroutine fft_init_ctc_backward
 
   subroutine fft_init_inplace(inout)
     integer :: stat
@@ -219,6 +253,17 @@ contains
        stop
     endif
   end subroutine fft_ctc
+
+  subroutine fft_ctc_backward(in, out)
+    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
+    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_execute(plan_ctc_backward)
+    else
+       stop
+    endif
+  end subroutine fft_ctc_backward
 
   ! complex-to-complex, in-place FFT
   subroutine fft_inplace(inout)
