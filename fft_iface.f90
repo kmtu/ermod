@@ -9,12 +9,22 @@ module fft_iface
   implicit none
   
   integer :: fftsize(3)
+
+  type fft_handle
+#ifdef MKL
+  type(Dfti_Descriptor), pointer :: desc
+#endif
+#ifdef FFTW
+     integer(8) :: plan
+#endif
+  end type fft_handle
+
 #ifdef MKL
   type(Dfti_Descriptor), pointer :: desc_ctc, desc_c, desc_rtc
 #endif
 #ifdef FFTW
   ! unsupported
-  integer(8) :: plan_ctc, plan_ctc_backward, plan_inplace, plan_r2c_inplace, plan_c2r, plan_r2c
+  integer(8) :: plan_ctc, plan_ctc_backward, plan_inplace, plan_r2c_inplace, plan_ctr, plan_rtc
 #include "fftw3.f"
 #endif
   
@@ -179,216 +189,90 @@ contains
   ! 3D-FFT, FFTW version
   ! This one is unsupported; use at your own risk.
 
-  subroutine fft_init_ctc(in, out)
+  ! Initialize real-to-complex
+  subroutine fft_init_rtc(handle, in, out)
+    type(fft_handle), intent(out) :: handle
+    real, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
+    complex, intent(out) :: out(fftsize(1)/2+1, fftsize(2), fftsize(3))
     integer :: stat
-    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-
     real :: dummy
+
     if(kind(dummy) == 8) then
        call dfftw_import_system_wisdom(stat)
-       ! FIXME: change to FFTW_PATIENT if it becomes a REAL bottleneck
-       call dfftw_plan_dft_3d(plan_ctc, fftsize(1), fftsize(2), fftsize(3), &
+       call dfftw_plan_dft_r2c_3d(handle%plan, fftsize(1), fftsize(2), fftsize(3), &
             in, out, &
-            FFTW_FORWARD, FFTW_MEASURE)
+            FFTW_MEASURE)
     else
        ! FFTW need separate compilation for single precision,
        ! and many people incorrecly report this as a bug.
-       stop "fftw for single precision not supported"
-    end if
-       
-  end subroutine fft_init_ctc
-
-  subroutine fft_init_ctc_backward(in, out)
-    integer :: stat
-    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-
-    real :: dummy
-    if(kind(dummy) == 8) then
-       call dfftw_import_system_wisdom(stat)
-       ! FIXME: change to FFTW_PATIENT if it becomes a REAL bottleneck
-       call dfftw_plan_dft_3d(plan_ctc_backward, fftsize(1), fftsize(2), fftsize(3), &
-            in, out, &
-            FFTW_BACKWARD, FFTW_MEASURE)
-    else
-       ! FFTW need separate compilation for single precision,
-       ! and many people incorrecly report this as a bug.
-       stop "fftw for single precision not supported"
-    end if
-       
-  end subroutine fft_init_ctc_backward
-
-  subroutine fft_init_inplace(inout)
-    integer :: stat
-    complex, intent(inout) :: inout(fftsize(1), fftsize(2), fftsize(3))
-    real :: dummy
-    if(kind(dummy) == 8) then
-       call dfftw_import_system_wisdom(stat)
-       call dfftw_plan_dft_3d(plan_inplace, fftsize(1), fftsize(2), fftsize(3), &
-            inout, inout, &
-            FFTW_FORWARD, FFTW_MEASURE)
-    else
        stop "fftw for single precision not supported"
     endif
-
-  end subroutine fft_init_inplace
-
-  subroutine fft_init_rtc(in, out)
-    integer :: stat
-    real(8), intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex(8), intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-
-    stop "implement fft_init_rtc"
   end subroutine fft_init_rtc
 
-  subroutine fft_init_r2c_inplace(inout)
+  ! Initialize complex-to-real
+  subroutine fft_init_ctr(handle, in, out)
+    type(fft_handle), intent(out) :: handle
+    complex, intent(in) :: in(fftsize(1)/2+1, fftsize(2), fftsize(3))
+    real, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
     integer :: stat
-    complex, intent(inout) :: inout(fftsize(1)/2+1, fftsize(2), fftsize(3))
     real :: dummy
 
     if(kind(dummy) == 8) then
        call dfftw_import_system_wisdom(stat)
-       call dfftw_plan_dft_r2c_3d(plan_r2c_inplace, fftsize(1), fftsize(2), fftsize(3), &
-            inout, inout, &
-            FFTW_MEASURE)
-    else
-       stop "fftw for single precision not supported"
-    endif
-  end subroutine fft_init_r2c_inplace
-
-  subroutine fft_init_r2c(in, out)
-    integer :: stat
-    real, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex, intent(out) :: out(fftsize(1)/2+1, fftsize(2), fftsize(3))
-    real :: dummy
-
-    if(kind(dummy) == 8) then
-       call dfftw_import_system_wisdom(stat)
-       call dfftw_plan_dft_r2c_3d(plan_r2c, fftsize(1), fftsize(2), fftsize(3), &
+       call dfftw_plan_dft_c2r_3d(handle%plan, fftsize(1), fftsize(2), fftsize(3), &
             in, out, &
             FFTW_MEASURE)
     else
        stop "fftw for single precision not supported"
     endif
-  end subroutine fft_init_r2c
+  end subroutine fft_init_ctr
 
-  subroutine fft_init_c2r(in, out)
-    integer :: stat
-    complex, intent(in) :: in(fftsize(1)/2+1, fftsize(2), fftsize(3))
-    real, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-    real :: dummy
-
-    if(kind(dummy) == 8) then
-       call dfftw_import_system_wisdom(stat)
-       call dfftw_plan_dft_c2r_3d(plan_c2r, fftsize(1), fftsize(2), fftsize(3), &
-            in, out, &
-            FFTW_MEASURE)
-    else
-       stop "fftw for single precision not supported"
-    endif
-  end subroutine fft_init_c2r
-
-  ! complex-to-complex, out-of-place FFT
-  subroutine fft_ctc(in, out)
-    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-    real :: dummy
-    if(kind(dummy) == 8) then
-       call dfftw_execute(plan_ctc)
-    else
-       stop
-    endif
-  end subroutine fft_ctc
-
-  subroutine fft_ctc_backward(in, out)
-    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-    real :: dummy
-    if(kind(dummy) == 8) then
-       call dfftw_execute(plan_ctc_backward)
-    else
-       stop
-    endif
-  end subroutine fft_ctc_backward
-
-  subroutine fft_r2c_inplace(inout)
-    complex, intent(inout) :: inout(fftsize(1)/2+1, fftsize(2), fftsize(3))
-    real :: dummy
-    if(kind(dummy) == 8) then
-       call dfftw_execute(plan_r2c_inplace)
-    else
-       stop
-    endif
-  end subroutine fft_r2c_inplace
-
-  subroutine fft_c2r(in, out)
+  subroutine fft_ctr(handle, in, out)
+    type(fft_handle), intent(in) :: handle
     complex, intent(in) :: in(fftsize(1)/2+1, fftsize(2), fftsize(3))
     real, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
     real :: dummy
     if(kind(dummy) == 8) then
-       call dfftw_execute(plan_c2r)
+       call dfftw_execute(handle%plan)
     else
        stop
     endif
-  end subroutine fft_c2r
+  end subroutine fft_ctr
 
-  subroutine fft_r2c(in, out)
+  subroutine fft_rtc(handle, in, out)
+    type(fft_handle), intent(in) :: handle
     real, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
     complex, intent(out) :: out(fftsize(1)/2+1, fftsize(2), fftsize(3))
     real :: dummy
     if(kind(dummy) == 8) then
-       call dfftw_execute(plan_r2c)
+       call dfftw_execute(handle%plan)
     else
        stop
     endif
-  end subroutine fft_r2c
-
-
-  ! complex-to-complex, in-place FFT
-  subroutine fft_inplace(inout)
-    complex, intent(inout) :: inout(fftsize(1), fftsize(2), fftsize(3))
-    real :: dummy
-    if(kind(dummy) == 8) then
-       call dfftw_execute(plan_inplace)
-    else
-       stop
-    endif
-  end subroutine fft_inplace
-
-  ! real-to-complex, out-of-place FFT
-  subroutine fft_rtc(in, out)
-    real(8), intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex(8), intent(out) :: out(fftsize(1) / 2 + 1, fftsize(2) / 2 + 1, fftsize(3) / 2 + 1)
-
-    stop "implement fft_rtc"
   end subroutine fft_rtc
 
   ! clean-up fft handle
-  subroutine fft_cleanup_ctc()
+  subroutine fft_cleanup_ctr(handle)
+    type(fft_handle), intent(in) :: handle
     real :: dummy
     if(kind(dummy) == 8) then
-       call dfftw_destroy_plan(plan_ctc)
+       call dfftw_destroy_plan(handle%plan)
     else
        stop
     endif
-  end subroutine fft_cleanup_ctc
-
+  end subroutine fft_cleanup_ctr
+  
   ! clean-up fft handle
-  subroutine fft_cleanup_inplace()
+  subroutine fft_cleanup_rtc(handle)
+    type(fft_handle), intent(in) :: handle
     real :: dummy
     if(kind(dummy) == 8) then
-       call dfftw_destroy_plan(plan_inplace)
+       call dfftw_destroy_plan(handle%plan)
     else
        stop
     endif
-
-  end subroutine fft_cleanup_inplace
-
-  ! clean-up fft handle
-  subroutine fft_cleanup_rtc()
-    stop "implement fft_cleanup_rtc"
   end subroutine fft_cleanup_rtc
+  
 #endif
 
 end module fft_iface

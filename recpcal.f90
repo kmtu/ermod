@@ -1,4 +1,5 @@
 module reciprocal
+  use fft_iface, only: fft_handle
   implicit none
   integer :: rc1min,rc1max,rc2min,rc2max,rc3min,rc3max
   integer :: ccesize, ccemax
@@ -14,6 +15,8 @@ module reciprocal
 
   real :: solute_self_energy
 
+  type(fft_handle) :: handle_c2r, handle_r2c
+
 contains
   subroutine recpcal_init(slvmax, tagpt)
     use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
@@ -22,8 +25,7 @@ contains
          sitepos,invcl,volume,&
          pi
     use spline, only: spline_init
-    use fft_iface, only: fft_init_c2r, fft_init_r2c, &
-         fft_ctc, fft_ctc_backward, fft_inplace,&
+    use fft_iface, only: fft_init_ctr, fft_init_rtc, &
          fft_set_size
     implicit none
     integer, intent(in) :: slvmax, tagpt(slvmax)
@@ -63,8 +65,8 @@ contains
     allocate( engfac(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
     allocate( rcpslt(rc1min:ccemax,rc2min:rc2max,rc3min:rc3max) )
     ! init fft
-    call fft_init_r2c(cnvslt, rcpslt)
-    call fft_init_c2r(rcpslt, cnvslt)
+    call fft_init_rtc(handle_r2c, cnvslt, rcpslt)
+    call fft_init_ctr(handle_c2r, rcpslt, cnvslt)
   end subroutine recpcal_init
 
   subroutine init_spline_axis(imin, imax, splfc)
@@ -149,7 +151,7 @@ contains
 
   subroutine recpcal_prepare_solute(tagslt)
     use engmain, only: ms1max, ms2max, ms3max, sitepos, invcl, numsite, splodr, specatm, charge
-    use fft_iface, only: fft_c2r, fft_r2c
+    use fft_iface, only: fft_ctr, fft_rtc
     implicit none
     integer, intent(in) :: tagslt
     real :: xst(3), inm(3)
@@ -180,7 +182,8 @@ contains
           end do
        end do
     end do
-    call fft_r2c(cnvslt, rcpslt)                         ! 3D-FFT
+
+    call fft_rtc(handle_r2c, cnvslt, rcpslt)                         ! 3D-FFT
 
     ! original form is:
     ! 0.5 * sum(engfac(:, :, :) * real(rcpslt_c(:, :, :)) * conjg(rcpslt_c(:, :, :)))
@@ -198,7 +201,7 @@ contains
     endif
 
     rcpslt(:, :, :)=engfac(rc1min:ccemax, :, :)*rcpslt(:, :, :)
-    call fft_c2r(rcpslt, cnvslt)                    ! 3D-FFT
+    call fft_ctr(handle_c2r, rcpslt, cnvslt)                    ! 3D-FFT
 
     deallocate( splval,grdval )
   end subroutine recpcal_prepare_solute
