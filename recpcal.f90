@@ -12,6 +12,8 @@ module reciprocal
   real,    allocatable :: splfc1(:), splfc2(:), splfc3(:)
   complex, allocatable :: fft_buf(:, :, :)
 
+  real :: solute_self_energy
+
 contains
   subroutine recpcal_init(slvmax, tagpt)
     use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
@@ -200,6 +202,8 @@ contains
        end do
     end do
 
+    solute_self_energy = 0.5 * sum(engfac(:, :, :) * real(rcpslt(:, :, :) * conjg(rcpslt(:, :, :))))
+
     do rc3=rc3min,rc3max
        do rc2=rc2min,rc2max
           do rc1=rc1min,rc1max
@@ -253,7 +257,7 @@ contains
     implicit none
     real, intent(out) :: pairep
 
-    pairep = 0.5 * sum(engfac(:, :, :) * real(rcpslt(:, :, :) * conjg(rcpslt(:, :, :))))
+    pairep = solute_self_energy
   end subroutine recpcal_self_energy
 
   subroutine recpcal_energy(tagslt, i, pairep)

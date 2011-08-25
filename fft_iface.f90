@@ -257,6 +257,21 @@ contains
     endif
   end subroutine fft_init_r2c_inplace
 
+  subroutine fft_init_c2r_inplace(inout)
+    integer :: stat
+    complex, intent(inout) :: inout(fftsize(1)/2+1, fftsize(2), fftsize(3))
+    real :: dummy
+
+    if(kind(dummy) == 8) then
+       call dfftw_import_system_wisdom(stat)
+       call dfftw_plan_dft_c2r_3d(plan_r2c_inplace, fftsize(1), fftsize(2), fftsize(3), &
+            inout, inout, &
+            FFTW_MEASURE)
+    else
+       stop "fftw for single precision not supported"
+    endif
+  end subroutine fft_init_c2r_inplace
+
   ! complex-to-complex, out-of-place FFT
   subroutine fft_ctc(in, out)
     complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
