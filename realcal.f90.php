@@ -493,30 +493,30 @@ contains
           ! there is a risk that second nearest image still being inside the cutoff length.
           ! But it's not considered in this case ...
           
-          dist = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
+          dist = sum(d(:) ** 2)
           r = sqrt(dist)
+
+          ljeps = ljene_mat(ljtype_v, ljtype_u)
+          ljsgm2 = ljlensq_mat(ljtype_v, ljtype_u)
+
+          rtp1 = ljsgm2 / dist
+          rtp2 = rtp1 * rtp1 * rtp1
+          elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
+          if(switching == 1 .and. dist > lwljcut2) then    ! CHARMM form of switching function
+             rtp1 = lwljcut2
+             rtp2 = upljcut2
+             swth = (2.0e0 * dist + rtp2 - 3.0e0 * rtp1) * (dist - rtp2) * (dist - rtp2) &
+                  / ((rtp2 - rtp1) * (rtp2 - rtp1) * (rtp2 - rtp1))
+             elj = swth * elj
+          endif
           if(dist >= upljcut2) then
              elj = 0.0
-          else
-             ljeps = ljene_mat(ljtype_v, ljtype_u)
-             ljsgm2 = ljlensq_mat(ljtype_v, ljtype_u)
-
-             rtp1 = ljsgm2 / dist
-             rtp2 = rtp1 * rtp1 * rtp1
-             elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
-             if(switching == 1 .and. dist > lwljcut2) then    ! CHARMM form of switching function
-                rtp1 = lwljcut2
-                rtp2 = upljcut2
-                swth = (2.0e0 * dist + rtp2 - 3.0e0 * rtp1) * (dist - rtp2) * (dist - rtp2) &
-                     / ((rtp2 - rtp1) * (rtp2 - rtp1) * (rtp2 - rtp1))
-                elj = swth * elj
-             endif
           end if
+
+          chr2 = charge(ua) * charge(va)
+          eel = chr2 * (1.0e0 - erf(screen * r)) / r 
           if(dist > elecut2) then
              eel = 0.0
-          else
-             chr2 = charge(ua) * charge(va)
-             eel = chr2 * (1.0e0 - erf(screen * r)) / r 
           end if
           energy_mat(belong_v, 1) = energy_mat(belong_v, 1) + elj + eel
        end do
