@@ -31,8 +31,13 @@ contains
   subroutine fft_init_ctc(in, out)
     use MKL_DFTI
     integer :: stat
-    complex(8) :: in(fftsize(1), fftsize(2), fftsize(3)), out(fftsize(1), fftsize(2), fftsize(3))
-    stat = DftiCreateDescriptor(desc_ctc, DFTI_DOUBLE, DFTI_COMPLEX, 3, fftsize)
+    complex :: in(fftsize(1), fftsize(2), fftsize(3)), out(fftsize(1), fftsize(2), fftsize(3))
+    real :: dummy
+    if(kind(dummy) == 8) then
+       stat = DftiCreateDescriptor(desc_ctc, DFTI_DOUBLE, DFTI_COMPLEX, 3, fftsize)
+    else
+       stat = DftiCreateDescriptor(desc_ctc, DFTI_FLOAT, DFTI_COMPLEX, 3, fftsize)
+    endif
     if(stat /= 0) stop "MKL-FFT: failed to execute DftiCreateDescriptor"
     stat = DftiSetValue(desc_ctc, DFTI_PLACEMENT, DFTI_NOT_INPLACE)
     if(stat /= 0) stop "MKL-FFT: failed to set DFTI_NOT_INPLACE"
@@ -43,8 +48,13 @@ contains
   subroutine fft_init_inplace(inout)
     use MKL_DFTI
     integer :: stat
-    complex(8) :: inout(fftsize(1), fftsize(2), fftsize(3))
-    stat = DftiCreateDescriptor(desc_c, DFTI_DOUBLE, DFTI_COMPLEX, 3, fftsize)
+    complex :: inout(fftsize(1), fftsize(2), fftsize(3))
+    real :: dummy
+    if(kind(dummy) == 8) then
+       stat = DftiCreateDescriptor(desc_c, DFTI_DOUBLE, DFTI_COMPLEX, 3, fftsize)
+    else
+       stat = DftiCreateDescriptor(desc_c, DFTI_FLOAT, DFTI_COMPLEX, 3, fftsize)
+    endif
     if(stat /= 0) stop "MKL-FFT: failed to execute DftiCreateDescriptor"
     stat = DftiCommitDescriptor(desc_c)
     if(stat /= 0) stop "MKL-FFT: failed to execute DftiCommitDescriptor"
@@ -53,9 +63,14 @@ contains
   subroutine fft_init_rtc(in, out)
     use MKL_DFTI
     integer :: stat
-    real(8) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex(8) :: out(fftsize(1) / 2 + 1, fftsize(2) / 2 + 1, fftsize(3) / 2 + 1)
-    stat = DftiCreateDescriptor(desc_rtc, DFTI_DOUBLE, DFTI_REAL, 3, fftsize)
+    real :: in(fftsize(1), fftsize(2), fftsize(3))
+    complex :: out(fftsize(1) / 2 + 1, fftsize(2) / 2 + 1, fftsize(3) / 2 + 1)
+    real :: dummy
+    if(kind(dummy) == 8) then
+       stat = DftiCreateDescriptor(desc_rtc, DFTI_DOUBLE, DFTI_REAL, 3, fftsize)
+    else
+       stat = DftiCreateDescriptor(desc_rtc, DFTI_FLOAT, DFTI_REAL, 3, fftsize)
+    end if
     if(stat /= 0) stop "MKL-FFT: failed to execute DftiCreateDescriptor"
     stat = DftiSetValue(desc_rtc, DFTI_PLACEMENT, DFTI_NOT_INPLACE)
     if(stat /= 0) stop "MKL-FFT: failed to set DFTI_NOT_INPLACE"
@@ -82,8 +97,8 @@ contains
     use MKL_DFTI
     integer :: stat
     ! use fortran77-style size to bypass type-check. Note that this invalidates type-check!
-    complex(8), intent(in) :: in(*)
-    complex(8), intent(out) :: out(*)
+    complex, intent(in) :: in(*)
+    complex, intent(out) :: out(*)
     stat = DftiComputeForward(desc_ctc, in, out)
     if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_z_out (oops!)"
   end subroutine fft_ctc
@@ -92,7 +107,7 @@ contains
   subroutine fft_inplace(inout)
     use MKL_DFTI
     integer :: stat
-    complex(8), intent(inout) :: inout(*)
+    complex, intent(inout) :: inout(*)
     stat = DftiComputeForward(desc_c, inout)
     if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_z (oops!)"
   end subroutine fft_inplace
@@ -101,8 +116,8 @@ contains
   subroutine fft_rtc(in, out)
     use MKL_DFTI
     integer :: stat
-    real(8), intent(in) :: in(*)
-    complex(8), intent(out) :: out(*)
+    real, intent(in) :: in(*)
+    complex, intent(out) :: out(*)
     stat = DftiComputeForward(desc_rtc, in, out)
     if(stat /= 0) stop "MKL-FFT: failed to execute compute_forward_dz (oops!)"
   end subroutine fft_rtc
@@ -152,23 +167,37 @@ contains
 
   subroutine fft_init_ctc(in, out)
     integer :: stat
-    complex(8), intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex(8), intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
+    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
+    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
 
-    call dfftw_import_system_wisdom(stat)
-    ! FIXME: change to FFTW_PATIENT if it becomes a REAL bottleneck
-    call dfftw_plan_dft_3d(plan_ctc, fftsize(1), fftsize(2), fftsize(3), &
-         in, out, &
-         FFTW_FORWARD, FFTW_MEASURE)
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_import_system_wisdom(stat)
+       ! FIXME: change to FFTW_PATIENT if it becomes a REAL bottleneck
+       call dfftw_plan_dft_3d(plan_ctc, fftsize(1), fftsize(2), fftsize(3), &
+            in, out, &
+            FFTW_FORWARD, FFTW_MEASURE)
+    else
+       ! FFTW need separate compilation for single precision,
+       ! and many people incorrecly report this as a bug.
+       stop "fftw for single precision not supported"
+    end if
+       
   end subroutine fft_init_ctc
 
   subroutine fft_init_inplace(inout)
     integer :: stat
-    complex(8), intent(inout) :: inout(fftsize(1), fftsize(2), fftsize(3))
-    call dfftw_import_system_wisdom(stat)
-    call dfftw_plan_dft_3d(plan_inplace, fftsize(1), fftsize(2), fftsize(3), &
-         inout, inout, &
-         FFTW_FORWARD, FFTW_MEASURE)
+    complex, intent(inout) :: inout(fftsize(1), fftsize(2), fftsize(3))
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_import_system_wisdom(stat)
+       call dfftw_plan_dft_3d(plan_inplace, fftsize(1), fftsize(2), fftsize(3), &
+            inout, inout, &
+            FFTW_FORWARD, FFTW_MEASURE)
+    else
+       stop "fftw for single precision not supported"
+    endif
+
   end subroutine fft_init_inplace
 
   subroutine fft_init_rtc(in, out)
@@ -181,15 +210,26 @@ contains
 
   ! complex-to-complex, out-of-place FFT
   subroutine fft_ctc(in, out)
-    complex(8), intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
-    complex(8), intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
-    call dfftw_execute(plan_ctc)
+    complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
+    complex, intent(out) :: out(fftsize(1), fftsize(2), fftsize(3))
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_execute(plan_ctc)
+    else
+       stop
+    endif
   end subroutine fft_ctc
 
   ! complex-to-complex, in-place FFT
   subroutine fft_inplace(inout)
-    complex(8), intent(inout) :: inout(fftsize(1), fftsize(2), fftsize(3))
-    call dfftw_execute(plan_inplace)
+    complex, intent(inout) :: inout(fftsize(1), fftsize(2), fftsize(3))
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_execute(plan_inplace)
+    else
+       stop
+    endif
+
   end subroutine fft_inplace
 
   ! real-to-complex, out-of-place FFT
@@ -202,12 +242,23 @@ contains
 
   ! clean-up fft handle
   subroutine fft_cleanup_ctc()
-    call dfftw_destroy_plan(plan_ctc)
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_destroy_plan(plan_ctc)
+    else
+       stop
+    endif
   end subroutine fft_cleanup_ctc
 
   ! clean-up fft handle
   subroutine fft_cleanup_inplace()
-    call dfftw_destroy_plan(plan_inplace)
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_destroy_plan(plan_inplace)
+    else
+       stop
+    endif
+
   end subroutine fft_cleanup_inplace
 
   ! clean-up fft handle
