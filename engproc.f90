@@ -671,7 +671,7 @@ contains
        call recpcal_prepare_solute(tagslt)
        call perf_time("rblk")
        call realcal_proc(tagslt, tagpt, slvmax, uvengy)
-       call perf_time("")
+       call perf_time()
        call recpcal_self_energy(uvengy(0))
     endif
 
