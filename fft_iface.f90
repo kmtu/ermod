@@ -14,7 +14,7 @@ module fft_iface
 #endif
 #ifdef FFTW
   ! unsupported
-  integer(8) :: plan_ctc, plan_ctc_backward, plan_inplace
+  integer(8) :: plan_ctc, plan_ctc_backward, plan_inplace, plan_r2c_inplace
 #include "fftw3.f"
 #endif
   
@@ -242,6 +242,21 @@ contains
     stop "implement fft_init_rtc"
   end subroutine fft_init_rtc
 
+  subroutine fft_init_r2c_inplace(inout)
+    integer :: stat
+    complex, intent(inout) :: inout(fftsize(1)/2+1, fftsize(2), fftsize(3))
+    real :: dummy
+
+    if(kind(dummy) == 8) then
+       call dfftw_import_system_wisdom(stat)
+       call dfftw_plan_dft_r2c_3d(plan_r2c_inplace, fftsize(1), fftsize(2), fftsize(3), &
+            inout, inout, &
+            FFTW_MEASURE)
+    else
+       stop "fftw for single precision not supported"
+    endif
+  end subroutine fft_init_r2c_inplace
+
   ! complex-to-complex, out-of-place FFT
   subroutine fft_ctc(in, out)
     complex, intent(in) :: in(fftsize(1), fftsize(2), fftsize(3))
@@ -264,6 +279,16 @@ contains
        stop
     endif
   end subroutine fft_ctc_backward
+
+  subroutine fft_r2c_inplace(inout)
+    complex, intent(inout) :: inout(fftsize(1)/2+1, fftsize(2), fftsize(3))
+    real :: dummy
+    if(kind(dummy) == 8) then
+       call dfftw_execute(plan_r2c_inplace)
+    else
+       stop
+    endif
+  end subroutine fft_r2c_inplace
 
   ! complex-to-complex, in-place FFT
   subroutine fft_inplace(inout)

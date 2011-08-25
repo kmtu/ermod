@@ -1,10 +1,11 @@
 module reciprocal
   implicit none
   integer :: rc1min,rc1max,rc2min,rc2max,rc3min,rc3max
+  integer :: ccesize, ccemax
   integer, allocatable :: slvtag(:)
   real,    allocatable :: engfac(:,:,:)
   complex, allocatable :: rcpslv(:,:,:,:)
-  complex, allocatable :: rcpslt(:,:,:)
+  complex, allocatable :: rcpslt(:,:,:), rcpslt_buf(:, :, :)
   real,    allocatable :: splslv(:,:,:)
   integer, allocatable :: grdslv(:,:)
   complex, allocatable :: cnvslt(:,:,:)
@@ -19,7 +20,7 @@ contains
          sitepos,invcl,volume,&
          pi
     use spline, only: spline_init
-    use fft_iface, only: fft_init_ctc, fft_init_ctc_backward, fft_init_inplace, &
+    use fft_iface, only: fft_init_ctc, fft_init_ctc_backward, fft_init_r2c_inplace, &
          fft_ctc, fft_ctc_backward, fft_inplace,&
          fft_set_size
     implicit none
@@ -42,6 +43,7 @@ contains
     rc1min=0 ; rc1max=ms1max-1
     rc2min=0 ; rc2max=ms2max-1
     rc3min=0 ; rc3max=ms3max-1
+    ccesize = ms1max / 2 + 1; ccemax = ccesize - 1
     call spline_init(splodr)
     allocate( splslv(0:splodr-1,3,ptrnk),grdslv(3,ptrnk) )
     allocate( cnvslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
@@ -60,8 +62,9 @@ contains
     call fft_set_size(gridsize)
     allocate( engfac(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
     allocate( rcpslt(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+    allocate( rcpslt_buf(rc1min:ccemax,rc2min:rc2max,rc3min:rc3max) )
     ! init fft
-    call fft_init_inplace(rcpslt)
+    call fft_init_r2c_inplace(rcpslt_buf)
     call fft_init_ctc(fft_buf, cnvslt)
     call fft_init_ctc_backward(fft_buf, cnvslt)
   end subroutine recpcal_init
@@ -148,12 +151,12 @@ contains
 
   subroutine recpcal_prepare_solute(tagslt)
     use engmain, only: ms1max, ms2max, ms3max, sitepos, invcl, numsite, splodr, specatm, charge
-    use fft_iface, only: fft_ctc, fft_inplace, fft_ctc_backward
+    use fft_iface, only: fft_ctc, fft_r2c_inplace, fft_ctc_backward
     implicit none
     integer, intent(in) :: tagslt
     real :: xst(3), inm(3)
     integer :: rc1, rc2, rc3, rci, sid, m, k, ati, cg1, cg2, cg3, &
-         stmax, ptrnk, rcimax, svi, uvi, spi
+         stmax, ptrnk, rcimax, svi, uvi, spi, i
     real :: factor, rtp2, chr
     complex :: rcpi
     real, allocatable :: splval(:,:,:)
@@ -162,7 +165,7 @@ contains
     stmax=numsite(tagslt)
     allocate( splval(0:splodr-1,3,stmax),grdval(3,stmax) )
     call calc_spline_molecule(tagslt, stmax, splval(:,:,1:stmax), grdval(:,1:stmax))
-    rcpslt(:, :, :)=(0.0e0,0.0e0)
+    rcpslt_buf(:, :, :)=(0.0e0,0.0e0)
     do sid=1,stmax
        ati=specatm(sid,tagslt)
        chr=charge(ati)
@@ -174,14 +177,29 @@ contains
                 rc3=modulo(grdval(3,sid)-cg3,ms3max)
                 factor=chr*splval(cg1,1,sid)*splval(cg2,2,sid)&
                      *splval(cg3,3,sid)
-                rcpi=cmplx(factor,0.0e0)
-                rcpslt(rc1,rc2,rc3)=rcpslt(rc1,rc2,rc3)+rcpi
+                if(mod(rc1, 2) == 0) then ! compressed R-to-C FFT format
+                   rcpi = cmplx(factor, 0.0e0)
+                else
+                   rcpi = cmplx(0.0e0, factor)
+                end if
+                rcpslt_buf(rc1/2,rc2,rc3)=rcpslt_buf(rc1/2,rc2,rc3)+rcpi
              end do
           end do
        end do
     end do
-    ! FIXME: rewrite to real-to-complex transform
-    call fft_inplace(rcpslt)                         ! 3D-FFT
+    call fft_r2c_inplace(rcpslt_buf)                         ! 3D-FFT
+
+    do i = 0, ccemax
+       rcpslt(i, :, :) = rcpslt_buf(i, :, :)
+    end do
+    do rc3 = rc3min, rc3max
+       do rc2 = rc2min, rc2max
+          do rc1 = 1, ccemax
+             rcpslt(ms1max - rc1, mod(ms2max - rc2, ms2max), mod(ms3max - rc3, ms3max)) = conjg(rcpslt_buf(rc1, rc2, rc3))
+          end do
+       end do
+    end do
+
     do rc3=rc3min,rc3max
        do rc2=rc2min,rc2max
           do rc1=rc1min,rc1max
