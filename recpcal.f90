@@ -202,7 +202,16 @@ contains
        end do
     end do
 
-    solute_self_energy = 0.5 * sum(engfac(:, :, :) * real(rcpslt(:, :, :) * conjg(rcpslt(:, :, :))))
+    if(mod(ms1max, 2) == 0) then
+       solute_self_energy = &
+            sum(engfac(1:(ccemax-1), :, :) * real(rcpslt_buf(1:(ccemax-1), :, :) * conjg(rcpslt_buf(1:(ccemax-1), :, :)))) + &
+            0.5 * sum(engfac(0, :, :) * real(rcpslt_buf(0, :, :) * conjg(rcpslt_buf(0,  :, :)))) + &
+            0.5 * sum(engfac(ccemax, :, :) * real(rcpslt_buf(ccemax, :, :)) * conjg(rcpslt_buf(ccemax, :, :)))
+    else
+       solute_self_energy = &
+            sum(engfac(1:ccemax, :, :) * real(rcpslt_buf(1:ccemax, :, :) * conjg(rcpslt_buf(1:ccemax, :, :)))) + &
+            0.5 * sum(engfac(0, :, :) * real(rcpslt_buf(0, :, :) * conjg(rcpslt_buf(0,  :, :))))
+    endif
 
     do rc3=rc3min,rc3max
        do rc2=rc2min,rc2max
