@@ -10,7 +10,7 @@ module realcal
   integer, allocatable :: counts_solu(:, :, :), counts_solv(:, :, :)
   integer, allocatable :: psum_solu(:), psum_solv(:)
   real, allocatable :: sitepos_solu(:, :), sitepos_solv(:, :)
-  real, allocatable :: charge_solu(:), charge_solv(:)
+  integer, allocatable :: ljtype_solu(:, :), ljtype_solv(:, :)
 
   integer, allocatable :: subcell_neighbour(:, :) ! of (3, subcell_num_neighbour)
   integer :: subcell_num_neighbour
@@ -39,8 +39,6 @@ contains
     allocate(block_solu(3, nsolu_atom), block_solv(3, nsolv_atom))
     allocate(belong_solu(nsolu_atom), belong_solv(nsolv_atom))
     allocate(atomno_solu(nsolu_atom), atomno_solv(nsolv_atom))
-    allocate(sitepos_solu(3, nsolu_atom), sitepos_solv(3, nsolv_atom))
-    allocate(charge_solu(nsolu_atom), charge_solv(nsolv_atom))
     allocate(counts_solu(0:block_size(1)-1, 0:block_size(2)-1, 0:block_size(3)-1))
     allocate(counts_solv(0:block_size(1)-1, 0:block_size(2)-1, 0:block_size(3)-1))
     allocate(psum_solu(0:block_size(1) * block_size(2) *  block_size(3)))
@@ -55,8 +53,8 @@ contains
     call blockify(nsolu_atom, atomno_solu, block_solu)
     call blockify(nsolv_atom, atomno_solv, block_solv)
 
-    call sort_block(block_solu, nsolu_atom, belong_solu, atomno_solu, sitepos_solu, charge_solu, counts_solu, psum_solu)
-    call sort_block(block_solv, nsolv_atom, belong_solv, atomno_solv, sitepos_solv, charge_solv, counts_solv, psum_solv)
+    call sort_block(block_solu, nsolu_atom, belong_solu, atomno_solu, counts_solu, psum_solu)
+    call sort_block(block_solv, nsolv_atom, belong_solv, atomno_solv, counts_solv, psum_solv)
 
     ! assertion
     ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
@@ -68,8 +66,8 @@ contains
     uvengy(1:slvmax) = eng(1:slvmax, 1)
 
     deallocate(eng)
-    deallocate(block_solu, belong_solu, atomno_solu, sitepos_solu, charge_solu, counts_solu, psum_solu)
-    deallocate(block_solv, belong_solv, atomno_solv, sitepos_solv, charge_solv, counts_solv, psum_solv)
+    deallocate(block_solu, belong_solu, atomno_solu, counts_solu, psum_solu)
+    deallocate(block_solv, belong_solv, atomno_solv, counts_solv, psum_solv)
     deallocate(subcell_neighbour)
   end subroutine realcal_proc
 
@@ -234,6 +232,7 @@ contains
     integer :: i
     do i = 1, numsite(solu)
        atomno_solu(i) = mol_begin_index(solu) + (i - 1)
+       belong_solu(i) = solu
     end do
   end subroutine set_solu_atoms
 
@@ -247,6 +246,7 @@ contains
        if(j == solu) cycle
        do k = 1, numsite(j)
           atomno_solv(cnt) = mol_begin_index(j) + (k - 1)
+          belong_solv(cnt) = i
           cnt = cnt + 1
        end do
     end do
@@ -336,14 +336,11 @@ contains
     end do
   end subroutine blockify
 
-  subroutine sort_block(blk, nmol, belong, atomno, sitepos_new, charge_new, counts, psum)
-    use engmain, only: belong_to, charge
+  subroutine sort_block(blk, nmol, belong, atomno, counts, psum)
     integer, intent(inout) :: blk(:, :)
     integer, intent(in) :: nmol
     integer, intent(inout) :: belong(:)
     integer, intent(inout) :: atomno(:)
-    real, intent(out) :: sitepos_new(:, :)
-    real, intent(out) :: charge_new(:)
     integer, intent(inout) :: counts(0:block_size(1) - 1, 0:block_size(2) - 1, 0:block_size(3) - 1)
     integer, intent(out) :: psum(0:block_size(1) * block_size(2) * block_size(3))
     integer, allocatable :: buffer(:, :) ! FIXME: ugly!
@@ -373,7 +370,7 @@ contains
        end do
     end do
 
-    allocate(buffer(4, nmol))
+    allocate(buffer(5, nmol))
     do i = 1, nmol
        a = blk(1, i)
        b = blk(2, i)
@@ -381,17 +378,16 @@ contains
        pos = pnum(a, b, c) + 1  ! buffer (and output) index starts from 1
        pnum(a, b, c) = pos
        buffer(1:3, pos) = blk(1:3, i)
-       buffer(4, pos) = atomno(i)
+       buffer(4, pos) = belong(i)
+       buffer(5, pos) = atomno(i)
     end do
     deallocate(pnum)
 
     blk(1:3, :) = buffer(1:3, :)
-    atomno(:) = buffer(4, :)
+    belong(:) = buffer(4, :)
+    atomno(:) = buffer(5, :)
 
     deallocate(buffer)
-    belong(:) = belong_to(atomno(:))
-    sitepos_new(1:3, :) = sitepos_normal(1:3, atomno(:))
-    charge_new(:) = charge(atomno(:))
 
     partialsum = 0
     pos = 0
@@ -485,12 +481,12 @@ contains
        ua = atomno_solu(ui)
        belong_u = belong_solu(ui) ! FIXME: not used in later calculation
        ljtype_u = ljtype(ua)
-       crdu(:) = sitepos_solu(:, ui)
+       crdu(:) = sitepos_normal(:, ua)
        do vi = psum_solv(vpos), psum_solv(vpos + 1) - 1
           va = atomno_solv(vi)
           belong_v = belong_solv(vi)
           ljtype_v = ljtype(va)
-          crdv(:) = sitepos_solv(:, vi)
+          crdv(:) = sitepos_normal(:, va)
 
           d(:) = crdv(:) - crdu(:)
           d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
@@ -521,7 +517,7 @@ contains
           if(dist > elecut2) then
              eel = 0.0
           else
-             chr2 = charge_solu(ui) * charge_solv(vi)
+             chr2 = charge(ua) * charge(va)
              eel = chr2 * (1.0e0 - erf(screen * r)) / r 
           end if
           energy_mat(belong_v, 1) = energy_mat(belong_v, 1) + elj + eel
