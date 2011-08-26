@@ -67,7 +67,7 @@
 
 AC_DEFUN([ACX_BLAS], [
 AC_PREREQ(2.50)
-AC_REQUIRE([AC_F77_LIBRARY_LDFLAGS])
+# AC_REQUIRE([AC_FORTRAN_LIBRARY_LDFLAGS])
 acx_blas_ok=no
 
 AC_ARG_WITH(blas,
@@ -82,7 +82,7 @@ esac
 # Get fortran linker names of BLAS functions to check for.
 #AC_F77_FUNC(sgemm)
 #AC_F77_FUNC(dgemm)
-AC_LANG_PUSH(Fortran 77)
+#AC_LANG_PUSH(Fortran 77)
 sgemm=sgemm
 dgemm=dgemm
 
@@ -107,18 +107,21 @@ if test $acx_blas_ok = no; then
 	LIBS="$save_LIBS"
 fi
 
+# BLAS linked to by -mkl=parallel? (Intel compiler + MKL)
+if test $acx_blas_ok = no; then
+	save_LIBS="$LIBS"; LIBS="-mkl=parallel $LIBS"
+	AC_CHECK_FUNC($sgemm, 
+                      [acx_blas_ok=yes
+                       BLAS_LIBS="-mkl=parallel"])
+	LIBS="$save_LIBS"
+fi
+
 # BLAS in ATLAS library? (http://math-atlas.sourceforge.net/)
 if test $acx_blas_ok = no; then
-        AC_LANG_PUSH(C)
-	AC_CHECK_LIB(atlas, ATL_xerbla,
-		[AC_LANG_PUSH(Fortran 77)
-                 AC_CHECK_LIB(f77blas, $sgemm,
-			[acx_blas_ok=yes
-			 BLAS_LIBS="-lf77blas -latlas"],
-			[], [-lf77blas -latlas])
-                 AC_LANG_POP],
-		[], [-latlas])
-        AC_LANG_POP
+        AC_CHECK_LIB(f77blas, $sgemm,
+	             [acx_blas_ok=yes
+		      BLAS_LIBS="-lf77blas -latlas"],
+		     [], [-lf77blas -latlas])
 fi
 
 # BLAS in PhiPACK libraries? (requires generic BLAS lib, too)
@@ -189,7 +192,7 @@ fi
 
 AC_SUBST(BLAS_LIBS)
 
-AC_LANG_POP
+#AC_LANG_POP
 
 LIBS="$acx_blas_save_LIBS"
 

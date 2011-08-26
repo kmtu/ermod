@@ -97,12 +97,9 @@ AS_IF([test "x$with_fftw" != "x"],
    FCFLAGS="$FCFLAGS -I$FFTWROOT/include"
    LDFLAGS="$LDFLAGS -L$FFTWROOT/lib"])
 
-# due to bug in ACX_BLAS/LAPACK
-AC_LANG_PUSH(C)
 ACX_BLAS
 ACX_LAPACK([lapack_exist=yes],
-[lapack_exist=no])
-AC_LANG_POP(C)
+           [lapack_exist=no])
 
 AC_DEFUN([MY_FC_REAL_DOUBLE],[
 AC_CACHE_CHECK([how to read real as real(8) as default],

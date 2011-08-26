@@ -81,7 +81,7 @@ esac
 #AC_F77_FUNC(cheev)
 cheev=cheev
 
-AC_LANG_PUSH(Fortran 77)
+AC_LANG_PUSH(Fortran)
 
 # We cannot use LAPACK if BLAS is not found
 if test "x$acx_blas_ok" != xyes; then
