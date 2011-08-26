@@ -1,7 +1,7 @@
 ACLOCAL_AMFLAGS = -I m4
 
 bin_PROGRAMS = ermod slvfe
-nobase_bin_SCRIPTS = \
+nobase_pkgdata_SCRIPTS = \
 	tools/NAMD/gen_structure tools/NAMD/gen_input \
 	tools/gromacs/gen_structure tools/gromacs/gen_input
 
@@ -11,6 +11,8 @@ ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc
 
 EXTRA_DIST = parameters_er.example 
 EXTRA_DIST += trajectory-formats/*
+EXTRA_DIST += tools/NAMD/*
+EXTRA_DIST += tools/gromacs/*
 EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE
 EXTRA_DIST += realcal.F90.php
 CLEANFILES = *.mod
