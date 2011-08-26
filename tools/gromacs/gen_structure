@@ -334,116 +334,109 @@ def get_topology_info():
 
     for s in solutes:
         if s not in mollist:
-            print >> sys.stderr, "No such segname in topology: %s" % s
-            sys.exit(1)
+            error("No such segname in topology: %s" % s)
 
-    # check continuous or not
-    # 0: not started 1: started 2: finished
-    # "not started" is unnecessary indeed, but for clarity...
-    state = 0
-    for mol in mollist:
-        if state == 0:
-            if mol in solutes:
-                state = 1
-            else:
-                pass
-        elif state == 1:
-            if mol in solutes:
-                pass
-            else:
-                state = 2
-        else:
-            if mol in solutes:
-                print >> sys.stderr, "Error: solute is not contiguous"
-                sys.exit(1)
-            else:
-                pass
+    # At this moment solute can be one of the follows:
+    # * Solute spans several contiguous molecular types.
+    #   In this case, these contiguous types should be treated as a single molecule.
+    # * Solute spans a single molecular types.
+    #   In this case, multiple solute molecules may exist and should consider the case.
+
+    # check contiguous or not
+    numstart = 0
+    for i in range(len(mollist) - 1):
+        mol1 = mollist[i]
+        mol2 = mollist[i + 1]
+        
+        if (mol1 not in solutes) and (mol2 in solutes):
+            numstart += 1
+    if numstart > 1:
+        error("Solute is not contiguous")
 
     return solutes
 
 solutes = get_topology_info()
 
+# consolidate solutes
+solute_single = (len(solutes) == 1)
+
+mols = []
+if solute_single:
+    # output as in topology (supports multiple solute)
+    for (s, n) in top.system:
+        molno = top.moleculetypes[s]
+        mols.append(([s], n, s in solutes, top.molecules[molno]))
+else:
+    # merge solute and output as a single molecule
+    soluteatoms = []
+    for (s, n) in top.system:
+        if (s in solutes):
+            molno = top.moleculetypes[s]
+            soluteatoms += top.molecules[molno] * n
+
+    solute_first = True
+    for (s, n) in top.system:
+        if s in solutes:
+            if solute_first:
+                mols.append((solutes, 1, True, soluteatoms))
+                solute_first = False
+        else:
+            molno = top.moleculetypes[s]
+            mols.append((s, n, False, top.molecules[molno]))
+
 def gen(mode):
     if not os.path.exists(mode):
         os.mkdir(mode)
-    mdifh = file(mode + "/MDinfo", "wt")
-    ntypes = len(top.system) - len(solutes)
-    if mode == "soln":
-        ntypes += 1 # solute itself
-    print >> mdifh, "FRAMES %d" % ntypes
-    solute_merge = (len(solutes) == 1)
-    if solute_merge:
-        # output as in topology (supports multiple solute)
-        for (s, n) in top.system:
-            if not (mode == "refs" and s in solutes):
-                print >> mdifh, "%d" % n,
-        print >> mdifh
-        for (s, n) in top.system:
-            if not (mode == "refs" and s in solutes):
-                molno = top.moleculetypes[s]
-                print >> mdifh, "%d" % len(top.molecules[molno]),
-        print >> mdifh
-    else:
-        # merge solute and output as one
-        first_solute = True
-        for (s, n) in top.system:
-            if s in solutes:
-                if mode == "soln" and first_solute:
-                    print >> mdifh, 1,
-                    first_solute = False
-                # do nothing if 
-                # 1. not first solute
-                # 2. refs system
-            else:
-                print >> mdifh, "%d" % n,
-        print >> mdifh
-        first_solute = True
-        nsoluteatom = sum([len(top.molecules[top.moleculetypes[s]])
-                           for s in solutes])
-        for (s, _n) in top.system:
-            if s in solutes:
-                if mode == "soln" and first_solute:
-                    print >> mdifh, nsoluteatom,
-                    first_solute = False
-            else:
-                molno = top.moleculetypes[s]
-                print >> mdifh, "%d" % len(top.molecules[molno]),
-        print >> mdifh
 
+    npos = 1 # 1-origin
+    nmols = []
+    sites = []
+    for (s, n, is_solute, atoms) in mols:
+        if mode == "refs" and is_solute:
+            n = n - 1
+        if n == 0:
+            continue
+        nmols.append(n)
+        sites.append(len(atoms))
+        if is_solute and (mode == "soln"):
+            carryover["sltpick"] = npos
+        npos += 1
+
+    # output MDinfo
+    mdifh = file(mode + "/MDinfo", "wt")
+    print >> mdifh, "FRAMES %d" % len(nmols)
+    
+    for n in nmols:
+        print >> mdifh, "%d" % n,
+    print >> mdifh
+    for n in sites:
+        print >> mdifh, "%d" % n,
+    print >> mdifh
     mdifh.close()
     
     solvent_cnt = 1
-    first_solute = True
     ofh = None
-    for (s, n) in top.system:
-        if s in solutes and not first_solute:
-            pass
-        elif s in solutes:
+    for (s, n, is_solute, atoms) in mols:
+        if is_solute:
             fn = "SltInfo"
         else:
             fn = "MolPrm%d" % solvent_cnt
             solvent_cnt += 1
-        if not (s in solutes and not first_solute):
-            if ofh:
-                ofh.close()
-            ofh = open(mode + "/" + fn, "wt")
-            k = 1
 
-        if s in solutes:
-            first_solute = False
-        molno = top.moleculetypes[s]
-        nmol = 1
-        if s in solutes and solute_merge:
-            nmol = n
+        k = 1
 
-        for _i in range(nmol):
-            for (atype, _atom, charge, mass) in top.molecules[molno]:
-                eps = top.atom2epsilon[atype]
-                sig = top.atom2sigma[atype]
-                atom = atomtype_of_mass(float(mass))
-                print >> ofh, ("%d %s %.8g %.8g %.8g" % 
-                               (k, atom, charge, eps, sig))
-                k += 1
+        if ofh:
+            ofh.close()
+        ofh = open(mode + "/" + fn, "wt")
+
+        for (atype, _atom, charge, mass) in atoms:
+            eps = top.atom2epsilon[atype]
+            sig = top.atom2sigma[atype]
+            atom = atomtype_of_mass(float(mass))
+            print >> ofh, ("%d %s %.8g %.8g %.8g" % 
+                           (k, atom, charge, eps, sig))
+            k += 1
+
     ofh.close()
     # write carryover
     ofh = file(mode + "/.extraparam", "wt")
