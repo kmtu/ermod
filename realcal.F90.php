@@ -12,6 +12,17 @@ module realcal
   real, allocatable :: sitepos_solu(:, :), sitepos_solv(:, :)
   integer, allocatable :: ljtype_solu(:, :), ljtype_solv(:, :)
 
+
+  integer :: max_solu_block, max_solv_block
+
+  real, allocatable :: ljeps_lowlj(:), ljsgm2_lowlj(:), dist_lowlj(:)
+  integer, allocatable :: belong_lowlj(:)
+  real, allocatable :: ljeps_switch(:), ljsgm2_switch(:), dist_switch(:)
+  integer, allocatable :: belong_switch(:)
+  real, allocatable :: charge_el(:), dist_el(:)
+  integer, allocatable :: belong_el(:)
+  real, allocatable :: rtp1_t(:), rtp2_t(:), e_t(:), r_t(:)
+
   integer, allocatable :: subcell_neighbour(:, :) ! of (3, subcell_num_neighbour)
   integer :: subcell_num_neighbour
 
@@ -27,6 +38,7 @@ contains
     integer, intent(in) :: target_solu, tagpt(:), slvmax
     real, intent(out) :: uvengy(0:slvmax)
     real, allocatable :: eng(:, :)
+    integer :: lsize
     
     ! print *, "DEBUG: relcal_proc called"
     ! FIXME: fix calling convention & upstream call tree
@@ -56,6 +68,14 @@ contains
     call sort_block(block_solu, nsolu_atom, belong_solu, atomno_solu, counts_solu, psum_solu)
     call sort_block(block_solv, nsolv_atom, belong_solv, atomno_solv, counts_solv, psum_solv)
 
+    max_solu_block = maxval(counts_solu)
+    max_solv_block = maxval(counts_solv)
+    lsize = max_solu_block * max_solv_block
+    
+    allocate(ljeps_lowlj(lsize), ljsgm2_lowlj(lsize), dist_lowlj(lsize), belong_lowlj(lsize))
+    allocate(ljeps_switch(lsize), ljsgm2_switch(lsize), dist_switch(lsize), belong_switch(lsize))
+    allocate(charge_el(lsize), dist_el(lsize), belong_el(lsize))
+    allocate(rtp1_t(lsize), rtp2_t(lsize), e_t(lsize), r_t(lsize))
     ! assertion
     ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
 
@@ -64,6 +84,12 @@ contains
     call get_pair_energy(eng)
 
     uvengy(1:slvmax) = eng(1:slvmax, 1)
+
+    deallocate(ljeps_lowlj, ljsgm2_lowlj, dist_lowlj, belong_lowlj)
+    deallocate(ljeps_switch, ljsgm2_switch, dist_switch, belong_switch)
+    deallocate(charge_el, dist_el, belong_el)
+    deallocate(rtp1_t, rtp2_t, e_t, r_t)
+
 
     deallocate(eng)
     deallocate(block_solu, belong_solu, atomno_solu, counts_solu, psum_solu)
@@ -467,11 +493,17 @@ contains
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
     real :: upljcut2, lwljcut2, elecut2, half_cell(3)
     integer, parameter :: switching = <?php echo "$sw\n" ?>
+    integer :: n_lowlj, n_switch, n_el
+    integer :: i
     
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
 
     half_cell(:) = 0.5 * cell_len_normal(:)
+
+    n_lowlj = 0
+    n_switch = 0
+    n_el = 0
 
     lwljcut2 = lwljcut ** 2
     upljcut2 = upljcut ** 2
@@ -496,32 +528,50 @@ contains
           ! But it's not considered in this case ...
           
           dist = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
-          r = sqrt(dist)
-          if(dist >= upljcut2) then
-             elj = 0.0
-          else
-             ljeps = ljene_mat(ljtype_v, ljtype_u)
-             ljsgm2 = ljlensq_mat(ljtype_v, ljtype_u)
 
-             rtp1 = ljsgm2 / dist
-             rtp2 = rtp1 * rtp1 * rtp1
-             elj = 4.0e0 * ljeps * rtp2 * (rtp2 - 1.0e0)
-             if(switching == 1 .and. dist > lwljcut2) then    ! CHARMM form of switching function
-                rtp1 = lwljcut2
-                rtp2 = upljcut2
-                swth = (2.0e0 * dist + rtp2 - 3.0e0 * rtp1) * (dist - rtp2) * (dist - rtp2) &
-                     / ((rtp2 - rtp1) * (rtp2 - rtp1) * (rtp2 - rtp1))
-                elj = swth * elj
-             endif
+          if(dist <= lwljcut2) then
+             n_lowlj = n_lowlj + 1
+             ljeps_lowlj (n_lowlj) = ljene_mat(ljtype_v, ljtype_u)
+             ljsgm2_lowlj(n_lowlj) = ljlensq_mat(ljtype_v, ljtype_u)
+             dist_lowlj(n_lowlj) = dist
+             belong_lowlj(n_lowlj) = belong_v
+          elseif(dist <= upljcut2) then
+             n_switch = n_switch + 1
+             ljeps_switch (n_switch) = ljene_mat(ljtype_v, ljtype_u)
+             ljsgm2_switch(n_switch) = ljlensq_mat(ljtype_v, ljtype_u)
+             dist_switch(n_switch) = dist
+             belong_switch(n_switch) = belong_v
           end if
-          if(dist > elecut2) then
-             eel = 0.0
-          else
-             chr2 = charge(ua) * charge(va)
-             eel = chr2 * (1.0e0 - erf(screen * r)) / r 
+          
+          if(dist <= elecut2) then
+             n_el = n_el + 1
+             charge_el(n_el) = charge(ua) * charge(va)
+             dist_el(n_el) = dist
+             belong_el(n_el) = belong_v
           end if
-          energy_mat(belong_v, 1) = energy_mat(belong_v, 1) + elj + eel
        end do
+    end do
+
+    rtp1_t(1:n_lowlj) = ljsgm2_lowlj(1:n_lowlj) / dist_lowlj(1:n_lowlj)
+    rtp2_t(1:n_lowlj) = rtp1_t(1:n_lowlj) * rtp1_t(1:n_lowlj) * rtp1_t(1:n_lowlj)
+    e_t(1:n_lowlj) = 4.0e0 * ljeps_lowlj(1:n_lowlj) * rtp2_t(1:n_lowlj) * (rtp2_t(1:n_lowlj) - 1.0e0)
+    do i = 1, n_lowlj
+       energy_mat(belong_lowlj(i), 1) = energy_mat(belong_lowlj(i), 1) + e_t(i)
+    end do
+
+    rtp1_t(1:n_switch) = ljsgm2_switch(1:n_switch) / dist_switch(1:n_switch)
+    rtp2_t(1:n_switch) = rtp1_t(1:n_switch) * rtp1_t(1:n_switch) * rtp1_t(1:n_switch)
+    e_t(1:n_switch) = 4.0e0 * ljeps_switch(1:n_switch) * rtp2_t(1:n_switch) * (rtp2_t(1:n_switch) - 1.0e0) * &
+         (2.0e0 * dist_switch(1:n_switch) + upljcut2 - 3.0e0 * lwljcut2) * &
+         ((dist_switch(1:n_switch) - upljcut2) ** 2) * (1.0 / (upljcut2 - lwljcut2) ** 3)
+    do i = 1, n_switch
+       energy_mat(belong_switch(i), 1) = energy_mat(belong_switch(i), 1) + e_t(i)
+    end do
+    
+    r_t(1:n_el) = sqrt(dist_el(1:n_el))
+    e_t(1:n_el) = charge_el(1:n_el) * (1.0e0 - erf(screen * r_t(1:n_el))) / r_t(1:n_el)
+    do i = 1, n_el
+       energy_mat(belong_el(i), 1) = energy_mat(belong_el(i), 1) + e_t(i)
     end do
   end subroutine get_pair_energy_block_impl<?php echo "$sw"; ?>
 
