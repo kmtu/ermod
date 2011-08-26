@@ -109,11 +109,10 @@ fi
 
 # BLAS linked to by -mkl=parallel? (Intel compiler + MKL)
 if test $acx_blas_ok = no; then
-	save_LIBS="$LIBS"; LIBS="-mkl=parallel $LIBS"
-	AC_CHECK_FUNC($sgemm, 
-                      [acx_blas_ok=yes
-                       BLAS_LIBS="-mkl=parallel"])
-	LIBS="$save_LIBS"
+	AC_CHECK_LIB([], $sgemm, 
+                     [acx_blas_ok=yes
+                      BLAS_LIBS="-mkl=parallel"],
+                     [], [-mkl=parallel])
 fi
 
 # BLAS in ATLAS library? (http://math-atlas.sourceforge.net/)
