@@ -1,14 +1,16 @@
 ACLOCAL_AMFLAGS = -I m4
 
 bin_PROGRAMS = ermod slvfe
+nobase_bin_SCRIPTS = \
+	tools/NAMD/gen_structure tools/NAMD/gen_input \
+	tools/gromacs/gen_structure tools/gromacs/gen_input
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
 ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 hash_real.c
 
 EXTRA_DIST = parameters_er.example 
-EXTRA_DIST += tools/NAMD/*
-EXTRA_DIST += tools/gromacs/*
+EXTRA_DIST += trajectory-formats/*
 EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE
 EXTRA_DIST += realcal.F90.php
 CLEANFILES = *.mod
@@ -24,7 +26,7 @@ endif
 
 ermod_SOURCES = $(ersources) vmdfio_if.F90 vmdfio.c
 ermod_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
-ermod_FCFLAGS = -DGROMACS -DVMDPLUGINS $(FFTFLAGS)
+ermod_FCFLAGS = -DVMDPLUGINS $(FFTFLAGS)
 ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
 
 extra_flags = 
