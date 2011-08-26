@@ -21,7 +21,7 @@ module realcal
   integer, allocatable :: belong_switch(:)
   real, allocatable :: charge_el(:), dist_el(:)
   integer, allocatable :: belong_el(:)
-  real, allocatable :: rtp1_t(:), rtp2_t(:), e_t(:), r_t(:)
+  real, allocatable :: e_t(:)
 
   integer, allocatable :: subcell_neighbour(:, :) ! of (3, subcell_num_neighbour)
   integer :: subcell_num_neighbour
@@ -75,7 +75,7 @@ contains
     allocate(ljeps_lowlj(lsize), ljsgm2_lowlj(lsize), dist_lowlj(lsize), belong_lowlj(lsize))
     allocate(ljeps_switch(lsize), ljsgm2_switch(lsize), dist_switch(lsize), belong_switch(lsize))
     allocate(charge_el(lsize), dist_el(lsize), belong_el(lsize))
-    allocate(rtp1_t(lsize), rtp2_t(lsize), e_t(lsize), r_t(lsize))
+    allocate(e_t(lsize))
     ! assertion
     ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
 
@@ -88,8 +88,7 @@ contains
     deallocate(ljeps_lowlj, ljsgm2_lowlj, dist_lowlj, belong_lowlj)
     deallocate(ljeps_switch, ljsgm2_switch, dist_switch, belong_switch)
     deallocate(charge_el, dist_el, belong_el)
-    deallocate(rtp1_t, rtp2_t, e_t, r_t)
-
+    deallocate(e_t)
 
     deallocate(eng)
     deallocate(block_solu, belong_solu, atomno_solu, counts_solu, psum_solu)
@@ -552,24 +551,30 @@ contains
        end do
     end do
 
-    rtp1_t(1:n_lowlj) = ljsgm2_lowlj(1:n_lowlj) / dist_lowlj(1:n_lowlj)
-    rtp2_t(1:n_lowlj) = rtp1_t(1:n_lowlj) * rtp1_t(1:n_lowlj) * rtp1_t(1:n_lowlj)
-    e_t(1:n_lowlj) = 4.0e0 * ljeps_lowlj(1:n_lowlj) * rtp2_t(1:n_lowlj) * (rtp2_t(1:n_lowlj) - 1.0e0)
+    do i = 1, n_lowlj
+       rtp1 = ljsgm2_lowlj(i) / dist_lowlj(i)
+       rtp2 = rtp1 * rtp1 * rtp1
+       e_t(i) = 4.0e0 * ljeps_lowlj(i) * rtp2 * (rtp2 - 1.0e0)
+    end do
     do i = 1, n_lowlj
        energy_mat(belong_lowlj(i), 1) = energy_mat(belong_lowlj(i), 1) + e_t(i)
     end do
 
-    rtp1_t(1:n_switch) = ljsgm2_switch(1:n_switch) / dist_switch(1:n_switch)
-    rtp2_t(1:n_switch) = rtp1_t(1:n_switch) * rtp1_t(1:n_switch) * rtp1_t(1:n_switch)
-    e_t(1:n_switch) = 4.0e0 * ljeps_switch(1:n_switch) * rtp2_t(1:n_switch) * (rtp2_t(1:n_switch) - 1.0e0) * &
-         (2.0e0 * dist_switch(1:n_switch) + upljcut2 - 3.0e0 * lwljcut2) * &
-         ((dist_switch(1:n_switch) - upljcut2) ** 2) * (1.0 / (upljcut2 - lwljcut2) ** 3)
+    do i = 1, n_switch
+       rtp1 = ljsgm2_switch(i) / dist_switch(i)
+       rtp2 = rtp1 * rtp1 * rtp1
+       e_t(i) = 4.0e0 * ljeps_switch(i) * rtp2 * (rtp2 - 1.0e0) * &
+            (2.0e0 * dist_switch(i) + upljcut2 - 3.0e0 * lwljcut2) * &
+            ((dist_switch(i) - upljcut2) ** 2) * (1.0 / (upljcut2 - lwljcut2) ** 3)
+    end do
     do i = 1, n_switch
        energy_mat(belong_switch(i), 1) = energy_mat(belong_switch(i), 1) + e_t(i)
     end do
-    
-    r_t(1:n_el) = sqrt(dist_el(1:n_el))
-    e_t(1:n_el) = charge_el(1:n_el) * (1.0e0 - erf(screen * r_t(1:n_el))) / r_t(1:n_el)
+
+    do i = 1, n_el
+       r = sqrt(dist_el(i))
+       e_t(i) = charge_el(i) * (1.0e0 - erf(screen * r)) / r
+    end do
     do i = 1, n_el
        energy_mat(belong_el(i), 1) = energy_mat(belong_el(i), 1) + e_t(i)
     end do
