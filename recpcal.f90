@@ -62,7 +62,7 @@ contains
     gridsize(2) = ms2max
     gridsize(3) = ms3max
     call fft_set_size(gridsize)
-    allocate( engfac(rc1min:rc1max,rc2min:rc2max,rc3min:rc3max) )
+    allocate( engfac(rc1min:ccemax,rc2min:rc2max,rc3min:rc3max) )
     allocate( rcpslt(rc1min:ccemax,rc2min:rc2max,rc3min:rc3max) )
     ! init fft
     call fft_init_rtc(handle_r2c, cnvslt, rcpslt)
@@ -101,7 +101,7 @@ contains
     real :: inm(3), xst(3)
     do rc3 = rc3min, rc3max
        do rc2 = rc2min, rc2max
-          do rc1 = rc1min, rc1max
+          do rc1 = rc1min, ccemax
              factor=0.0e0
              if(rc1 == 0 .and. rc2 == 0 .and. rc3 == 0) cycle
              do m=1,3
@@ -200,7 +200,7 @@ contains
             0.5 * sum(engfac(0,      :, :) * real(rcpslt(0,      :, :) * conjg(rcpslt(0,      :, :))))
     endif
 
-    rcpslt(:, :, :)=engfac(rc1min:ccemax, :, :)*rcpslt(:, :, :)
+    rcpslt(:, :, :) = engfac(:, :, :) * rcpslt(:, :, :)
     call fft_ctr(handle_c2r, rcpslt, cnvslt)                    ! 3D-FFT
 
     deallocate( splval,grdval )
