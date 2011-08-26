@@ -36,7 +36,7 @@ ermod-recpcal.$(OBJEXT): recpcal.f90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OB
 ermod-insertion.$(OBJEXT): insertion.f90 ermod-setconf.$(OBJEXT)
 ermod-setconf.$(OBJEXT): setconf.f90 ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-trajectory.$(OBJEXT)
 
-slvfe_SOURCES = slvfe.f
+slvfe_SOURCES = slvfe.f90
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)
 
 .phony: generate
