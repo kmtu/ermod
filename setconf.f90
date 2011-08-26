@@ -164,7 +164,8 @@ contains
          cmbrule,cltype,screen,ewtoler,splodr,plmode,&
          ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,&
          block_threshold,&
-         force_calculation
+         force_calculation, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use OUTname, only: OUTintprm,&                            ! from outside
          OUTens,OUTbxs,OUTtemp,&                ! from outside
          OUTelc,OUTlwl,OUTupl,&                 ! from outside
@@ -248,6 +249,11 @@ contains
        if(slttype.eq.1) call set_stop('prs')
        if(inscnd.eq.3) call set_stop('ins')
     endif
+    if((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. &
+         inscfg == 2 .and. maxins /= 1) then
+       call warning('insu')
+    endif
+         
     plmode=2                    ! energy calculation parallelization mode
 
     return

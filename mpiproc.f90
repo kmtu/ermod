@@ -200,6 +200,7 @@ contains
     implicit none
     character(len=4), intent(in) :: typ
     if(typ == 'mbin') write(stdout, '(A)'), " Warning: the maximum bin coordinate is too low for this species"
+    if(typ == 'insu') write(stdout, '(A)'), " Warning: unique pair of snapshots is smaller than expected"
     if(force_calculation) return
     write(stdout, '(A)'), "The program aborts becaue there is a warning"
     write(stdout, '(A)'), "If you wish to force program running, specify 'force_calculation = .true.' in parameters_er."
