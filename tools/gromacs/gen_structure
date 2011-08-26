@@ -158,7 +158,7 @@ class topology:
         if have_bonded_type == None or have_atomic_number == None:
             error("Invalid format of atomtypes")
 
-        aname = ls[0]
+        aname = ls[0].upper()
 
         offset = 0
         if have_bonded_type:
@@ -178,7 +178,7 @@ class topology:
 
     def process_atoms(self, mtype, ls):
         _anum = ls[0]
-        atype = ls[1]
+        atype = ls[1].upper()
         _resnum = ls[2]
         _resname = ls[3]
         atom = ls[4]
@@ -202,6 +202,7 @@ class topology:
         state = None
 
         for l in fh:
+            l = l.upper()
             l = l.split(';')[0] # remove comments
             l = l.strip()
             if l == "":
@@ -217,13 +218,13 @@ class topology:
                 continue
             
             ls = l.split()
-            if state == "atoms":
+            if state == "ATOMS":
                 self.process_atoms(mtype, ls)
-            elif state == "moleculetype":
+            elif state == "MOLECULETYPE":
                 return self.molecule(ls[0], fh)
-            elif state == "system":
+            elif state == "SYSTEM":
                 pass
-            elif state == "molecules":
+            elif state == "MOLECULES":
                 groupname = ls[0]
                 nmol = int(ls[1])
                 if nmol != 0:
@@ -237,6 +238,7 @@ class topology:
     def parse_top(self, fh):
         state = None
         for l in fh:
+            l = l.upper()
             l = l.split(';')[0] # remove comments
             l = l.strip()
             if l == "":
@@ -253,11 +255,11 @@ class topology:
             ls = l.split()
             if ls == []:
                 continue
-            if state == "defaults":
+            if state == "DEFAULTS":
                 self.process_defaults(ls)
-            if state == "atomtypes":
+            if state == "ATOMTYPES":
                 self.process_atomtypes(ls)
-            elif state == "moleculetype":
+            elif state == "MOLECULETYPE":
                 return self.molecule(ls[0], fh)
             pass
 
@@ -320,7 +322,7 @@ def get_topology_info():
 
     # python 2.3 does not have set()
     if options.solute:
-        solutes = options.solute.split(',')
+        solutes = options.solute.upper().split(',')
     else:
         # interactive input
         print "Molecule types in topology file:",
@@ -328,7 +330,7 @@ def get_topology_info():
             print s,
         print
         l = raw_input("Which molecules are solutes? (For multiple choice please specify as comma-separated list) ").split(',')
-        solutes = [x.strip() for x in l]
+        solutes = [x.upper().strip() for x in l]
 
     for s in solutes:
         if s not in mollist:
