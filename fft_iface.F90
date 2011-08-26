@@ -1,3 +1,4 @@
+! -*- F90 -*-
 #ifdef MKL
 #  include "mkl_dfti.f90"
 #endif

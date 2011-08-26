@@ -1,3 +1,4 @@
+! -*- F90 -*-
 module reciprocal
   use fft_iface, only: fft_handle
   implicit none

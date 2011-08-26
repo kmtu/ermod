@@ -1,4 +1,4 @@
-
+! -*- F90 -*-
 ! mpi module
 
 module mpiproc                                                   ! MPI

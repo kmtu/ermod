@@ -1,4 +1,4 @@
-
+! -*- F90 -*-
 
 module utility
   implicit none

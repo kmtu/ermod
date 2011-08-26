@@ -1,3 +1,4 @@
+! -*- F90 -*-
 module OUTglobal
   implicit none
   !  renaming global variables in package program

@@ -1,3 +1,4 @@
+! -*- F90 -*-
 ! module that governs trajectory I/O
 
 module trajectory

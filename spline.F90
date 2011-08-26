@@ -1,3 +1,4 @@
+! -*- F90 -*-
 module spline
   implicit none
   real, allocatable :: coeff(:)

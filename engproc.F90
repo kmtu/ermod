@@ -1,3 +1,4 @@
+! -*- F90 -*-
 
 module engproc
   implicit none

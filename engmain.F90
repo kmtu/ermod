@@ -1,3 +1,4 @@
+! -*- F90 -*-
 ! engmain.f90: various parameters about energy calculation
 ! 
 ! Angstrom and kcal/mol are taken as the units of length and energy.

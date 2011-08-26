@@ -1,4 +1,4 @@
-
+! -*- F90 -*-
 module ptinsrt
   !
   !  test particle insertion of the solute

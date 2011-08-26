@@ -10,18 +10,14 @@ AC_CONFIG_MACRO_DIR(m4)
 AC_PROG_CPP
 AC_PROG_CC([icc gcc cc fcc])
 AC_PROG_CC_C_O
-AC_PROG_F77([ifort gfortran xlf f77 frt g77 xlf77])
 AC_PROG_FC([ifort gfortran xlf f95 f90 g95 xlf90])
 
 # modified MPI detector (searches mpiifort first)
-AC_LANG(Fortran 77)
+AC_LANG(Fortran)
 ACX_MPI_MY
 AC_LANG(Fortran)
 ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
-AS_IF([test "x$F77" = "x"],
-      [AC_MSG_ERROR("Failed to find Fortran Compiler (Fortran 77). Set environment variable F77 to work around")]
-      [])
 AS_IF([test "x$FC" = "x"],
       [AC_MSG_ERROR("Failed to find Fortran Compiler (Fortran 90). Set environment variable FC to work around")]
       [])
@@ -29,7 +25,6 @@ AS_IF([test "x$FC" = "x"],
 AC_OPENMP
 
 AC_DEFUN([MY_CHECK_BLAS], [
-  AC_LANG_PUSH(Fortran 77)
   AC_MSG_CHECKING([whether $1 is available])
   save_LIBS=$LIBS
   LIBS="$LIBS $2"
@@ -37,7 +32,6 @@ AC_DEFUN([MY_CHECK_BLAS], [
                  [blas_ok=yes], [blas_ok=no])
   LIBS=$save_LIBS
   AC_MSG_RESULT([$blas_ok])
-  AC_LANG_POP
 ])
 
 AC_ARG_WITH([mkl],
@@ -110,35 +104,6 @@ ACX_LAPACK([lapack_exist=yes],
 [lapack_exist=no])
 AC_LANG_POP(C)
 
-# Fortran/FORTRAN compatibility issues
-AC_DEFUN([MY_F77_EXTEND_SOURCE],[
-AC_CACHE_CHECK([how to extend column width],
-my_f77_extend_source_cv_flag,
-[AC_LANG_PUSH(Fortran 77)
-save_FFLAGS=$FFLAGS
-# following switches for: default, gfortran, ifort, xlf, Fujitsu f90
-for flag in "" "-ffixed-line-length-132" "-extend-source" "-qfixed=132" "-w"; do
-FFLAGS="$save_FFLAGS $flag"
-  # some compiler cuts line in 72 column, others 80 column
-  AC_COMPILE_IFELSE([      program main
-      implicit none
-      integer :: foobarbazbaaz
-                                                                      foobarbazbaaz=1
-      end program], [my_check_f77_extend=yes], [my_check_f77_extend=no])
-  if test $my_check_f77_extend = yes; then
-    break
-  fi
-done
-if test $my_check_f77_extend = no; then
-  AC_MSG_ERROR([unable to find compiler flag for extended source (longer column length)])
-fi
-FFLAGS="$save_FFLAGS $flag"
-echo -n $flag
-AC_LANG_POP(Fortran 77)
-])])
-
-MY_F77_EXTEND_SOURCE
-
 AC_DEFUN([MY_FC_REAL_DOUBLE],[
 AC_CACHE_CHECK([how to read real as real(8) as default],
 my_fc_real_double_cv_flag,
@@ -165,7 +130,6 @@ if test $my_check_realasdouble = no; then
   AC_MSG_ERROR([unable to find compiler flag to read real as real(8)])
 fi
 FCFLAGS="$save_FCFLAGS $flag"
-FFLAGS="$FFLAGS $flag"
 if test x$flag = x; then
   echo -n "(none)"
 else
@@ -240,24 +204,20 @@ AC_ARG_ENABLE([defaults],
 
 AS_IF([test x$enable_defaults != xno],
 CFLAGS="$CFLAGS -g"
-FFLAGS="$FFLAGS -g -cpp -Dtrjctry"
-FCFLAGS="$FCFLAGS -g -cpp -Dtrjctry")
+FCFLAGS="$FCFLAGS -g -Dtrjctry")
 
 AC_ARG_ENABLE([perf],
 	AS_HELP_STRING([--enable-perf],
 		[(internal use only)]),
 	AS_IF([test x$enable_perf = xyes],
-		     [FFLAGS="$FFLAGS -fno-omit-frame-pointer -DPERF"
-	              FCFLAGS="$FCFLAGS -fno-omit-frame-pointer -DPERF"
+		     [FCFLAGS="$FCFLAGS -fno-omit-frame-pointer -DPERF"
                       CFLAGS="$CFLAGS -fno-omit-frame-pointer"
                       LDFLAGS="$LDFLAGS -lprofiler"]))
 
 AS_IF([test "x$use_mpi" = "xyes"],
 	    [mpi_result="enabled"
-	     F77="$MPIF77"
 	     FC="$MPIFC"],
 	    [mpi_result="disabled"
-	     FFLAGS="$FFLAGS -DnoMPI"
 	     FCFLAGS="$FCFLAGS -DnoMPI"])
 
 # optimization flags
@@ -280,14 +240,13 @@ AC_ARG_ENABLE([opt],
 		[disable automatic edit to optimization flags]))
 
 AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
-  [FFLAGS="$FFLAGS"
-   FCFLAGS="$FCFLAGS"
+  [FCFLAGS="$FCFLAGS"
    AS_IF([test x$ac_compiler_gnu = xyes],
         [optflag="-O3 -ffast-math -fno-finite-math-only"
          MY_FC_OPT_ACCEPT_NATIVE
          AS_IF([test x$my_fc_opt_accept_native = xyes],
                 optflag="$optflag -march=native")],
-        [case x$F77 in #(
+        [case x$FC in #(
            xmpiifort|xifort)
              optflag="-O3 -no-prec-div -xHost"
              ;; #(
@@ -295,7 +254,6 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
              optflag="-O"
              ;;
          esac])
-   FFLAGS="$FFLAGS $optflag"
    FCFLAGS="$FCFLAGS $optflag"])
 
 # AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
@@ -307,7 +265,7 @@ AS_IF([test "x$lapack_exist" != xyes],
 	    [AC_MSG_ERROR(
 		[dnl
 LAPACK library was not found.
-Try specifying --with-lapack=<lib> options or set FCFLAGS/FFLAGS/FLIBS environment variables to fix the problem.])])
+Try specifying --with-lapack=<lib> options or set FCFLAGS/FLIBS environment variables to fix the problem.])])
 
 lapack_result="$LAPACK_LIBS $BLAS_LIBS"
 
@@ -320,7 +278,6 @@ AC_MSG_RESULT([dnl
 LAPACK: $lapack_result
 FFT: $with_fft
 MPI: $mpi_result
-FFLAGS=$FFLAGS
 FCFLAGS=$FCFLAGS
 
 Configuration complete; type \"make\" to start compiling])
