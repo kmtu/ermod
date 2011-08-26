@@ -230,8 +230,12 @@ contains
     call engclear
 
     ! Output for energy fluctuation
-    if((slttype == CAL_SOLN).and.(myrank.eq.0)) then
-       open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
+    if(myrank == 0) then
+       if(slttype == CAL_SOLN) then
+          open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
+       else
+          open(unit=io_flcuv,file='progress.tt')   ! open progress file
+       endif
     endif
 
     return
@@ -263,7 +267,7 @@ contains
     use engmain, only: slttype, CAL_SOLN, io_flcuv
     use mpiproc
     implicit none
-    if((slttype == CAL_SOLN).and.(myrank.eq.0)) then
+    if(myrank == 0) then
        endfile(io_flcuv)
        close(io_flcuv)
     endif
@@ -368,8 +372,8 @@ contains
           call update_histogram(stnum, wgtslcf, uvengy(0:slvmax))
        end do
 
-       ! for soln only: need to output flceng
        if(slttype == CAL_SOLN) then
+          ! for soln only: need to output flceng
           
           allocate(flceng_g(numslv, maxdst, nactiveproc))
           allocate(flceng_stored_g(maxdst, nactiveproc))
@@ -400,6 +404,11 @@ contains
              enddo
           endif
           deallocate(flceng_g, flceng_stored_g)
+       else
+          ! for refs: output progress
+          if(myrank == 0) then
+             write(io_flcuv, *) ((stnum + irank - 1) * skpcnf, irank = 1, nactiveproc)
+          endif
        endif
     endif
 
