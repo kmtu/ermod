@@ -2,7 +2,7 @@
 
 AC_PREREQ([2.59])
 #AC_INIT(enerepr, 0.2.%rev%, Matubayasi Laboratory)
-AC_INIT(enerepr, 0.2.alpha1+fft, Matubayasi Laboratory)
+AC_INIT(enerepr, 0.2.alpha2, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
@@ -283,7 +283,7 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
   [FFLAGS="$FFLAGS"
    FCFLAGS="$FCFLAGS"
    AS_IF([test x$ac_compiler_gnu = xyes],
-        [optflag="-O3 -ffast-math"
+        [optflag="-O3 -ffast-math -fno-finite-math-only"
          MY_FC_OPT_ACCEPT_NATIVE
          AS_IF([test x$my_fc_opt_accept_native = xyes],
                 optflag="$optflag -march=native")],
