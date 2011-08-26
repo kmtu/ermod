@@ -308,6 +308,7 @@ contains
     integer cntrun,slnini,slnfin,refini,reffin,ecmin,ecmax
     integer iduv,iduvp,i,k,m,pti,cnt
     real factor,ampl
+    real, allocatable :: corref_temp(:, :)
     character*85 opnfile
     character*2 suffnum
 
@@ -342,6 +343,7 @@ contains
        rddns(:)=0.0e0 ; rdcor(:,:)=0.0e0
     endif
     
+    ! FIXME: this part is kinda spaghetti and should be rewritten WITHOUT looping by cnt!
     do cnt=1,4
        if((cnt.eq.2).and.(slncor.ne.'yes')) cycle
        if((cnt.ge.3).and.(cntrun.gt.1) .and. &
@@ -372,36 +374,39 @@ contains
              if(cnt.eq.3) opnfile=trim(refdnspf)//suffnum
              if(cnt.eq.4) opnfile=trim(refcorpf)//suffnum
           endif
-          open(unit=71,file=opnfile,status='old')
+          if(cnt == 4) open(unit=71,file=opnfile,status='old', form="UNFORMATTED")
+          if(cnt /= 4) open(unit=71,file=opnfile,status='old')
           if((cnt.eq.1).or.(cnt.eq.3)) then
              k=0 ; m=0
           endif
-          do iduv=1,ermax
-             if((cnt.eq.1).or.(cnt.eq.3)) then
-                read(71,*) rdcrd(iduv),pti,factor
-                if(pti.ne.k) then
-                   if(factor.gt.zero) then
-                      write(6,*) ' Incorrect energy range with species ',pti
-                      stop
+          if(cnt == 4) then
+             allocate(corref_temp(ermax, ermax))
+             read(71) corref_temp
+             rdcor(:, :) = rdcor(:, :) + wgtref(i) * corref_temp
+             deallocate(corref_temp)
+          else
+             do iduv=1,ermax
+                if((cnt.eq.1).or.(cnt.eq.3)) then
+                   read(71,*) rdcrd(iduv),pti,factor
+                   if(pti.ne.k) then
+                      if(factor.gt.zero) then
+                         write(6,*) ' Incorrect energy range with species ',pti
+                         stop
+                      endif
+                      k=pti ; m=m+1
                    endif
-                   k=pti ; m=m+1
+                   if(cnt.eq.1) rddst(iduv)=rddst(iduv)+wgtsln(i)*factor
+                   if(cnt.eq.3) rddns(iduv)=rddns(iduv)+wgtref(i)*factor
+                   rdspec(iduv)=m
                 endif
-                if(cnt.eq.1) rddst(iduv)=rddst(iduv)+wgtsln(i)*factor
-                if(cnt.eq.3) rddns(iduv)=rddns(iduv)+wgtref(i)*factor
-                rdspec(iduv)=m
-             endif
-             if((cnt.eq.2).or.(cnt.eq.4)) then
-                do iduvp=1,ermax
-                   read(71,*) factor
-                   if(cnt.eq.2) then
+                if(cnt.eq.2) then
+                   do iduvp=1,ermax
+                      read(71,*) factor
                       rdslc(iduvp,iduv)=rdslc(iduvp,iduv)+wgtsln(i)*factor
-                   endif
-                   if(cnt.eq.4) then
-                      rdcor(iduvp,iduv)=rdcor(iduvp,iduv)+wgtref(i)*factor
-                   endif
-                end do
-             endif
-          end do
+                   end do
+                endif
+             end do
+          endif
           close(71)
        end do
     end do

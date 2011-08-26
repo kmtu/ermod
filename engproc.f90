@@ -429,6 +429,7 @@ contains
     real :: factor
     real, parameter :: tiny=1.0e-30
     real, dimension(:), allocatable :: sve1,sve2
+    character(len=11) :: formtype="UNFORMATTED"
     call mpi_info                                                    ! MPI
     !
 
@@ -564,12 +565,14 @@ contains
 772    format(i5,2f15.5)
 773    format(i5,f15.5,g18.5)
     endif
-    !
+
+    ! FIXME: this part is kinda spaghetti and should be rewritten WITHOUT looping by cntdst!
     j=division/10
     k=division-10*j
     if(engdiv.eq.1) suffeng='.tt'
     if(engdiv.gt.1) suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
     do cntdst=1,3
+       formtype = "FORMATTED  "
        if(cntdst.eq.1) then
           if(slttype.eq.1) engfile='engsln'//suffeng
           if(slttype.ge.2) engfile='engref'//suffeng
@@ -577,10 +580,13 @@ contains
        if((cntdst.eq.2).and.(corrcal.ne.1)) goto 7199
        if((cntdst.eq.2).and.(corrcal.eq.1)) then
           if(slttype.eq.1) engfile='corsln'//suffeng
-          if(slttype.ge.2) engfile='corref'//suffeng
+          if(slttype.ge.2) then
+             engfile='corref'//suffeng
+             formtype = "UNFORMATTED"
+          endif
        endif
        if(cntdst.eq.3) engfile='slfeng'//suffeng
-       open(unit=71,file=engfile,status='new')
+       open(unit=71,file=engfile,status='new', form=trim(formtype))
        if(cntdst.eq.1) then
           do iduv=1,ermax
              call repval(iduv,factor,pti,'intn')
@@ -588,13 +594,7 @@ contains
           enddo
        endif
        if(cntdst.eq.2) then
-          do iduv=1,ermax
-             do iduvp=1,ermax
-                factor=ecorr(iduvp,iduv)
-                if(factor.gt.tiny) write(71,'(g25.15)') factor
-                if(factor.le.tiny) write(71,'(i1)') 0
-             end do
-          end do
+          write(71) ecorr
        endif
        if(cntdst.eq.3) then
           do iduv=1,esmax
