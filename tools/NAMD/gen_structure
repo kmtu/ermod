@@ -5,8 +5,6 @@ import sys
 import re
 from optparse import OptionParser
 
-sys.setrecursionlimit(20000)
-
 parser = OptionParser()
 
 # only have to specify one of three:
@@ -159,20 +157,26 @@ class union_find:
 
     """
     def __init__(self, n):
-        self.uftable_ = range(n)
+        self.uftable_ = [-1] * n
     
     def union(self, i, j):
         pi = self.find(i)
         pj = self.find(j)
-        self.uftable_[pi] = pj
+        if pi != pj:
+            if self.uftable_[pj] < self.uftable_[pi]:
+                temp = pi
+                pi = pj
+                pj = temp
+            self.uftable_[pi] += self.uftable_[pj];
+            self.uftable_[pj] = pi
     
     def find(self, i):
-        pi = self.uftable_[i]
-        if i == pi:
+        if self.uftable_[i] < 0:
             return i
-        realpi = self.find(pi)
-        self.uftable_[i] = realpi
-        return realpi
+        else:
+            newroot = self.find(self.uftable_[i])
+            self.uftable_[i] = newroot
+            return newroot
 
     def is_connected(self, i, j):
         pi = self.find(i)
