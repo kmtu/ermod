@@ -1,6 +1,6 @@
 ! -*- F90 -*-
-! DO NOT rewrite realcal.f90,
-! realcal.f90 is generated from realcal.f90.php.
+! DO NOT rewrite realcal.F90,
+! realcal.F90 is generated from realcal.F90.php.
 module realcal
   implicit none
   integer :: nsolu_atom, nsolv_atom
