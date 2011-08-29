@@ -14,7 +14,6 @@ EXTRA_DIST += trajectory-formats/*
 EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
 EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE
-EXTRA_DIST += realcal.F90.php
 CLEANFILES = *.mod
 
 if USE_FFTW
@@ -43,6 +42,3 @@ ermod-setconf.$(OBJEXT): setconf.F90 ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJ
 slvfe_SOURCES = slvfe.F90
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)
 
-.phony: generate
-generate: 
-	php5 realcal.F90.php > realcal.F90

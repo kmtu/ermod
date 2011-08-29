@@ -458,29 +458,8 @@ contains
     end do
   end subroutine get_pair_energy
 
-
+  ! Computational kernel to calculate distance between particles
   subroutine get_pair_energy_block(upos, vpos, energy_mat)
-    use engmain, only: upljcut, lwljcut
-    implicit none
-    integer, intent(in) :: upos, vpos
-    real, intent(out) :: energy_mat(:, :)
-    integer :: switching
-
-    switching = 1
-    if(lwljcut == upljcut) switching = 0
-    if(switching == 1) then
-       call get_pair_energy_block_impl1(upos, vpos, energy_mat)
-    else
-       call get_pair_energy_block_impl0(upos, vpos, energy_mat)
-    endif
-    
-  end subroutine get_pair_energy_block
-
-  ! <?php for($sw = 0; $sw < 2; $sw++){ ?>
-
-  ! I know this codegen is ugly...
-  ! <?php echo "$sw: ". ($sw == 1 ? "With switching" : "Without switching") . "\n"; ?>
-  subroutine get_pair_energy_block_impl<?php echo "$sw"; ?>(upos, vpos, energy_mat)
     use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, screen, charge,&
          ljtype, ljtype_max, ljene_mat, ljlensq_mat
     implicit none
@@ -491,7 +470,6 @@ contains
     real :: crdu(3), crdv(3), d(3), dist, r
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
     real :: upljcut2, lwljcut2, elecut2, half_cell(3)
-    integer, parameter :: switching = <?php echo "$sw\n" ?>
     integer :: n_lowlj, n_switch, n_el
     integer :: i
     
@@ -578,9 +556,7 @@ contains
     do i = 1, n_el
        energy_mat(belong_el(i), 1) = energy_mat(belong_el(i), 1) + e_t(i)
     end do
-  end subroutine get_pair_energy_block_impl<?php echo "$sw"; ?>
-
-  ! <?php } ?>
+  end subroutine get_pair_energy_block
 
   ! Rotate box and coordinate so that the cell(:,:) is upper triangular:
   ! cell(2, 1) = cell(3, 1) = cell(3, 2) = 0
