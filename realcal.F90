@@ -23,7 +23,11 @@ module realcal
   integer, allocatable :: belong_el(:)
   real, allocatable :: e_t(:)
 
-  integer, allocatable :: subcell_neighbour(:, :) ! of (3, subcell_num_neighbour)
+  ! subcell_neighbour only stores the neighbour list on y-z plane. x direction is stored on subcell_xlen.
+  ! (looks like sub"pillar" rather than cell)
+  ! each subcell spans x=(-subcell_xlen(ix) .. 1+subcell_xlen(ix)),  y=subcell_neighbour(2, ix), z=subcell_neighbour(3, ix)
+  integer, allocatable :: subcell_neighbour(:, :) ! of (2:3, subcell_num_neighbour)
+  integer, allocatable :: subcell_xlen(:)
   integer :: subcell_num_neighbour
 
   integer :: block_size(3)
@@ -38,7 +42,7 @@ contains
     integer, intent(in) :: target_solu, tagpt(:), slvmax
     real, intent(out) :: uvengy(0:slvmax)
     real, allocatable :: eng(:, :)
-    integer :: lsize
+    integer :: lsize, i, j
     
     ! print *, "DEBUG: relcal_proc called"
     ! FIXME: fix calling convention & upstream call tree
@@ -69,7 +73,12 @@ contains
     call sort_block(block_solv, nsolv_atom, belong_solv, atomno_solv, counts_solv, psum_solv)
 
     max_solu_block = maxval(counts_solu)
-    max_solv_block = maxval(counts_solv)
+    max_solv_block = 0
+    do i = 0, block_size(2) - 1
+       do j = 0, block_size(3) - 1
+          max_solv_block = max(max_solv_block, sum(counts_solv(:, i, j)))
+       end do
+    end do
     lsize = max_solu_block * max_solv_block
     
     allocate(ljeps_lowlj(lsize), ljsgm2_lowlj(lsize), dist_lowlj(lsize), belong_lowlj(lsize))
@@ -93,7 +102,7 @@ contains
     deallocate(eng)
     deallocate(block_solu, belong_solu, atomno_solu, counts_solu, psum_solu)
     deallocate(block_solv, belong_solv, atomno_solv, counts_solv, psum_solv)
-    deallocate(subcell_neighbour)
+    deallocate(subcell_neighbour, subcell_xlen)
   end subroutine realcal_proc
 
   subroutine realcal_prepare
@@ -280,7 +289,7 @@ contains
   subroutine set_block_info()
     use engmain, only: block_threshold, upljcut, elecut
     real :: unit_axes(3), cut2, l
-    integer :: i, j, k, bmax, ix
+    integer :: i, j, k, bmax, ix, xlen
     real, allocatable :: grid_dist(:, :)
     real, allocatable :: box_dist(:, :)
     
@@ -318,26 +327,25 @@ contains
     subcell_num_neighbour = 0
     do k = 0, block_size(3) - 1
        do j = 0, block_size(2) - 1
-          do i = 0, block_size(1) - 1
-             l = box_dist(i, 1) ** 2 + box_dist(j, 2) ** 2 + box_dist(k, 3) ** 2
-             if(l < cut2) subcell_num_neighbour = subcell_num_neighbour + 1
-          end do
+          l = box_dist(j, 2) ** 2 + box_dist(k, 3) ** 2
+          if(l < cut2) subcell_num_neighbour = subcell_num_neighbour + 1
        end do
     end do
-    allocate(subcell_neighbour(3, subcell_num_neighbour))
+    allocate(subcell_neighbour(2:3, subcell_num_neighbour))
+    allocate(subcell_xlen(subcell_num_neighbour))
+
     ! then generate the list
     ix = 1
     do k = 0, block_size(3) - 1
        do j = 0, block_size(2) - 1
-          do i = 0, block_size(1) - 1
-             l = box_dist(i, 1) ** 2 + box_dist(j, 2) ** 2 + box_dist(k, 3) ** 2
-             if(l < cut2) then
-                subcell_neighbour(1, ix) = i
-                subcell_neighbour(2, ix) = j
-                subcell_neighbour(3, ix) = k
-                ix = ix + 1
-             endif
-          end do
+          l = box_dist(j, 2) ** 2 + box_dist(k, 3) ** 2
+          if(l < cut2) then
+             xlen = ceiling(sqrt(cut2 - l) / unit_axes(1))
+             subcell_neighbour(2, ix) = j
+             subcell_neighbour(3, ix) = k
+             subcell_xlen(ix) = xlen ! this subpillar contains subcell [-xlen .. xlen]; note the end of region is inclusive
+             ix = ix + 1
+          endif
        end do
     end do
     deallocate(box_dist)
@@ -436,7 +444,8 @@ contains
     real, intent(out) :: energy_mat(:, :)
     integer :: u1, u2, u3
     integer :: vbs(3)
-    integer :: i, upos, vpos
+    integer :: i, upos, vpos_base, vpos_line_end, vpos_begin, vpos_end
+    integer :: xlen
 
     do u3 = 0, block_size(3) - 1
        do u2 = 0, block_size(2) - 1
@@ -444,13 +453,32 @@ contains
              upos = u1 + block_size(1) * (u2 + block_size(2) * u3)
              if(psum_solu(upos + 1) /= psum_solu(upos)) then ! if solute have atoms in the block
                 do i = 1, subcell_num_neighbour
-                   vbs(1) = mod(u1 + subcell_neighbour(1, i) , block_size(1))
                    vbs(2) = mod(u2 + subcell_neighbour(2, i) , block_size(2))
                    vbs(3) = mod(u3 + subcell_neighbour(3, i) , block_size(3))
+                   vpos_base = block_size(1) * (vbs(2) + block_size(2) * vbs(3))
                    
-                   vpos = vbs(1) + block_size(1) * (vbs(2) + block_size(2) * vbs(3))
+                   xlen = subcell_xlen(i)
+                   if(2 * xlen + 1 >= block_size(1)) then
+                      ! spans all over x-axis
+                      call get_pair_energy_block(upos, vpos_base, vpos_base + block_size(1), energy_mat)
+                   else
+                      vpos_begin = vpos_base + u1 - xlen
+                      vpos_end = vpos_base + u1 + xlen + 1
+                      vpos_line_end = vpos_base + block_size(1)
 
-                   call get_pair_energy_block(upos, vpos, energy_mat)
+                      if(vpos_begin < vpos_base) then
+                         ! spans over periodic boundary, case 1
+                         call get_pair_energy_block(upos, vpos_begin + block_size(1), vpos_line_end, energy_mat)
+                         call get_pair_energy_block(upos, vpos_base, vpos_end, energy_mat)
+                      elseif(vpos_end > vpos_line_end) then
+                         ! spans over periodic boundary, case 2
+                         call get_pair_energy_block(upos, vpos_begin, vpos_line_end, energy_mat)
+                         call get_pair_energy_block(upos, vpos_base, vpos_end - block_size(1), energy_mat)
+                      else
+                         ! standard case
+                         call get_pair_energy_block(upos, vpos_begin, vpos_end, energy_mat)
+                      endif
+                   endif
                 end do
              end if
           end do
@@ -459,11 +487,11 @@ contains
   end subroutine get_pair_energy
 
   ! Computational kernel to calculate distance between particles
-  subroutine get_pair_energy_block(upos, vpos, energy_mat)
+  subroutine get_pair_energy_block(upos, vpos_b, vpos_e, energy_mat)
     use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, screen, charge,&
          ljtype, ljtype_max, ljene_mat, ljlensq_mat
     implicit none
-    integer, intent(in) :: upos, vpos
+    integer, intent(in) :: upos, vpos_b, vpos_e
     real, intent(out) :: energy_mat(:, :)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
@@ -491,7 +519,7 @@ contains
        belong_u = belong_solu(ui) ! FIXME: not used in later calculation
        ljtype_u = ljtype(ua)
        crdu(:) = sitepos_normal(:, ua)
-       do vi = psum_solv(vpos), psum_solv(vpos + 1) - 1
+       do vi = psum_solv(vpos_b), psum_solv(vpos_e) - 1
           va = atomno_solv(vi)
           belong_v = belong_solv(vi)
           ljtype_v = ljtype(va)
