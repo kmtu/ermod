@@ -12,7 +12,6 @@ module realcal
   real, allocatable :: sitepos_solu(:, :), sitepos_solv(:, :)
   integer, allocatable :: ljtype_solu(:, :), ljtype_solv(:, :)
 
-
   integer :: max_solu_block, max_solv_block
 
   real, allocatable :: ljeps_lowlj(:), ljsgm2_lowlj(:), dist_lowlj(:)
@@ -72,6 +71,9 @@ contains
     call sort_block(block_solu, nsolu_atom, belong_solu, atomno_solu, counts_solu, psum_solu)
     call sort_block(block_solv, nsolv_atom, belong_solv, atomno_solv, counts_solv, psum_solv)
 
+    allocate(sitepos_solv(3, nsolv_atom))
+    sitepos_solv(1:3, :) = sitepos_normal(1:3, atomno_solv(1:nsolv_atom))
+
     max_solu_block = maxval(counts_solu)
     max_solv_block = 0
     do i = 0, block_size(2) - 1
@@ -102,6 +104,7 @@ contains
     deallocate(eng)
     deallocate(block_solu, belong_solu, atomno_solu, counts_solu, psum_solu)
     deallocate(block_solv, belong_solv, atomno_solv, counts_solv, psum_solv)
+    deallocate(sitepos_solv)
     deallocate(subcell_neighbour, subcell_xlen)
   end subroutine realcal_proc
 
@@ -525,7 +528,7 @@ contains
           va = atomno_solv(vi)
           belong_v = belong_solv(vi)
           ljtype_v = ljtype(va)
-          crdv(:) = sitepos_normal(:, va)
+          crdv(:) = sitepos_solv(:, vi)
 
           d(:) = crdv(:) - crdu(:)
           d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
