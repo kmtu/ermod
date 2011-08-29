@@ -16,10 +16,13 @@ parser.add_option("-l", "--log", dest = "log",
 parser.add_option("-x", "--traj", dest = "traj",
                   help = "Solution or reference trajectory file")
 
+parser.add_option("-r", "--rigid", dest = "rigid",
+                  help = "Solute structure PDB / GRO file (rigid solute)")
+
 parser.add_option("-p", "--pdb", dest = "pdb",
-                  help = "Solute structure PDB file (rigid solute)")
+                  help = "(Deprecated) solute structure PDB file (rigid solute)")
 parser.add_option("-g", "--gro", dest = "gro",
-                  help = "Solute structure GRO file (rigid solute)")
+                  help = "(Deprecated) solute structure GRO file (rigid solute)")
 
 parser.add_option("-s", "--flexible", dest = "solute",
                   help = "Solute trajectory file (flexible solute)")
@@ -39,8 +42,15 @@ parser.add_option("-v", "--verbose", dest = "verbose", action = "store_true",
 
 (options, args) = parser.parse_args()
 
-mode = "solute"
-if options.pdb != None or options.gro != None or options.solute != None:
+mode = "solution"
+
+if options.pdb:
+    options.rigid = options.pdb
+
+if options.gro:
+    options.rigid = options.gro
+
+if options.rigid != None or options.solute != None:
     mode = "reference"
 
 params = {}
@@ -59,7 +69,7 @@ try:
         'arithmetic': 0
         }[carryover["ljtype"]]
 
-    if mode == "solute" and "sltpick" in carryover:
+    if mode == "solution" and "sltpick" in carryover:
         params["sltpick"] = carryover["sltpick"]
     
 except OSError:
@@ -99,19 +109,16 @@ check_exists("MDinfo")
 check_exists("SltInfo")
 check_exists(options.traj)
 check_exists(options.log)
-if options.pdb != None:
-    check_exists(options.pdb)
-if options.gro != None:
-    check_exists(options.gro)
+if options.rigid != None:
+    check_exists(options.rigid)
 
 if options.solute != None:
     check_exists(options.solute)
 
-if (options.pdb != None or options.gro != None) and options.solute != None:
-    error("fixed structure (--pdb / --gro) and flexible structure (--solute) cannot be specified simultaneously")
+if options.rigid != None and options.solute != None:
+    error("Rigid insertion structure (--rigid) and flexible insertion structure (--solute) cannot be specified simultaneously")
 
-if options.pdb != None or options.gro != None or options.solute != None:
-    # insertion
+if mode == "reference":
     if os.path.basename(os.getcwd()) != "refs":
         warn("The option is specified for insertion (reference system), but current directory name does not match")
 else:
@@ -157,7 +164,7 @@ def parse_mdp():
     params["inptemp"] = temp
     save_parameters_fe(temp)
 
-    if options.pdb:
+    if options.rigid:
         params['slttype'] = 2 # rigid
     elif options.solute:
         params['slttype'] = 3 # flexible
@@ -212,7 +219,7 @@ def parse_mdp():
         params['simtype'] = 1
 
     if options.div == None:
-        if options.solute != None or options.pdb != None:
+        if mode == "reference":
             params["engdiv"] = 5
         else:
             params["engdiv"] = 10
@@ -280,10 +287,10 @@ if options.solute:
     # flexible
     symlink(options.solute, "SltConf")
 
-elif options.pdb or options.gro:
+elif options.rigid:
     def get_pdb_coord():
         # fixed
-        fh = open(options.pdb, "rt")
+        fh = open(options.rigid, "rt")
         coords = []
         # overwrite SltInfo with coordinate information
         for l in fh:
@@ -293,7 +300,7 @@ elif options.pdb or options.gro:
         return coords
 
     def get_gro_coord():
-        fh = open(options.gro, "rt")
+        fh = open(options.rigid, "rt")
         coords = []
         _l = fh.next() # header
         natoms = int(fh.next().strip())
@@ -307,10 +314,13 @@ elif options.pdb or options.gro:
         fh.close()
         return coords
 
-    if options.pdb:
+    (_, ext) = os.path.splitext(options.rigid)
+    if ext == ".pdb" or ext == ".PDB":
         coords = get_pdb_coord()
-    elif options.gro:
+    elif ext == ".gro":
         coords = get_gro_coord()
+    else:
+        error("Unknown rigid file extension")
     
     ifh = open("SltInfo", "rt")
     ofh = open("SltInfo.new", "wt")
