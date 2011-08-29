@@ -528,7 +528,7 @@ contains
        ljtype_u = ljtype(ua)
        crdu(:) = sitepos_normal(:, ua)
 
-       ! hide latency
+       ! hide latency by calculating distance of next coordinate set
        d(:) = crdu(:) - sitepos_solv(:, psum_solv(vpos_b))
        d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:)))
        dist_next = sum(d(:) ** 2)
@@ -574,8 +574,12 @@ contains
        end do
     end do
 
+    ! 2nd phase: calculate actual values with vectorized loop
+
     ! TODO optimize:
     ! explicit vectorization may increase performance
+
+    ! LJ inside low cutoff
     do i = 1, n_lowlj
        rtp1 = ljsgm2_lowlj(i) / dist_lowlj(i)
        rtp2 = rtp1 * rtp1 * rtp1
@@ -585,6 +589,7 @@ contains
        energy_vec(belong_lowlj(i)) = energy_vec(belong_lowlj(i)) + e_t(i)
     end do
 
+    ! LJ switching region
     do i = 1, n_switch
        rtp1 = ljsgm2_switch(i) / dist_switch(i)
        rtp2 = rtp1 * rtp1 * rtp1
@@ -596,6 +601,7 @@ contains
        energy_vec(belong_switch(i)) = energy_vec(belong_switch(i)) + e_t(i)
     end do
 
+    ! ewald electrostatic
     do i = 1, n_el
        r = sqrt(dist_el(i))
        e_t(i) = charge_el(i) * (1.0e0 - erf(screen * r)) / r
