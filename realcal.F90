@@ -437,7 +437,6 @@ contains
     ! print *, psum
   end subroutine sort_block
 
-  ! FIXME: create pairenergy_single_solu as specilization?
   subroutine get_pair_energy(energy_vec)
     ! calculate for each subcell
     ! cut-off by subcell distance
@@ -514,6 +513,9 @@ contains
     upljcut2 = upljcut ** 2
     elecut2 = elecut ** 2
 
+    ! TODO optimize:
+    ! if you sort / reorder atomno, ljtype, coordinate etc.
+    ! this loop can be vectorized
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
        belong_u = belong_solu(ui) ! FIXME: not used in later calculation
@@ -558,6 +560,8 @@ contains
        end do
     end do
 
+    ! TODO optimize:
+    ! explicit vectorization may increase performance
     do i = 1, n_lowlj
        rtp1 = ljsgm2_lowlj(i) / dist_lowlj(i)
        rtp2 = rtp1 * rtp1 * rtp1
