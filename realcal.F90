@@ -71,8 +71,9 @@ contains
     call sort_block(block_solu, nsolu_atom, belong_solu, atomno_solu, counts_solu, psum_solu)
     call sort_block(block_solv, nsolv_atom, belong_solv, atomno_solv, counts_solv, psum_solv)
 
-    allocate(sitepos_solv(3, nsolv_atom))
-    sitepos_solv(1:3, :) = sitepos_normal(1:3, atomno_solv(1:nsolv_atom))
+    allocate(sitepos_solv(3, nsolv_atom + 1))
+    sitepos_solv(1:3, 1:nsolv_atom) = sitepos_normal(1:3, atomno_solv(1:nsolv_atom))
+    sitepos_solv(1:3, nsolv_atom+1) = 0
 
     max_solu_block = maxval(counts_solu)
     max_solv_block = 0
@@ -497,7 +498,7 @@ contains
     real, intent(out) :: energy_vec(:)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
-    real :: crdu(3), crdv(3), d(3), dist, r
+    real :: crdu(3), crdv(3), d(3), dist, r, dist_next
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
     real :: upljcut2, lwljcut2, elecut2, half_cell(3)
     integer :: n_lowlj, n_switch, n_el
@@ -517,18 +518,27 @@ contains
     elecut2 = elecut ** 2
 
     ! TODO optimize:
-    ! if you sort / reorder atomno, ljtype, coordinate etc.
+    ! if you sort / reorder atomno, ljtype etc.
     ! this loop can be vectorized
+    ! TODO optimize:
+    ! software pipelining
     do ui = psum_solu(upos), psum_solu(upos + 1) - 1
        ua = atomno_solu(ui)
        belong_u = belong_solu(ui) ! FIXME: not used in later calculation
        ljtype_u = ljtype(ua)
        crdu(:) = sitepos_normal(:, ua)
+
+       ! hide latency
+       d(:) = crdu(:) - sitepos_solv(:, psum_solv(vpos_b))
+       d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:)))
+       dist_next = sum(d(:) ** 2)
+       
        do vi = psum_solv(vpos_b), psum_solv(vpos_e) - 1
           va = atomno_solv(vi)
           belong_v = belong_solv(vi)
           ljtype_v = ljtype(va)
-          crdv(:) = sitepos_solv(:, vi)
+          
+          crdv(:) = sitepos_solv(:, vi + 1)
 
           d(:) = crdv(:) - crdu(:)
           d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
@@ -537,7 +547,8 @@ contains
           ! there is a risk that second nearest image still being inside the cutoff length.
           ! But it's not considered in this case ...
           
-          dist = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
+          dist = dist_next
+          dist_next = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
 
           ! lines up all variables, to enable vectorization in 2nd phase
           if(dist <= lwljcut2) then
