@@ -41,7 +41,7 @@ contains
     use engmain, only: numsite
     integer, intent(in) :: target_solu, tagpt(:), slvmax
     real, intent(out) :: uvengy(0:slvmax)
-    real, allocatable :: eng(:, :)
+    real, allocatable :: eng(:)
     integer :: lsize, i, j
     
     ! print *, "DEBUG: relcal_proc called"
@@ -88,11 +88,11 @@ contains
     ! assertion
     ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
 
-    allocate(eng(1:slvmax, 1))
-    eng(:, :) = 0
+    allocate(eng(1:slvmax))
+    eng(:) = 0
     call get_pair_energy(eng)
 
-    uvengy(1:slvmax) = eng(1:slvmax, 1)
+    uvengy(1:slvmax) = eng(1:slvmax)
 
     deallocate(ljeps_lowlj, ljsgm2_lowlj, dist_lowlj, belong_lowlj)
     deallocate(ljeps_switch, ljsgm2_switch, dist_switch, belong_switch)
@@ -438,10 +438,10 @@ contains
   end subroutine sort_block
 
   ! FIXME: create pairenergy_single_solu as specilization?
-  subroutine get_pair_energy(energy_mat)
+  subroutine get_pair_energy(energy_vec)
     ! calculate for each subcell
     ! cut-off by subcell distance
-    real, intent(out) :: energy_mat(:, :)
+    real, intent(out) :: energy_vec(:)
     integer :: u1, u2, u3
     integer :: vbs(3)
     integer :: i, upos, vpos_base, vpos_line_end, vpos_begin, vpos_end
@@ -460,7 +460,7 @@ contains
                    xlen = subcell_xlen(i)
                    if(2 * xlen + 1 >= block_size(1)) then
                       ! spans all over x-axis
-                      call get_pair_energy_block(upos, vpos_base, vpos_base + block_size(1), energy_mat)
+                      call get_pair_energy_block(upos, vpos_base, vpos_base + block_size(1), energy_vec)
                    else
                       vpos_begin = vpos_base + u1 - xlen
                       vpos_end = vpos_base + u1 + xlen + 1
@@ -468,15 +468,15 @@ contains
 
                       if(vpos_begin < vpos_base) then
                          ! spans over periodic boundary, case 1
-                         call get_pair_energy_block(upos, vpos_begin + block_size(1), vpos_line_end, energy_mat)
-                         call get_pair_energy_block(upos, vpos_base, vpos_end, energy_mat)
+                         call get_pair_energy_block(upos, vpos_begin + block_size(1), vpos_line_end, energy_vec)
+                         call get_pair_energy_block(upos, vpos_base, vpos_end, energy_vec)
                       elseif(vpos_end > vpos_line_end) then
                          ! spans over periodic boundary, case 2
-                         call get_pair_energy_block(upos, vpos_begin, vpos_line_end, energy_mat)
-                         call get_pair_energy_block(upos, vpos_base, vpos_end - block_size(1), energy_mat)
+                         call get_pair_energy_block(upos, vpos_begin, vpos_line_end, energy_vec)
+                         call get_pair_energy_block(upos, vpos_base, vpos_end - block_size(1), energy_vec)
                       else
                          ! standard case
-                         call get_pair_energy_block(upos, vpos_begin, vpos_end, energy_mat)
+                         call get_pair_energy_block(upos, vpos_begin, vpos_end, energy_vec)
                       endif
                    endif
                 end do
@@ -487,12 +487,12 @@ contains
   end subroutine get_pair_energy
 
   ! Computational kernel to calculate distance between particles
-  subroutine get_pair_energy_block(upos, vpos_b, vpos_e, energy_mat)
+  subroutine get_pair_energy_block(upos, vpos_b, vpos_e, energy_vec)
     use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, screen, charge,&
          ljtype, ljtype_max, ljene_mat, ljlensq_mat
     implicit none
     integer, intent(in) :: upos, vpos_b, vpos_e
-    real, intent(out) :: energy_mat(:, :)
+    real, intent(out) :: energy_vec(:)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
     real :: crdu(3), crdv(3), d(3), dist, r
@@ -534,6 +534,7 @@ contains
           
           dist = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
 
+          ! lines up all variables, to enable vectorization in 2nd phase
           if(dist <= lwljcut2) then
              n_lowlj = n_lowlj + 1
              ljeps_lowlj (n_lowlj) = ljene_mat(ljtype_v, ljtype_u)
@@ -563,7 +564,7 @@ contains
        e_t(i) = 4.0e0 * ljeps_lowlj(i) * rtp2 * (rtp2 - 1.0e0)
     end do
     do i = 1, n_lowlj
-       energy_mat(belong_lowlj(i), 1) = energy_mat(belong_lowlj(i), 1) + e_t(i)
+       energy_vec(belong_lowlj(i)) = energy_vec(belong_lowlj(i)) + e_t(i)
     end do
 
     do i = 1, n_switch
@@ -574,7 +575,7 @@ contains
             ((dist_switch(i) - upljcut2) ** 2) * (1.0 / (upljcut2 - lwljcut2) ** 3)
     end do
     do i = 1, n_switch
-       energy_mat(belong_switch(i), 1) = energy_mat(belong_switch(i), 1) + e_t(i)
+       energy_vec(belong_switch(i)) = energy_vec(belong_switch(i)) + e_t(i)
     end do
 
     do i = 1, n_el
@@ -582,7 +583,7 @@ contains
        e_t(i) = charge_el(i) * (1.0e0 - erf(screen * r)) / r
     end do
     do i = 1, n_el
-       energy_mat(belong_el(i), 1) = energy_mat(belong_el(i), 1) + e_t(i)
+       energy_vec(belong_el(i)) = energy_vec(belong_el(i)) + e_t(i)
     end do
   end subroutine get_pair_energy_block
 
