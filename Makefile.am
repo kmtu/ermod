@@ -33,7 +33,8 @@ ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm
 extra_flags = 
 
 # module dependencies
-ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-utility.$(OBJEXT)
+ermod-realcal.$(OBJEXT): realcal.F90 ermod-utility.$(OBJEXT)
+ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-utility.$(OBJEXT)
 ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-vmdfio_if.$(OBJEXT)
 ermod-recpcal.$(OBJEXT): recpcal.F90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT)
 ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT)
