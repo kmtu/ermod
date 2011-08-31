@@ -500,7 +500,7 @@ contains
           if(inscfg.eq.2) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
           if(inscfg.ne.2) then 
              ! setting the center of mass to zero
-             call molcen(numtype, psite, xst, 'com')
+             call molcen(nummol, psite, xst, 'com')
              do sid = 1,stmax
                 bfcoord(1:3,sid) = psite(1:3, sid) - xst(1:3)
              end do
