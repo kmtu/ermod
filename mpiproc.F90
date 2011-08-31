@@ -8,6 +8,10 @@ module mpiproc                                                   ! MPI
 #endif
   implicit none
 
+#ifdef noMPI
+  integer, parameter :: mpi_status_size = 1
+#endif
+
   ! mpi common variables
   integer ierror, mpistatus(mpi_status_size), myrank, nprocs         ! MPI
   integer, parameter :: tag_cell = 11, tag_coord = 12
