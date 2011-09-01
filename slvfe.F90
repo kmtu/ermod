@@ -7,7 +7,8 @@ module sysvars
   integer :: pecore=200,numprm=15
   integer :: numsln=10,numref=5,numdiv=-1
 
-  character*3 :: peread='not',uvread='yes',slfslt='yes'
+  character*3 :: peread='not', uvread='yes'
+  character*3 :: slfslt='yes', infchk='not'
   character*4 :: zerosft='mxco',wgtfnform='harm'
   character*3 :: refmerge='yes',extsln='lin'
   character*3 :: wgtf2smpl='yes',slncor='not'
@@ -45,7 +46,8 @@ module sysvars
   real, dimension(:),     allocatable :: wgtsln,wgtref
   
   namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
-       peread, uvread, slfslt, zerosft, wgtfnform, refmerge, extsln, &
+       peread, uvread, slfslt, infchk, &
+       zerosft, wgtfnform, refmerge, extsln, &
        wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
        inptemp, pickgr, maxmesh, large, itrmax, error, tiny, &
        wgtslnfl, wgtreffl, slndnspf, slncorpf, refdnspf, refcorpf
@@ -78,7 +80,7 @@ contains
 
   subroutine defcond
 
-    use sysvars, only: peread,readwgtfl,wgtslnfl,wgtreffl,&
+    use sysvars, only: peread,infchk,readwgtfl,wgtslnfl,wgtreffl,&
          numprm,prmmax,numsln,numref,numdiv,&
          inptemp,temp,kT,&
          pecore,maxmesh,large,&
@@ -214,21 +216,27 @@ contains
     endif
     if(clcond.ne.'basic') then
        do prmcnt=1,prmmax                 ! inft in % (percentage)
-          if(prmcnt.eq.1) then  ; group=1  ; inft=0   ; endif
-          if(prmcnt.eq.2) then  ; group=1  ; inft=60  ; endif
-          if(prmcnt.eq.3) then  ; group=1  ; inft=80  ; endif
-          if(prmcnt.eq.4) then  ; group=1  ; inft=100 ; endif
-          if(prmcnt.eq.5) then  ; group=2  ; inft=0   ; endif
-          if(prmcnt.eq.6) then  ; group=3  ; inft=0   ; endif
-          if(prmcnt.eq.7) then  ; group=4  ; inft=0   ; endif
-          if(prmcnt.eq.8) then  ; group=5  ; inft=0   ; endif
-          if(prmcnt.eq.9) then  ; group=5  ; inft=60  ; endif
-          if(prmcnt.eq.10) then ; group=5  ; inft=80  ; endif
-          if(prmcnt.eq.11) then ; group=5  ; inft=100 ; endif
-          if(prmcnt.eq.12) then ; group=8  ; inft=0   ; endif
-          if(prmcnt.eq.13) then ; group=10 ; inft=0   ; endif
-          if(prmcnt.eq.14) then ; group=15 ; inft=0   ; endif
-          if(prmcnt.eq.15) then ; group=20 ; inft=0   ; endif
+          if(infchk == 'yes') then
+             if(prmcnt.eq.1) then  ; group=1  ; inft=0   ; endif
+             if(prmcnt.eq.2) then  ; group=1  ; inft=60  ; endif
+             if(prmcnt.eq.3) then  ; group=1  ; inft=80  ; endif
+             if(prmcnt.eq.4) then  ; group=1  ; inft=100 ; endif
+             if(prmcnt.eq.5) then  ; group=2  ; inft=0   ; endif
+             if(prmcnt.eq.6) then  ; group=3  ; inft=0   ; endif
+             if(prmcnt.eq.7) then  ; group=4  ; inft=0   ; endif
+             if(prmcnt.eq.8) then  ; group=5  ; inft=0   ; endif
+             if(prmcnt.eq.9) then  ; group=5  ; inft=60  ; endif
+             if(prmcnt.eq.10) then ; group=5  ; inft=80  ; endif
+             if(prmcnt.eq.11) then ; group=5  ; inft=100 ; endif
+             if(prmcnt.eq.12) then ; group=8  ; inft=0   ; endif
+             if(prmcnt.eq.13) then ; group=10 ; inft=0   ; endif
+             if(prmcnt.eq.14) then ; group=15 ; inft=0   ; endif
+             if(prmcnt.eq.15) then ; group=20 ; inft=0   ; endif
+          else
+             inft = 0
+             if(prmcnt <= 10) group = prmcnt
+             if(prmcnt > 10) group = 10 + (prmcnt - 10) * 2
+          endif
           svgrp(prmcnt)=group ; svinf(prmcnt)=inft
        end do
        temp=inptemp
