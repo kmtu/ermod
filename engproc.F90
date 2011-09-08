@@ -276,7 +276,7 @@ contains
   !
   !
   subroutine engconst(stnum, nactiveproc)
-    use engmain, only: nummol,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
+    use engmain, only: nummol,skpcnf,corrcal,slttype,wgtslf,&
          estype,sluvid,temp,volume,plmode,&
          maxins,ermax,numslv,esmax,uvspec,&
          edens,ecorr,eself,&
@@ -423,7 +423,7 @@ contains
   !
   subroutine engstore(stnum)
     !
-    use engmain, only: nummol,maxcnf,engdiv,corrcal,slttype,wgtslf,&
+    use engmain, only: nummol,maxcnf, skpcnf, engdiv,corrcal,slttype,wgtslf,&
          plmode,ermax,numslv,esmax,temp,&
          edens,ecorr,eself,&
          aveuv,slnuv,avediv,avslf,minuv,maxuv,&
@@ -532,7 +532,7 @@ contains
     avslf=avslf/engnorm
     !
     if(myrank.ne.0) go to 7999                                       ! MPI
-    division = stnum / (maxcnf / engdiv)
+    division = stnum / (maxcnf / skpcnf / engdiv)
     if(slttype.eq.1) then
        do pti=1,numslv
           aveuv(division,pti)=slnuv(pti)/engnorm
@@ -666,7 +666,7 @@ contains
           call instslt(weighting,'init')
        endif
        call instslt(weighting,'proc')
-       if((stnum.eq.maxcnf).and.(cntdst.eq.maxdst)) then
+       if((stnum == maxcnf / skpcnf).and.(cntdst.eq.maxdst)) then
           call instslt(weighting,'last')
        endif
        initialized = .true.
