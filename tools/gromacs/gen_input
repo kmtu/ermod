@@ -95,6 +95,13 @@ def error(x):
     warn_or_error("Error: " + x, 31)
     sys.exit(1)
 
+def safe_close(fh):
+    # asynchronous NFS may miss file creation
+    # esp. combined with delayed allocation (ext4, XFS)
+    fh.flush()
+    os.fsync(fh.fileno())
+    fh.close()
+
 if options.log == None:
     error("log file is not specified (try --help)")
 
@@ -128,19 +135,18 @@ else:
 
 def save_parameters_fe(temp):
     feparamf = "../parameters_fe"
-    if not os.path.exists(feparamf):
-        fh = open(feparamf, "wt")
-        print >> fh, "&fevars"
-        print >> fh, "inptemp=%f" % temp
-        print >> fh, "/"
-        fh.close()
+    fh = open(feparamf, "wt")
+    print >> fh, "&fevars"
+    print >> fh, "inptemp=%f" % temp
+    print >> fh, "/"
+    safe_close(fh)
 
 # TODO: ljformat
 # TODO: LJ table
 def parse_mdp():
     logfh = open(options.log, "rt")
     pats = re.compile(r"^\s*([a-zA-Z0-9_]+)\s*=\s*(\S+)\s*$")
-    reft = re.compile(r"^\s+ref_t:\s+(\d+)")
+    reft = re.compile(r"^\s+ref_t:\s+([0-9.]+)")
     beta = re.compile(r"Using a Gaussian width \(1/beta\) of (\S+) nm for Ewald")
     dic = {}
     temp = 300.0
@@ -162,7 +168,8 @@ def parse_mdp():
     logfh.close()
 
     params["inptemp"] = temp
-    save_parameters_fe(temp)
+    if mode == "solution":
+        save_parameters_fe(temp)
 
     if options.rigid:
         params['slttype'] = 2 # rigid
@@ -266,7 +273,7 @@ if frames:
     print >> ofh, ifh.next().strip()
     print >> ofh, ifh.next().strip()
     ifh.close()
-    ofh.close()
+    safe_close(ofh)
     shutil.move("MDinfo", "MDinfo.bak")
     shutil.move("MDinfo.new", "MDinfo")
 
@@ -329,8 +336,7 @@ elif options.rigid:
         print >> ofh, ' '.join((l.split())[0:5]), coords[pos][0], coords[pos][1], coords[pos][2]
         pos += 1
 
-    os.fsync(ofh.fileno()) # for Ext4
     ifh.close()
-    ofh.close()
+    safe_close(ofh)
     shutil.move("SltInfo", "SltInfo.bak")
     shutil.move("SltInfo.new", "SltInfo")
