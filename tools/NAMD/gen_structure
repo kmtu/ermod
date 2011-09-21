@@ -50,6 +50,13 @@ def error(x):
     warn_or_error("Error: " + x, 31)
     sys.exit(1)
 
+def safe_close(fh):
+    # asynchronous NFS may miss file creation
+    # esp. combined with delayed allocation (ext4, XFS)
+    fh.flush()
+    os.fsync(fh.fileno())
+    fh.close()
+
 if options.param == [] and options.conf == None and options.log == None:
     print >> sys.stderr, "Error: CHARMM parameter file is not specified (specify one of: --param, --log, --conf)"
     sys.exit(1)
@@ -372,7 +379,7 @@ def gen(mode):
         if mode == "soln" or i != slupos:
             print >> mdifh, "%d" % solvent[i][1],
     print >> mdifh
-    mdifh.close()
+    safe_close(mdifh)
     
     solvent_cnt = 1
     iatom = 0
@@ -390,7 +397,7 @@ def gen(mode):
             atom = atomtype_of_mass(float(mass))
             print >> ofh, ("%d %s %.5f %.5f %.5f" % 
                            (j + 1, atom, float(charge), eps, rmin))
-        ofh.close()
+        safe_close(ofh)
 
 gen("soln")
 gen("refs")

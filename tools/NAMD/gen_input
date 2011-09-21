@@ -28,6 +28,13 @@ parser.add_option("-d", "--div", dest = "div", type = "int",
 
 (options, args) = parser.parse_args()
 
+def safe_close(fh):
+    # asynchronous NFS may miss file creation
+    # esp. combined with delayed allocation (ext4, XFS)
+    fh.flush()
+    os.fsync(fh.fileno())
+    fh.close()
+
 if options.log == None:
     print >> sys.stderr, "Error: log file is not specified (try --help)"
     sys.exit(1)
@@ -197,7 +204,7 @@ if frames:
     print >> ofh, ifh.next().strip()
     print >> ofh, ifh.next().strip()
     ifh.close()
-    ofh.close()
+    safe_close(ofh)
     shutil.move("MDinfo", "MDinfo.bak")
     shutil.move("MDinfo.new", "MDinfo")
 
@@ -238,6 +245,6 @@ elif options.pdb:
         print >> ofh, ' '.join((l.split())[0:5]), coords[pos][0], coords[pos][1], coords[pos][2]
         pos += 1
     ifh.close()
-    ofh.close()
+    safe_close(ofh)
     shutil.move("SltInfo", "SltInfo.bak")
     shutil.move("SltInfo.new", "SltInfo")
