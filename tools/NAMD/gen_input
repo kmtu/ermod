@@ -187,6 +187,18 @@ def parse_log():
       ecdmax=1.0e11, pecore=200
 /
 """
+    safe_close(ofh)
+
+    if options.solute == None and options.pdb == None:
+        # solution system
+        # update parameter_fe
+        feparamf = "../parameters_fe"
+        fh = open(feparamf, "wt")
+        print >> fh, "&fevars"
+        print >> fh, "inptemp=%f" % temp
+        print >> fh, "/"
+        safe_close(fh)
+
     if total != 0 and freq != 0:
         frames = total / freq
     else:
