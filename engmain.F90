@@ -197,6 +197,7 @@ module engmain
   integer :: numslt
   integer, allocatable :: sltlist(:)
   real :: engnorm,engsmpl,voffset
+  logical :: voffset_initialized = .false.
 
   real :: lwreg,upreg
 

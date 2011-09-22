@@ -306,7 +306,6 @@ contains
     real, save :: prevcl(3, 3)
     real, parameter :: tiny = 1.0e-20
     logical :: skipcond
-    logical, save :: voffset_initialized = .false.
     logical, save :: pme_initialized = .false.
     ! FIXME: this call to mpi_info is sprious
     call mpi_info                                                    ! MPI
@@ -424,11 +423,11 @@ contains
   !
   subroutine engstore(stnum)
     !
-    use engmain, only: nummol,maxcnf, skpcnf, engdiv,corrcal,slttype,wgtslf,&
+    use engmain, only: nummol,maxcnf, skpcnf, engdiv, corrcal,slttype,wgtslf,&
          plmode,ermax,numslv,esmax,temp,&
          edens,ecorr,eself,&
          aveuv,slnuv,avediv,avslf,minuv,maxuv,&
-         engnorm,engsmpl,voffset, &
+         engnorm,engsmpl,voffset, voffset_initialized, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use mpiproc                                                      ! MPI
     implicit none
@@ -450,6 +449,10 @@ contains
 #ifndef noMPI
        call mpi_allreduce(voffset_local, voffset, 1,&
             mpi_double_precision, mpi_max, mpi_comm_world, ierror)   ! MPI
+
+       ! if uninitialized, use voffset so as not to pollute results with NaN
+       if(.not. voffset_initialized) voffset_local = voffset
+
        ! scale histograms accoording to the maximum voffset
        select case(slttype)
        case (CAL_SOLN)
@@ -729,7 +732,7 @@ contains
          slnuv, avslf,&
          minuv, maxuv, &
          edens, ecorr, eself, &
-         engnorm, engsmpl, voffset, &
+         engnorm, engsmpl, voffset, voffset_initialized, &
          io_flcuv, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX,&
          ES_NVT, ES_NPT
@@ -743,8 +746,6 @@ contains
 
     integer :: i, k, q, iduv, iduvp, pti
     real :: factor, engnmfc, pairep
-
-    logical, save :: voffset_initialized = .false.
 
     allocate(insdst(ermax), engdst(ermax))
 
