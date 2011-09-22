@@ -81,27 +81,18 @@ contains
   subroutine mpi_init_active_group(nproc)
     implicit none
     integer, intent(in) :: nproc
-    integer, allocatable :: grpprocs(:)
-    integer :: i
-    integer :: allgrp, activegrp
 
-    allocate(grpprocs(nproc))
-    do i = 1, nproc
-       grpprocs(i) = i - 1
-    end do
 #ifndef noMPI
-    call mpi_comm_group(mpi_comm_world, allgrp, ierror)
-    call mpi_group_incl(allgrp, nproc, grpprocs, activegrp, ierror)
-    call mpi_comm_create(mpi_comm_world, activegrp, mpi_comm_activeprocs, ierror)
-    call mpi_group_free(activegrp, ierror)
-    call mpi_group_free(allgrp, ierror)
+    if(myrank < nproc) then
+       call mpi_comm_split(mpi_comm_world, 1, myrank, mpi_comm_activeprocs, ierror)
+    else
+       call mpi_comm_split(mpi_comm_world, mpi_undefined, 0, mpi_comm_activeprocs, ierror)
+    endif
 
     if(myrank >= nproc .and. mpi_comm_activeprocs /= mpi_comm_null) then
        stop "failed @ mpi_init_active_group"
     endif
 #endif
-    
-    deallocate(grpprocs)
   end subroutine mpi_init_active_group
 
   subroutine mpi_finish_active_group()

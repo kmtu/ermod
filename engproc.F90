@@ -308,6 +308,7 @@ contains
     logical :: skipcond
     logical, save :: voffset_initialized = .false.
     logical, save :: pme_initialized = .false.
+    ! FIXME: this call to mpi_info is sprious
     call mpi_info                                                    ! MPI
     call mpi_init_active_group(nactiveproc)
 
