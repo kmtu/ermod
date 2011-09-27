@@ -1,5 +1,6 @@
 ! -*- F90 -*-
 module ptinsrt
+  implicit none
   !
   !  test particle insertion of the solute
   !
@@ -42,6 +43,7 @@ contains
   !
   subroutine instslt(wgtslcf,caltype)
     use engmain, only: nummol,slttype,inscnd,inscfg,numslt,sltlist,iseed
+    implicit none
     integer insml,m
     real wgtslcf,pcom(3),qrtn(0:3)
     character*4 caltype
@@ -83,11 +85,11 @@ contains
   !
   ! FIXME: cleanup
   subroutine sltpstn(sltstat,pcom,type,tagslt)
-
     use engmain, only: nummol,maxsite,numatm,&
          boxshp,inscnd,inscfg,hostspec,&
          moltype,numsite,specatm,sitepos,cell,invcl,&
          lwreg,upreg
+    implicit none
     integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
     real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen
     character*6 type
@@ -242,6 +244,7 @@ contains
   end subroutine getcen
   !
   subroutine rndmvec(vectp,qrtn,lwbnd)
+    implicit none
     character vectp
     integer m,inim
     real qrtn(0:3),lwbnd,rdum,factor
@@ -267,6 +270,7 @@ contains
   subroutine coordinate(i,pcom,qrtn)
     use engmain, only: nummol,maxsite,numatm,inscfg,&
          numsite,bfcoord,specatm,sitepos
+    implicit none
     integer stmax,sid,ati,m,k,i
     real pcom(3),qrtn(0:3),rotmat(3,3),rst
     stmax=numsite(i)
@@ -563,6 +567,7 @@ contains
   subroutine sltmove(pcen,qrtn,rtmbf,mvtype)
     use engmain, only: nummol,maxsite,numatm,&
          numsite,bfcoord,specatm,sitepos
+    implicit none
     integer m,k,q,ati,sid,stmax,ax1,ax2
     real pcen(3),qrtn(0:3),rtmbf(3,3)
     real rdum,factor,rotmat(3,3),rtmmov(3,3),axis(3)
