@@ -458,7 +458,7 @@ contains
                 atmtype = trim(atmtype)
                 eletype = atmtype(1:1)
                 ! atom name can be like "1HG"
-                if(lle('0', eletype) .and. lle(eletype, '9')) eletype = atmtype(2:2)
+                if('0' <= eletype .and. eletype <= '9') eletype = atmtype(2:2)
                 ati=specatm(sid,i)
                 if(eletype.eq.'H') refsatm_impl(ati) = 0      ! hydrogen atom
                 if(eletype.ne.'H') refsatm_impl(ati) = rfi    ! heavy atom
