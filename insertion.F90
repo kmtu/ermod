@@ -453,9 +453,12 @@ contains
           if(rfi.ne.0) then
              stmax=numsite(i)
              do sid=1,stmax
-                read(refio, '(12X,A4,14X,F8.3,F8.3,F8.3)') atmtype, (xst(m), m=1,3)
+                read(refio, '(12X, A4, 14X, 3F8.3)') atmtype, (xst(m), m=1,3)
+                ! FIXME: this element selection looks very ugly
                 atmtype = trim(atmtype)
                 eletype = atmtype(1:1)
+                ! atom name can be like "1HG"
+                if(lle('0', eletype) .and. lle(eletype, '9')) eletype = atmtype(2:2)
                 ati=specatm(sid,i)
                 if(eletype.eq.'H') refsatm_impl(ati) = 0      ! hydrogen atom
                 if(eletype.ne.'H') refsatm_impl(ati) = rfi    ! heavy atom
