@@ -17,7 +17,7 @@ module ptinsrt
   !             --- 0 : not reference
   !                 1 : reference solvent  2 : reference solute
   !             value set in subroutine setparam
-  !   refsatm : specification of the reference site
+  !   refsatm_impl : specification of the reference site
   !             --- 0 : not reference
   !                 1 : reference solvent  2 : reference solute
   !   refspos : coordiantes of interaction site for reference structure
@@ -26,8 +26,8 @@ module ptinsrt
   !   movmax : number of Monte Carlo moves
   !   trmax : maximum of translational Monte Carlo move
   !   agmax : maximum of orientational Monte Carlo move
-  integer, dimension(:,:), allocatable, save :: refsatm
-  real, dimension(:,:),    allocatable, save :: refspos
+  integer, dimension(:),   allocatable :: refsatm_impl
+  real, dimension(:,:),    allocatable :: refspos
   real, save :: sltcen(3),sltqrn(0:3)
   integer, parameter :: movmax=10
   real, parameter :: trmax=0.20e0
@@ -40,7 +40,6 @@ module ptinsrt
   !
   !
 contains
-  !
   subroutine instslt(wgtslcf,caltype)
     use engmain, only: nummol,slttype,inscnd,inscfg,numslt,sltlist,iseed
     implicit none
@@ -431,7 +430,7 @@ contains
     call random_seed(put = seedarray)
     deallocate(seedarray)
   end subroutine urand_init
-!
+
   subroutine refmc(caltype)
     use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,&
          lwreg,upreg,bfcoord,specatm,sitepos
@@ -441,20 +440,12 @@ contains
     character*4 caltype
     character*8 atmtype,dump
     character eletype
-    !
+
     if(caltype.eq.'init') then
-       allocate( refsatm(maxsite,nummol),refspos(3,numatm) )
-       do i=1,nummol
-          do sid=1,maxsite
-             refsatm(sid,i)=0
-          end do
-       end do
-       do ati=1,numatm
-          do m=1,3
-             refspos(m,ati)=0.0e0
-          end do
-       end do
-       !
+       allocate( refsatm_impl(numatm),refspos(3,numatm) )
+       refsatm_impl(:) = 0
+       refspos(:, :) = 0.0e0
+
        !  read the reference structure
        open(unit=refio,file=reffile,status='old')
        do i=1,nummol
@@ -462,12 +453,12 @@ contains
           if(rfi.ne.0) then
              stmax=numsite(i)
              do sid=1,stmax
-                read(refio,*) dump,k,atmtype,dump,q,&
-                     (xst(m), m=1,3),factor,factor
-                eletype=atmtype(1:1)
-                if(eletype.eq.'H') refsatm(sid,i)=0      ! hydrogen atom
-                if(eletype.ne.'H') refsatm(sid,i)=rfi    ! heavy atom
+                read(refio, '(12X,A4,14X,F8.3,F8.3,F8.3)') atmtype, (xst(m), m=1,3)
+                atmtype = trim(atmtype)
+                eletype = atmtype(1:1)
                 ati=specatm(sid,i)
+                if(eletype.eq.'H') refsatm_impl(ati) = 0      ! hydrogen atom
+                if(eletype.ne.'H') refsatm_impl(ati) = rfi    ! heavy atom
                 do m=1,3
                    refspos(m,ati)=xst(m)
                 end do
@@ -506,7 +497,7 @@ contains
              sitepos(m,ati)=bfcoord(m,sid)
           end do
        end do
-       call refcen(xst,refsatm,sitepos,2)      ! solute center in bfcoord
+       call refcen(xst,sitepos,2)      ! solute center in bfcoord
        do sid=1,stmax
           ati=specatm(sid,nummol)
           do m=1,3
@@ -537,9 +528,10 @@ contains
   end subroutine refmc
 !
 !
-  subroutine refcen(cen,lstatm,posatm,refmol)
+  subroutine refcen(cen,posatm,refmol)
     use engmain, only: nummol,maxsite,numatm,numsite,specatm
-    integer refmol,rfyn,i,m,ati,rfi,sid,stmax,lstatm(maxsite,nummol)
+    implicit none
+    integer refmol,rfyn,i,m,ati,rfi,sid,stmax
     real cen(3),posatm(3,numatm),totwgt
     totwgt=0.0e0
 
@@ -549,7 +541,7 @@ contains
        if(rfyn.eq.1) then
           stmax=numsite(i)
           do sid=1,stmax
-             if(lstatm(sid,i).eq.rfi) then
+             if(refsatm(sid,i).eq.rfi) then
                 ati=specatm(sid,i)
                 totwgt=totwgt+1.0e0
 
@@ -648,8 +640,8 @@ contains
     integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
     real centg(3),cenrf(3),qrtn(0:3),qrtmat(4,4),xsm(3),xrf(3)
     real totm,xp,yp,zp,xm,ym,zm,dumv(4),work(16)
-    call refcen(centg,refsatm,sitepos,refmol)
-    call refcen(cenrf,refsatm,refspos,refmol)
+    call refcen(centg,sitepos,refmol)
+    call refcen(cenrf,refspos,refmol)
     totm=0.0e0
     qrtmat(:, :) = 0.0e0
     do i=1,nummol
@@ -773,5 +765,14 @@ contains
     end select
     return
   end subroutine getrfyn
-!
+
+  integer function refsatm(site, mol)
+    use engmain, only: specatm
+    implicit none
+    integer, intent(in) :: site, mol
+    
+    refsatm = refsatm_impl(specatm(site, mol))
+    
+  end function refsatm
+
 end module
