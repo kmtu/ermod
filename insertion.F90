@@ -41,7 +41,7 @@ module ptinsrt
   !
 contains
   subroutine instslt(wgtslcf,caltype)
-    use engmain, only: nummol,slttype,inscnd,inscfg,numslt,sltlist,iseed
+    use engmain, only: nummol,slttype,insfit,inscnd,inscfg,numslt,sltlist,iseed
     implicit none
     integer insml,m
     real wgtslcf,pcom(3),qrtn(0:3)
@@ -63,24 +63,85 @@ contains
 
     insml=nummol                                       ! inserted solute
     if(slttype.eq.3) call getsolute(insml,'conf')      ! flexible solute
+    if(insfit == 1) call reffit(insml)
 
-    if(inscnd.le.2) then
-       if(inscfg.ne.2) then
-          insyn='not'
-          do while(insyn.eq.'not')
-             call sltpstn(m,pcom,'insert',insml)          ! center of mass
-             if(inscfg.ne.1) call rndmvec('q',qrtn,0.0e0) ! random orientation
-             call coordinate(insml,pcom,qrtn)             ! site coordinate
-             call insscheme(insml,insyn)                  ! user-defined scheme
-          end do
-       endif
-       if(inscfg.eq.2) call coordinate(insml,pcom,qrtn) ! site coordinate
-    endif
-    !
-    if(inscnd.eq.3) call refmc('inst')                 ! MC with reference
-    !
+    insyn='not'
+    do while(insyn.eq.'not')
+       call setshiftcom(insml)
+       call applyorientation(insml)
+       call insscheme(insml,insyn)                  ! user-defined scheme
+    end do
+    
     return
   end subroutine instslt
+
+  subroutine setshiftcom(insml)
+    use engmain, only: insposition, inscnd, &
+         numsite, mol_begin_index, &
+         lwreg, upreg, &
+         sitepos, bfcoord, cell, invcl, celllen, &
+         boxshp, SYS_NONPERIODIC
+    implicit none
+    integer, intent(in) :: insml
+    
+    integer :: i
+    real :: com(3), syscen(3), r(3), norm, dir, t, s
+
+    integer :: nsite, molb, mole
+    
+    nsite = numsite(insml)
+    molb = mol_begin_index(insml)
+    mole = mol_begin_index(insml + 1) - 1
+    
+    select case(insposition)
+    case(0)
+       ! fixed position
+       ! do nothing but get bfcoord
+       sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
+    case(1)
+       ! fully random position, depend on inscnd
+       select case(inscnd)
+       case(0) ! solute with random position within periodic box
+          if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
+          do i = 1, 3
+             call URAND(r(i))
+          end do
+          com(:) = matmul(cell(:, :), r(:))
+       case(1) ! spherical random position
+          call get_system_com(syscen)
+          do
+             do i = 1, 3
+                call URAND(r(i))
+             end do
+             r(:) = r(:) * 2.0 - 1.0
+             norm = sum(r ** 2)
+             if(norm < 1 .and. norm > (lwreg/upreg) ** 2) exit
+          end do
+          com(:) = syscen(:) + r(:) * upreg
+       case(2) ! slab position
+          if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
+
+          call get_system_com(syscen)
+
+          call URAND(r(1))
+          call URAND(r(2))
+
+          call URAND(t)
+          call URAND(dir)
+          
+          t = t * (upreg - lwreg) + lwreg
+          if(dir > 0.5) t = -t
+          r(3) = t / celllen(3) + dot_product(invcl(3, :), syscen(:))
+
+          com(:) = matmul(cell(:, :), r(:))
+       end select
+
+       ! now com(:) is the center of mass
+       ! translate molecule
+       
+    end select
+
+  end subroutine setshiftcom
   !
   ! FIXME: cleanup
   subroutine sltpstn(sltstat,pcom,type,tagslt)
@@ -308,8 +369,9 @@ contains
     rotmat(2,3)=2.0e0*(qrtn(2)*qrtn(3)+qrtn(0)*qrtn(1))
     rotmat(3,2)=2.0e0*(qrtn(2)*qrtn(3)-qrtn(0)*qrtn(1))
   end subroutine getrot
-!
-! user-defined scheme to specify inserted molecule
+  ! user-defined scheme to specify inserted molecule
+  ! user may reject snapshot by specifying insyn to 'not', or
+  ! set coordinate in specatm
   subroutine insscheme(insml,insyn)                
     use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
     integer insml,stmax,sid,ati
@@ -337,7 +399,7 @@ contains
 !
   subroutine getsolute(i,caltype)
     use trajectory, only: open_trajectory, close_trajectory, read_trajectory
-    use engmain, only: nummol,maxsite,inscfg,numsite,bfcoord
+    use engmain, only: nummol,maxsite,insposition,numsite,bfcoord
     use setconf, only: molcen
     use OUTname, only: iofmt,bxiso,toptp, OUTconfig, solute_trajectory
     use mpiproc
@@ -372,11 +434,11 @@ contains
          0, mpi_comm_activeprocs, ierror)
 #endif
 
-    if(inscfg.ne.2) call molcen(i,psite,xst,'com')
+    if(insposition == 1) call molcen(i,psite,xst,'com')
     do sid=1,stmax
        do m=1,3
-          if(inscfg.ne.2) bfcoord(m,sid)=psite(m,sid)-xst(m)
-          if(inscfg.eq.2) bfcoord(m,sid)=psite(m,sid)
+          if(insposition == 1) bfcoord(m,sid)=psite(m,sid)-xst(m)
+          if(insposition == 0) bfcoord(m,sid)=psite(m,sid)
        end do
     end do
     deallocate( psite )
@@ -431,15 +493,17 @@ contains
     deallocate(seedarray)
   end subroutine urand_init
 
-  subroutine refmc(caltype)
+  subroutine refmc
     use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,&
          lwreg,upreg,bfcoord,specatm,sitepos
+    use bestfit
     integer i,k,m,q,ati,rfi,sid,stmax
     real xst(3),centg(3),cenrf(3)
     real factor,bfqrn(0:3),rtmbf(3,3),sltsite(3,maxsite)
     character*4 caltype
     character*8 atmtype,dump
     character eletype
+    
 
     if(caltype.eq.'init') then
        allocate( refsatm_impl(numatm),refspos(3,numatm) )
@@ -595,11 +659,11 @@ contains
           axis(m)=axis(m)/factor
        end do
        call URAND(rdum)
-       ax1=mod(int(abs(unrn)),4)
+       ax1=floor(rdum * 4)
        ax2=ax1
        do while(ax1.eq.ax2)
           call URAND(rdum)
-          ax2=mod(int(abs(unrn)),4)
+          ax2=floor(rdum * 4)
        end do
        call URAND(rdum)
        factor=agmax*(rdum+rdum-1.0e0)
@@ -768,6 +832,9 @@ contains
     end select
     return
   end subroutine getrfyn
+
+  subroutine reffit
+  end subroutine reffit
 
   integer function refsatm(site, mol)
     use engmain, only: specatm

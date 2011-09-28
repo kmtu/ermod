@@ -7,7 +7,7 @@ nobase_pkgdata_SCRIPTS = \
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
-ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 hash_real.c
+ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 bestfit.F90 hash_real.c
 
 EXTRA_DIST = parameters_er.example parameters_fe.example
 EXTRA_DIST += trajectory-formats/*
@@ -37,7 +37,7 @@ ermod-realcal.$(OBJEXT): realcal.F90 ermod-utility.$(OBJEXT)
 ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-utility.$(OBJEXT)
 ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-vmdfio_if.$(OBJEXT)
 ermod-recpcal.$(OBJEXT): recpcal.F90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT)
-ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT)
+ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT) ermod-bestfit.$(OBJEXT)
 ermod-setconf.$(OBJEXT): setconf.F90 ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-trajectory.$(OBJEXT)
 
 slvfe_SOURCES = slvfe.F90

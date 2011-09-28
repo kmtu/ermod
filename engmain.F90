@@ -29,12 +29,34 @@
 !               1 : constant volume  2 : constant pressure
 !   boxshp : shape of the unit cell box
 !               0 : non-periodic  1 : periodic and parallelepiped
-!   inscnd : geometrical condition of the solute configuration
-!               0 : random  1 : spherical  2 : slab  3 : reference
-!   inscfg : position and orientation for the inserted solute
-!               0 : only the intramolecular configuration is from the file
-!               1 : orientation is fixed from the file with random position
-!               2 : position and orientation are also fixed from the file
+!   insfit : whether fit to reference structure.
+!               0 : never fit to reference stricture
+!               1 : fit to reference structure.
+!                   reference structure should be given as RefInfo in PDB format.
+!                   RefInfo should conatin structure specified in refpick, and the solute structure, in order.
+!   insposition : position for the inserted solute
+!               0 : fixed position
+!               1 : fully random position (see also inscnd)
+!               2 : spherically random position, with radius specified from lwreg to upreg.
+!               3 : slab random position
+!                   slab geometry inserts solute at z = com(system) + dz and
+!                   (-upreg < dz < -lwreg AND lwreg < dz < upreg) for straight box periodic condition.
+!                   Position is much more complex for parallelpiped structure. (see insertion.F90)
+!               4 : (experimental) Gaussian random position. Position is given by displacing 
+!                   reference coordinate, or coordinate fit to reference (insfit = 1), with upreg.
+!                   Solute weight is automatically adjusted
+!   inscnd : (deprecated) geometrical condition of the solute configuration
+!               0 : random    (insposition = 1) 
+!               1 : spherical (insposition = 2)
+!               2 : slab      (insposition = 3)
+!               3 : reference (insfit = 1, insposition = 4)
+!   insorient : orientation for the inserted solute
+!               0 : fixed orientation
+!               1 : random orientation
+!   inscfg : (deprecated) position and orientation for the inserted solute
+!               0 : only the intramolecular configuration is from the file. (insposition = 1, insorient = 1)
+!               1 : orientation is fixed from the file with random position (insposition = 1, insorient = 0)
+!               2 : position and orientation are also fixed from the file   (insposition = 0, insorient = 0)
 !            The file for the solute configuration
 !            is SltInfo when slttype = 2 and is SltConf when slttype = 3
 !              default = 0
@@ -154,7 +176,9 @@ module engmain
 !
   integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
   integer :: slttype,sltpick,refpick,wgtslf,wgtins
-  integer :: estype,boxshp,inscnd,inscfg,hostspec,ljformat,iseed
+  integer :: estype,boxshp
+  integer :: insfit, inscnd, insposition, insorient
+  integer :: inscfg,hostspec,ljformat,iseed
   real :: block_threshold
   real :: inptemp,temp
   logical :: force_calculation
@@ -216,7 +240,9 @@ module engmain
   namelist /ene_param/ iseed, &
        skpcnf,corrcal, &
        slttype,sltpick,refpick,wgtslf,wgtins, &
-       estype,boxshp,inscnd,inscfg,hostspec,ljformat, &
+       estype,boxshp, &
+       insfit, inscnd, insposition, insorient, inscfg, &
+       hostspec, ljformat, &
        inptemp,temp, &
        engdiv,maxins, &
        lwreg,upreg, &

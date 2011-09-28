@@ -15,11 +15,9 @@ end subroutine enganal_init
 subroutine enganal(stnum, nactiveproc)
   use engmain, only: maxcnf,engdiv,skpcnf,inscnd
   use engproc, only: engclear,engconst,engstore
-  use ptinsrt, only: refmc
   implicit none
   integer, intent(in) :: stnum, nactiveproc
 
-  if((inscnd.eq.3)) call refmc('init')
   call engconst(stnum, nactiveproc)
 end subroutine enganal
 !     

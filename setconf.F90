@@ -157,7 +157,8 @@ contains
          iseed,&
          skpcnf,corrcal,&
          slttype,sltpick,refpick,wgtslf,wgtins,&
-         estype,boxshp,inscnd,inscfg,hostspec,ljformat,&
+         estype,boxshp,inscnd,insposition, insorient, &
+         inscfg,hostspec,ljformat,&
          inptemp,temp,&
          engdiv,maxins,&
          lwreg,upreg,&
@@ -179,18 +180,18 @@ contains
     character*3 scrtype
     call mpi_info                                                    ! MPI
 
-    intprm=1                    ! trajectory reading
-    if(intprm.eq.1) then        ! default settings for trajectory reading
-       estype=2                                     ! constant pressure
-       boxshp=1                                     ! periodic boundary
-       cltype=2 ; ms1max=64                         ! PME
-       inptemp=300.0e0                              ! Kelvin
-       engdiv=1                                     ! number of divisions
-       screen=0.0e0 ; ewtoler=0.0e0
-       ewtoler=1.0e-6 ; elecut=12.0e0
-       splodr=4 ; scrtype='dis'
-       upljcut=elecut ; lwljcut=upljcut-2.0e0
-    endif
+    estype=2                                     ! constant pressure
+    boxshp=1                                     ! periodic boundary
+    cltype=2 ; ms1max=64                         ! PME
+    inptemp=300.0e0                              ! Kelvin
+    engdiv=1                                     ! number of divisions
+    screen=0.0e0 ; ewtoler=0.0e0
+    ewtoler=1.0e-6 ; elecut=12.0e0
+    splodr=4 ; scrtype='dis'
+    upljcut=elecut ; lwljcut=upljcut-2.0e0
+    insposition = 1
+    insorient = 1
+
     block_threshold = 4.0 ! block-wise calculation, corresponds to 13 atoms / box
     force_calculation = .false.
     ! only part of constants set here
@@ -210,6 +211,18 @@ contains
        ew2max=ew1max ; ew3max=ew1max
        ms2max=ms1max ; ms3max=ms1max
     endif
+    select case(inscfg)
+    case(0)
+       insposition = 1
+       insorient = 1
+    case(1)
+       insposition = 1
+       insorient = 0
+    case(2)
+       insposition = 0
+       insorient = 0
+    end select
+
     ! default settings done
 
     ! read again for non-default constants
@@ -242,7 +255,11 @@ contains
     if(wgtins.eq.1) then        ! check the consistency of insertion scheme
        if(slttype.ne.3) call set_stop('ins')
     endif
-    if(slttype.eq.1) inscfg=0   ! inscfg is effective only for insertion
+    if(slttype.eq.1) then
+       inscfg=0   ! inscfg is effective only for insertion
+       insposition = 1
+       insorient = 1
+    endif
     if((inscfg.lt.0).or.(inscfg.gt.2)) then        ! check inscfg parameter
        call set_stop('ins')
     endif
@@ -250,8 +267,12 @@ contains
        if(slttype.eq.1) call set_stop('prs')
        if(inscnd.eq.3) call set_stop('ins')
     endif
+
+    if((insposition < 0).or.(insposition > 3)) call set_stop('ins')
+    if((insorient < 0).or.(insorient > 1)) call set_stop('ins')
+
     if((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. &
-         inscfg == 2 .and. maxins /= 1) then
+         insposition == 0 .and. insorient == 0 .and. maxins /= 1) then
        call warning('insu')
     endif
          
@@ -280,7 +301,7 @@ contains
   ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
   subroutine setparam
     use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
-         slttype,sltpick,refpick,inscfg,ljformat,&
+         slttype,sltpick,refpick,ljformat,&
          moltype,numsite,sluvid,refmlid,&
          bfcoord, sitemass, charge, &
          ljene_mat, ljlensq_mat, ljtype, ljtype_max, cmbrule, &
@@ -496,15 +517,8 @@ contains
           cur_atom = cur_atom + stmax
        end do
 
-       if(uvtype.eq.2) then        
-          if(inscfg.eq.2) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
-          if(inscfg.ne.2) then 
-             ! setting the center of mass to zero
-             call molcen(nummol, psite, xst, 'com')
-             do sid = 1,stmax
-                bfcoord(1:3,sid) = psite(1:3, sid) - xst(1:3)
-             end do
-          endif
+       if(uvtype.eq.2) then
+          bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
        endif
     end do
 
