@@ -14,22 +14,25 @@ module quaternion
   implicit none
 contains
   subroutine array_of_quaternion(q, a) 
-    real(8), intent(in)  :: q(0:3)
-    real(8), intent(out) :: a(3)
+    implicit none
+    real, intent(in)  :: q(0:3)
+    real, intent(out) :: a(3)
     a = q(1:3)
   end subroutine array_of_quaternion
   
   subroutine quaternion_of_array(a, q)
-    real(8), intent(in)  :: a(3)
-    real(8), intent(out) :: q(0:3)
+    implicit none
+    real, intent(in)  :: a(3)
+    real, intent(out) :: q(0:3)
     q(0) = 0.
     q(1:3) = a
   end subroutine quaternion_of_array
 
   subroutine prod(q1, q2, p)
-    real(8), intent(in)  :: q1(0:3), q2(0:3)
-    real(8), intent(out) :: p(0:3)
-    real(8) :: temp(3)
+    implicit none
+    real, intent(in)  :: q1(0:3), q2(0:3)
+    real, intent(out) :: p(0:3)
+    real :: temp(3)
     p(0) = q1(0) * q2(0) - dot_product(q1(1:3), q2(1:3))
     call cross_product(q1(1:3), q2(1:3), temp)
     p(1:3) = temp + q1(0) * q2(1:3) + q2(0) * q1(1:3)
@@ -37,24 +40,26 @@ contains
   contains
     subroutine cross_product(u, v, r)
       implicit none
-      real(8), intent(in) :: u(3), v(3)
-      real(8), intent(out) :: r(3)
+      real, intent(in) :: u(3), v(3)
+      real, intent(out) :: r(3)
       r = cshift(u, 1) * cshift(v, -1) - cshift(u, -1) * cshift(v, 1)
     end subroutine cross_product
   end subroutine prod
   
   subroutine conjugate(q, r)
-    real(8), intent(in)  :: q(0:3)
-    real(8), intent(out) :: r(0:3)
+    implicit none
+    real, intent(in)  :: q(0:3)
+    real, intent(out) :: r(0:3)
     r(0)   =  q(0)
     r(1:3) = -q(1:3)
   end subroutine conjugate
 
   subroutine rotate(q, r, res)
-    real(8), intent(in)  :: q(1:3), r(0:3)
-    real(8), intent(out) :: res(1:3)
-    real(8) :: t(0:3), cj(0:3)
-    real(8) :: q2(0:3), res2(0:3)
+    implicit none
+    real, intent(in)  :: q(1:3), r(0:3)
+    real, intent(out) :: res(1:3)
+    real :: t(0:3), cj(0:3)
+    real :: q2(0:3), res2(0:3)
     q2(0) = 0.
     q2(1:3) = q(:)
     call conjugate(r, cj)
@@ -62,6 +67,19 @@ contains
     call prod(t, cj, res2)
     res(:) = res2(1:3)
   end subroutine rotate
+
+  subroutine rotate_inplace(n, coord, rot_quaternion)
+    implicit none
+    integer, intent(in) :: n
+    real, intent(in) :: rot_quaternion(0:3)
+    real, intent(inout) :: coord(3, n)
+    integer :: i
+    real :: temp(3)
+    do i = 1, n
+       call rotate(coord(:, i), rot_quaternion, temp)
+       coord(:, i) = temp(:)
+    end do
+  end subroutine rotate_inplace
 end module quaternion
 
 module bestfit
@@ -72,18 +90,18 @@ contains
     implicit none
     external dsyev
     integer :: n, info
-    real(8), intent(in) :: refPt(3, n), movedPt(3, n), masses(n)
-    real(8), intent(out) :: rotation(0:3)
-    real(8) :: inner_prod(3, 3)
-    real(8) :: matmax(4, 4)
-    real(8) :: eigenvalue(4)
+    real, intent(in) :: refPt(3, n), movedPt(3, n), masses(n)
+    real, intent(out) :: rotation(0:3)
+    real :: inner_prod(3, 3)
+    real :: matmax(4, 4)
+    real :: eigenvalue(4)
     integer, parameter :: lwork = 256
-    real(8) :: work(lwork)
+    real :: work(lwork)
     integer :: i, j, k
-    
+
     do i = 1, 3
        do j = 1, 3
-          inner_prod(j, i) = inner_prod(j, i) + sum(refPt(i, :) * movedPt(j, :) * masses(:))
+          inner_prod(j, i) = sum(refPt(i, :) * movedPt(j, :) * masses(:))
        end do
     end do
     
@@ -119,10 +137,11 @@ contains
   end subroutine find_rotation_quaternion
 
   subroutine center_of_mass(n, points, masses, center)
+    implicit none
     integer, intent(in) :: n
-    real(8), intent(in) :: points(3, n), masses(n)
-    real(8), intent(out) :: center(3)
-    real(8) :: sumOfMasses
+    real, intent(in) :: points(3, n), masses(n)
+    real, intent(out) :: center(3)
+    real :: sumOfMasses
     integer :: i
     
     sumOfMasses = sum(masses)
@@ -130,34 +149,79 @@ contains
        center(i) = dot_product(points(i, :), masses) / sumOfMasses
     end do
   end subroutine center_of_mass
-
-  subroutine fit(n, refcoord, coord, masses, outcoord)
-    use quaternion
+  
+  subroutine com_shift(n, points, masses, center)
+    implicit none
     integer, intent(in) :: n
-    real(8), intent(in) :: refcoord(3, n), masses(n)
-    real(8), intent(in) :: coord(3, n)
-    real(8), intent(out) :: outcoord(3, n)
-    real(8) :: translatedRef(3, n), translatedMoved(3, n)
-    real(8) :: centerOfMassRef(3)
-    real(8) :: centerOfMassMoved(3)
-    real(8) :: rotation(0:3), temp(3)
+    real, intent(inout) :: points(3, n)
+    real, intent(in) :: masses(n)
+    real, intent(out) :: center(3)
+    real :: com(3)
     integer :: i
 
-    call center_of_mass(n, refcoord, masses, centerOfMassRef)
-    call center_of_mass(n, coord,    masses, centerOfMassMoved)
-    
+    call center_of_mass(n, points, masses, com)
+
     do i = 1, n
-       translatedRef  (:, i) = refcoord(:, i) - centerOfMassRef  (:)
-       translatedMoved(:, i) = coord   (:, i) - centerOfMassMoved(:)
+       points(:, i) = points(:, i) - com(:)
     end do
 
-    call find_rotation_quaternion(n, translatedRef, translatedMoved, masses, rotation)
+    center(:) = com(:)
+  end subroutine com_shift
 
-    do i = 1,n
-       call rotate(translatedMoved(:, i), rotation, temp)
-       outcoord(:, i) = temp(:) + centerOfMassRef(:)
+  subroutine com_unshift(n, points, masses, center)
+    implicit none
+    integer, intent(in) :: n
+    real, intent(inout) :: points(3, n)
+    real, intent(in) :: masses(n)
+    real, intent(in) :: center(3)
+    integer :: i
+
+    do i = 1, n
+       points(:, i) = points(:, i) + center(:)
     end do
+  end subroutine com_unshift
+
+  ! standard fit-to-structure procedure
+  subroutine fit(n, refcoord, coord, masses, outcoord)
+    use quaternion
+    implicit none
+    integer, intent(in) :: n
+    real, intent(in) :: refcoord(3, n), masses(n)
+    real, intent(in) :: coord(3, n)
+    real, intent(out) :: outcoord(3, n)
+    call fit_a_rotate_b(n, refcoord, coord, masses, n, coord, outcoord)
   end subroutine fit
+
+  ! fit a to refa, and get corresponding position for b
+  subroutine fit_a_rotate_b(na, refa, a, massa, nb, b, bout)
+    use quaternion, only: rotate
+    implicit none
+    integer, intent(in) :: na, nb
+    real, intent(in) :: refa(3, na), a(3, na), massa(na)
+    real, intent(in) :: b(3, nb)
+    real, intent(out) :: bout(3, nb)
+    
+    real :: workref(3, na), work(3, na)
+    real :: com_refa(3), com_a(3)
+    real :: bcrd(3), bcrdr(3)
+    real :: rotation(0:3)
+    integer :: i
+    
+    ! copy coordinate & align com
+    workref(:, :) = refa(:, :)
+    call com_shift(na, workref, massa, com_refa)
+    work(:, :) = a(:, :)
+    call com_shift(na, work, massa, com_a)
+    
+    call find_rotation_quaternion(na, workref, work, massa, rotation)
+    
+    do i = 1, nb
+       bcrd(:) = b(:, i) - com_a(:)
+       call rotate(bcrd, rotation, bcrdr)
+       bout(:, i) = bcrdr(:) + com_a(:)
+    end do
+    
+  end subroutine fit_a_rotate_b
 end module bestfit
 
 

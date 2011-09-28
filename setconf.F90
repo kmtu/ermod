@@ -189,7 +189,7 @@ contains
     ewtoler=1.0e-6 ; elecut=12.0e0
     splodr=4 ; scrtype='dis'
     upljcut=elecut ; lwljcut=upljcut-2.0e0
-    insposition = 1
+    insposition = 0
     insorient = 1
 
     block_threshold = 4.0 ! block-wise calculation, corresponds to 13 atoms / box
@@ -213,13 +213,13 @@ contains
     endif
     select case(inscfg)
     case(0)
-       insposition = 1
+       insposition = 0
        insorient = 1
     case(1)
-       insposition = 1
+       insposition = 0
        insorient = 0
     case(2)
-       insposition = 0
+       insposition = 3
        insorient = 0
     end select
 
@@ -257,7 +257,7 @@ contains
     endif
     if(slttype.eq.1) then
        inscfg=0   ! inscfg is effective only for insertion
-       insposition = 1
+       insposition = 0
        insorient = 1
     endif
     if((inscfg.lt.0).or.(inscfg.gt.2)) then        ! check inscfg parameter
@@ -268,11 +268,11 @@ contains
        if(inscnd.eq.3) call set_stop('ins')
     endif
 
-    if((insposition < 0).or.(insposition > 3)) call set_stop('ins')
+    if((insposition < 0).or.(insposition > 4)) call set_stop('ins')
     if((insorient < 0).or.(insorient > 1)) call set_stop('ins')
 
     if((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. &
-         insposition == 0 .and. insorient == 0 .and. maxins /= 1) then
+         insposition == 3 .and. insorient == 0 .and. maxins /= 1) then
        call warning('insu')
     endif
          

@@ -67,15 +67,15 @@ contains
 
     insyn='not'
     do while(insyn.eq.'not')
-       call setshiftcom(insml)
-       call applyorientation(insml)
-       call insscheme(insml,insyn)                  ! user-defined scheme
+       call set_shift_com(insml)
+       call apply_orientation(insml)
+       call insscheme(insml,insyn)       ! user-defined scheme to apply change / reject configuration
     end do
     
     return
   end subroutine instslt
 
-  subroutine setshiftcom(insml)
+  subroutine set_shift_com(insml)
     use engmain, only: insposition, inscnd, &
          numsite, mol_begin_index, &
          lwreg, upreg, &
@@ -95,54 +95,119 @@ contains
     
     select case(insposition)
     case(0)
-       ! fixed position
-       ! do nothing but get bfcoord
-       sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
-    case(1)
-       ! fully random position, depend on inscnd
-       select case(inscnd)
-       case(0) ! solute with random position within periodic box
-          if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
+       ! fully random position within periodic box
+       if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
+       do i = 1, 3
+          call URAND(r(i))
+       end do
+       com(:) = matmul(cell(:, :), r(:))
+
+       call set_solute_com(insml, com)
+       return
+    case(1) ! spherical random position
+       call get_system_com(syscen)
+       do
           do i = 1, 3
              call URAND(r(i))
           end do
-          com(:) = matmul(cell(:, :), r(:))
-       case(1) ! spherical random position
-          call get_system_com(syscen)
-          do
-             do i = 1, 3
-                call URAND(r(i))
-             end do
-             r(:) = r(:) * 2.0 - 1.0
-             norm = sum(r ** 2)
-             if(norm < 1 .and. norm > (lwreg/upreg) ** 2) exit
-          end do
-          com(:) = syscen(:) + r(:) * upreg
-       case(2) ! slab position
-          if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
-
-          call get_system_com(syscen)
-
-          call URAND(r(1))
-          call URAND(r(2))
-
-          call URAND(t)
-          call URAND(dir)
-          
-          t = t * (upreg - lwreg) + lwreg
-          if(dir > 0.5) t = -t
-          r(3) = t / celllen(3) + dot_product(invcl(3, :), syscen(:))
-
-          com(:) = matmul(cell(:, :), r(:))
-       end select
-
-       ! now com(:) is the center of mass
-       ! translate molecule
+          r(:) = r(:) * 2.0 - 1.0
+          norm = sum(r ** 2)
+          if(norm < 1 .and. norm > (lwreg/upreg) ** 2) exit
+       end do
+       com(:) = syscen(:) + r(:) * upreg
+       call set_solute_com(insml, com)
+       return
+    case(2) ! slab position
+       if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
        
+       call get_system_com(syscen)
+       
+       call URAND(r(1))
+       call URAND(r(2))
+       
+       call URAND(t)
+       call URAND(dir)
+       
+       t = t * (upreg - lwreg) + lwreg
+       if(dir > 0.5) t = -t
+       r(3) = t / celllen(3) + dot_product(invcl(3, :), syscen(:))
+       
+       com(:) = matmul(cell(:, :), r(:))
+       call set_solute_com(insml, com)
+       return
+    case(3)
+       ! fixed position
+       ! do nothing but get bfcoord
+       sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
+       return
+    case(4)
+       stop "implement Gaussian random position perturbation"
+    case default
+       stop "Unknown insposition"
     end select
 
-  end subroutine setshiftcom
-  !
+  contains
+    subroutine set_solute_com(insml, com)
+      use engmain, only: numsite, &
+           mol_begin_index, mol_end_index, &
+           sitepos, sitemass
+      use bestfit, only: com_shift, com_unshift
+      implicit none
+      integer, intent(in) :: insml
+      real, intent(in) :: com(3)
+      integer :: insb, inse, i, n
+      real :: tempcom(3)
+      
+      n = numsite(insml)
+      insb = mol_begin_index(insml)
+      inse = mol_end_index(insml)
+      
+       call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), tempcom)
+       do i = 1, 3
+          sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
+       end do
+    end subroutine set_solute_com
+  end subroutine set_shift_com
+
+  subroutine apply_orientation(insml)
+    use engmain, only: insorient, &
+         numsite, &
+         mol_begin_index, mol_end_index, &
+         sitepos, sitemass
+    use quaternion, only: rotate_inplace
+    use bestfit, only: com_shift, com_unshift
+    implicit none
+    integer, intent(in) :: insml
+    integer :: insb, inse, i, n
+    real :: com(3), randq(0:3)
+    
+    n = numsite(insml)
+    insb = mol_begin_index(insml)
+    inse = mol_end_index(insml)
+
+    select case(insorient)
+    case(0)
+       ! no orientational change
+       return
+    case(1)
+       ! random orientation
+       call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
+       
+       do
+          do i = 0, 3
+             call URAND(randq(i))
+          end do
+          if(sum(randq ** 2) < 1) exit
+       end do
+
+       randq(:) = randq(:) / sqrt(sum(randq**2)) ! set on unit hyper-sphere surface
+       call rotate_inplace(numsite(insml), sitepos(1:3, insb:inse), randq)
+
+       call com_unshift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
+       return
+    end select
+  end subroutine apply_orientation
+
   ! FIXME: cleanup
   subroutine sltpstn(sltstat,pcom,type,tagslt)
     use engmain, only: nummol,maxsite,numatm,&
@@ -434,11 +499,11 @@ contains
          0, mpi_comm_activeprocs, ierror)
 #endif
 
-    if(insposition == 1) call molcen(i,psite,xst,'com')
+    if(insposition /= 4) call molcen(i,psite,xst,'com')
     do sid=1,stmax
        do m=1,3
-          if(insposition == 1) bfcoord(m,sid)=psite(m,sid)-xst(m)
-          if(insposition == 0) bfcoord(m,sid)=psite(m,sid)
+          if(insposition /= 4) bfcoord(m,sid)=psite(m,sid)-xst(m)
+          if(insposition == 4) bfcoord(m,sid)=psite(m,sid)
        end do
     end do
     deallocate( psite )
@@ -833,7 +898,97 @@ contains
     return
   end subroutine getrfyn
 
-  subroutine reffit
+  ! fit to reference structure
+  subroutine reffit(ligmol)
+    use engmain, only: refmlid, numsite, nummol, &
+         mol_begin_index, mol_end_index, &
+         sitepos, sitemass, bfcoord
+    use quaternion, only: rotate
+    use bestfit, only: fit_a_rotate_b, fit
+    implicit none
+    integer, intent(in) :: ligmol
+
+    real, allocatable, save :: ref_solv_pos(:, :)  ! solvent structure in reference
+    real, allocatable, save :: ref_lig_pos(:, :)   ! ligand structure in reference
+    real, allocatable, save :: works(:, :), workl(:, :)
+    real, allocatable, save :: solv_mass(:) ! masked mass vector;
+    real, allocatable, save :: lig_mass(:)  ! atoms not used for fitting is zeroed
+
+    real :: crd(3)
+    integer :: natom_solv, natom_lig
+    integer :: solvmol
+    integer :: solv_begin, solv_end
+    integer :: lig_begin, lig_end
+    real :: com_solv(3), com_lig(3)
+    integer :: i
+    
+    solvmol = -1
+    do i = 1, nummol
+       if(refmlid(i) == 1) solvmol = i
+       if(refmlid(i) == 2 .and. i /= ligmol) stop "insmol / refmlid is inconsistent"
+    end do
+    if(solvmol == -1) stop "reffit: failed to find reference solvent"
+
+    natom_solv = numsite(solvmol)
+    natom_lig = numsite(ligmol)
+    
+    solv_begin = mol_begin_index(solvmol)
+    solv_end = mol_end_index(solvmol)
+
+    lig_begin = mol_begin_index(ligmol)
+    lig_end = mol_end_index(ligmol)
+
+    if(.not. allocated(ref_solv_pos)) then
+       ! first time call
+       allocate(ref_solv_pos(3, natom_solv), solv_mass(natom_solv))
+       allocate(ref_lig_pos(3, natom_lig), lig_mass(natom_lig))
+       allocate(works(3, natom_solv), workl(3, natom_lig))
+       
+       ! initialize mass first
+       solv_mass(:) = sitemass(solv_begin:solv_end)
+       lig_mass(:) = sitemass(lig_begin:lig_end)
+
+       open(unit=refio, file=reffile, status='old')
+       call load_structure(natom_solv, ref_solv_pos, solv_mass)
+       call load_structure(natom_lig, ref_lig_pos, lig_mass)
+       close(refio)
+    endif
+    
+    ! first fit reference solvent to current solvent, to get "reference ligand position"
+    call fit_a_rotate_b(natom_solv, &
+         sitepos(1:3, solv_begin:solv_end), ref_solv_pos, lig_mass, &
+         natom_lig, &
+         ref_lig_pos, workl)
+    ! then fit ligand structure read from file
+    call fit(natom_lig, workl, bfcoord, lig_mass, sitepos(1:3, lig_begin:lig_end))
+  contains
+    subroutine load_structure(n, position, mass)
+      integer, intent(in) :: n
+      real, intent(out) :: position(3, n)
+      real, intent(inout) :: mass(n)
+      real :: crd(3)
+      character(len=6) :: header
+      integer :: i, ix
+
+      do ix = 1, n
+         do
+            ! skip until ATOM/HETATM lines
+            read(refio, '(A6)', advance='no') header
+            if(header == 'ATOM  ' .or. header == 'HETATM') exit
+            read(refio, *)
+         end do
+         read(refio, '(24X, 3F8.3)') (crd(i), i = 1, 3)
+         position(1:3, ix) = crd(1:3)
+      end do
+
+      ! set mass = 0 to mask fitting
+      ! user can implement his own special selection rule
+      ! (e.g. by using B-factor, etc.)
+      ! default: hydrogen is masked
+      do i = 1, n
+         if(mass(i) < 1.1) mass(i) = 0.0
+      end do
+    end subroutine load_structure
   end subroutine reffit
 
   integer function refsatm(site, mol)
