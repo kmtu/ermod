@@ -41,13 +41,16 @@ module ptinsrt
   !
 contains
   subroutine instslt(wgtslcf,caltype)
-    use engmain, only: nummol,slttype,insfit,inscnd,inscfg,numslt,sltlist,iseed
+    use engmain, only: nummol,slttype,insfit,inscnd,inscfg,numslt,sltlist,iseed, &
+         numsite, mol_begin_index, sitepos, bfcoord
     implicit none
     integer insml,m
     real wgtslcf,pcom(3),qrtn(0:3)
     character*4 caltype
     character*3 insyn
 
+    integer :: nsite, molb, mole
+    
     call instwgt(wgtslcf,caltype)
 
     if(caltype.eq.'init') call urand_init(iseed)
@@ -63,7 +66,15 @@ contains
 
     insml=nummol                                       ! inserted solute
     if(slttype.eq.3) call getsolute(insml,'conf')      ! flexible solute
-    if(insfit == 1) call reffit(insml)
+    if(insfit == 1) then
+       call reffit(insml)
+    else
+       nsite = numsite(insml)
+       molb = mol_begin_index(insml)
+       mole = mol_begin_index(insml + 1) - 1
+       
+       sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
+    end if
 
     insyn='not'
     do while(insyn.eq.'not')
@@ -79,7 +90,7 @@ contains
     use engmain, only: insposition, inscnd, &
          numsite, mol_begin_index, &
          lwreg, upreg, &
-         sitepos, bfcoord, cell, invcl, celllen, &
+         sitepos, cell, invcl, celllen, &
          boxshp, SYS_NONPERIODIC
     implicit none
     integer, intent(in) :: insml
@@ -87,12 +98,6 @@ contains
     integer :: i
     real :: com(3), syscen(3), r(3), norm, dir, t, s
 
-    integer :: nsite, molb, mole
-    
-    nsite = numsite(insml)
-    molb = mol_begin_index(insml)
-    mole = mol_begin_index(insml + 1) - 1
-    
     select case(insposition)
     case(0)
        ! fully random position within periodic box
@@ -137,8 +142,7 @@ contains
        return
     case(3)
        ! fixed position
-       ! do nothing but get bfcoord
-       sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
+       ! do nothing
        return
     case(4)
        stop "implement Gaussian random position perturbation"
@@ -192,11 +196,16 @@ contains
     case(1)
        ! random orientation
        call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
-       
+
+       ! get random quaternion (prob. success ~ 0.3)
+       ! if this is really bad implement:
+       ! Marsaglia, G. "Choosing a Point from the Surface of a Sphere."
+       !   Ann. Math. Stat. 43, 645-646, 1972.
        do
           do i = 0, 3
              call URAND(randq(i))
           end do
+          randq(:) = randq(:) * 2.0 - 1.0
           if(sum(randq ** 2) < 1) exit
        end do
 
