@@ -78,7 +78,7 @@ contains
 
     insyn='not'
     do while(insyn.eq.'not')
-       call set_shift_com(insml)
+       call set_shift_com(insml, wgtslcf)
        call apply_orientation(insml)
        call insscheme(insml,insyn)       ! user-defined scheme to apply change / reject configuration
     end do
@@ -86,7 +86,7 @@ contains
     return
   end subroutine instslt
 
-  subroutine set_shift_com(insml)
+  subroutine set_shift_com(insml, weight)
     use engmain, only: insposition, inscnd, &
          numsite, mol_begin_index, &
          lwreg, upreg, &
@@ -94,6 +94,7 @@ contains
          boxshp, SYS_NONPERIODIC
     implicit none
     integer, intent(in) :: insml
+    real, intent(inout) :: weight
     
     integer :: i
     real :: com(3), syscen(3), r(3), norm, dir, t, s
@@ -103,7 +104,7 @@ contains
        ! fully random position within periodic box
        if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
        do i = 1, 3
-          call URAND(r(i))
+          call urand(r(i))
        end do
        com(:) = matmul(cell(:, :), r(:))
 
@@ -111,9 +112,10 @@ contains
        return
     case(1) ! spherical random position
        call get_system_com(syscen)
+       ! rejection method. Probability may not be good esp. lwreg ~ upreg.
        do
           do i = 1, 3
-             call URAND(r(i))
+             call urand(r(i))
           end do
           r(:) = r(:) * 2.0 - 1.0
           norm = sum(r ** 2)
@@ -127,11 +129,11 @@ contains
        
        call get_system_com(syscen)
        
-       call URAND(r(1))
-       call URAND(r(2))
+       call urand(r(1))
+       call urand(r(2))
        
-       call URAND(t)
-       call URAND(dir)
+       call urand(t)
+       call urand(dir)
        
        t = t * (upreg - lwreg) + lwreg
        if(dir > 0.5) t = -t
@@ -145,7 +147,19 @@ contains
        ! do nothing
        return
     case(4)
-       stop "implement Gaussian random position perturbation"
+       ! get three N(0, 1) values
+       ! FIXME: this routine does not work for skewed periodic box
+       do i = 1, 3
+          do 
+             call nrand(r(i))
+             r(i) = r(i) * upreg ! to N(0, upreg)
+             if(abs(r(i)) < celllen(i) / 2) exit
+          end do
+          ! N(0, upreg) \propto exp [- x**2 / (2 * upreg ** 2)]
+          weight = weight * exp(- r(i) ** 2 / (2 * upreg ** 2))
+       end do
+       
+       call shift_solute_com(insml, r)
     case default
        stop "Unknown insposition"
     end select
@@ -166,11 +180,30 @@ contains
       insb = mol_begin_index(insml)
       inse = mol_end_index(insml)
       
-       call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), tempcom)
-       do i = 1, 3
-          sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
-       end do
+      call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), tempcom)
+      do i = 1, 3
+         sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
+      end do
     end subroutine set_solute_com
+
+    subroutine shift_solute_com(insml, com)
+      use engmain, only: numsite, &
+           mol_begin_index, mol_end_index, &
+           sitepos, sitemass
+      implicit none
+      integer, intent(in) :: insml
+      real, intent(in) :: com(3)
+      integer :: insb, inse, i, n
+      
+      n = numsite(insml)
+      insb = mol_begin_index(insml)
+      inse = mol_end_index(insml)
+      
+      do i = 1, 3
+         sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
+      end do
+    end subroutine shift_solute_com
+
   end subroutine set_shift_com
 
   subroutine apply_orientation(insml)
@@ -203,7 +236,7 @@ contains
        !   Ann. Math. Stat. 43, 645-646, 1972.
        do
           do i = 0, 3
-             call URAND(randq(i))
+             call urand(randq(i))
           end do
           randq(:) = randq(:) * 2.0 - 1.0
           if(sum(randq ** 2) < 1) exit
@@ -548,6 +581,20 @@ contains
     real, intent(out) :: rndm
     call random_number(rndm)
   end subroutine urand
+
+  ! Normal random variable N(0,1)
+  ! uses Box-Muller method
+  subroutine nrand(rndm)
+    use engmain, only: pi
+    implicit none
+    real, intent(out) :: rndm
+    real :: r1, r2
+    call urand(r1)
+    call urand(r2)
+    ! get (0,1] instead of [0, 1)
+    r1 = 1 - r1
+    rndm = sqrt(-2.0 * log(r1)) * cos(2 * pi * r2)
+  end subroutine nrand
 
   subroutine urand_init(seed)
     use mpiproc, only: myrank

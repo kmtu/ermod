@@ -130,6 +130,7 @@ contains
     if (info /= 0) then
        print *, "error on LAPACK/DSYEV"
        print *, "info =", info
+       stop
     end if
 
     ! value with maximum eigenvalue is the required vector
