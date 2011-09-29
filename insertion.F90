@@ -1012,7 +1012,7 @@ contains
     
     ! first fit reference solvent to current solvent, to get "reference ligand position"
     call fit_a_rotate_b(natom_solv, &
-         sitepos(1:3, solv_begin:solv_end), ref_solv_pos, lig_mass, &
+         sitepos(1:3, solv_begin:solv_end), ref_solv_pos, solv_mass, &
          natom_lig, &
          ref_lig_pos, workl)
     ! then fit ligand structure read from file
