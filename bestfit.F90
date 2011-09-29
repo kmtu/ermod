@@ -219,7 +219,7 @@ contains
     do i = 1, nb
        bcrd(:) = b(:, i) - com_a(:)
        call rotate(bcrd, rotation, bcrdr)
-       bout(:, i) = bcrdr(:) + com_a(:)
+       bout(:, i) = bcrdr(:) + com_refa(:)
     end do
     
   end subroutine fit_a_rotate_b
