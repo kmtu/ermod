@@ -156,7 +156,8 @@ contains
              if(abs(r(i)) < celllen(i) / 2) exit
           end do
           ! N(0, upreg) \propto exp [- x**2 / (2 * upreg ** 2)]
-          weight = weight * exp(- r(i) ** 2 / (2 * upreg ** 2))
+          ! weight should cancel this value ...
+          weight = weight * exp(r(i) ** 2 / (2 * upreg ** 2))
        end do
        
        call shift_solute_com(insml, r)
