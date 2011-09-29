@@ -564,43 +564,69 @@ contains
     real, dimension(:,:), allocatable :: OUTpos,OUTcell
     integer i,m,k,OUTatm, iproc, nread
     character*3 rdconf
-    
+
+    logical, save :: first_time = .true.
+    integer, allocatable, save :: permutation(:)
+    character(len=*), parameter :: perm_file = "PermIndex"
+    integer, parameter :: perm_io = 75
+    integer :: stat
+
     rdconf='trj'                                     ! reading from file
     OUTatm=0
     do i=1,nummol
        if(sluvid(i).le.1) OUTatm=OUTatm+numsite(i) ! only solvent & solute; no test particles
     end do
     allocate( OUTpos(3,OUTatm), OUTcell(3,3) )
+
+    ! first time setup: read index permutation
+    if(first_time) then
+       first_time = .false.
+       open(file = perm_file, unit = perm_io, action = 'read', iostat = stat)
+       if(stat == 0) then
+          ! file successfully opened
+          allocate(permutation(OUTatm))
+          do i = 1, OUTatm
+             read(perm_io, *) permutation(i)
+          end do
+          close(perm_io)
+       endif
+    end if
     
     nread = min(nprocs, maxread)
 
-    if(myrank == 0) then
-       do iproc = 1, nread
-          ! get configuration and store in OUTpos / OUTcell
-          do i = 1, skpcnf
-             call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
+    if(myrank < nread) then
+       if(myrank == 0) then
+          do iproc = 1, nread
+             ! get configuration and store in OUTpos / OUTcell
+             do i = 1, skpcnf
+                call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
+             end do
+             
+             if(iproc /= 1) then
+#ifndef noMPI
+                ! FIXME: rewrite with grouping and scatter?
+                call mpi_send(OUTpos, 3 * OUTatm, &
+                     mpi_double_precision, iproc - 1, tag_coord, mpi_comm_world, ierror)
+                call mpi_send(OUTcell, 3 * 3, &
+                     mpi_double_precision, iproc - 1, tag_cell, mpi_comm_world, ierror)
+#endif
+             endif
           end do
-          
-          if(iproc == 1) then ! copy to self
-             sitepos(:, 1:OUTatm) = OUTpos(:, :)
-             cell(:, :) = OUTcell(:, :)
-          else
+       else
 #ifndef noMPI
-             ! FIXME: rewrite with grouping and scatter?
-             call mpi_send(OUTpos, 3 * OUTatm, &
-                  mpi_double_precision, iproc - 1, tag_coord, mpi_comm_world, ierror)
-             call mpi_send(OUTcell, 3 * 3, &
-                  mpi_double_precision, iproc - 1, tag_cell, mpi_comm_world, ierror)
+          call mpi_recv(OUTpos, 3 * OUTatm, &
+               mpi_double_precision, 0, tag_coord, mpi_comm_world, mpistatus, ierror)
+          call mpi_recv(OUTcell, 3 * 3, &
+               mpi_double_precision, 0, tag_cell, mpi_comm_world, mpistatus, ierror)
 #endif
-          endif
-       end do
-    elseif(myrank < nread) then
-#ifndef noMPI
-       call mpi_recv(sitepos, 3 * OUTatm, &
-            mpi_double_precision, 0, tag_coord, mpi_comm_world, mpistatus, ierror)
-       call mpi_recv(cell, 3 * 3, &
-            mpi_double_precision, 0, tag_cell, mpi_comm_world, mpistatus, ierror)
-#endif
+       endif
+
+       if(allocated(permutation)) then
+          sitepos(:, permutation(1:OUTatm)) = OUTpos(:, :)
+       else
+          sitepos(:, 1:OUTatm) = OUTpos(:, :)
+       endif
+       cell(:, :) = OUTcell(:, :)
     endif
 
     deallocate( OUTpos,OUTcell )
