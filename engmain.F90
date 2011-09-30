@@ -249,6 +249,7 @@ module engmain
        intprm,elecut,lwljcut,upljcut, &
        cmbrule,cltype,screen,ewtoler,splodr,plmode, &
        ew1max,ew2max,ew3max,ms1max,ms2max,ms3max, &
+       force_calculation, &
        block_threshold
 
 contains 

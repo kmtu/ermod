@@ -19,7 +19,7 @@ module sysvars
   real, parameter :: zero=0.0e0
   real :: error=1.0e-8, tiny=1.0e-10
   integer :: pickgr=3,msemin=1,msemax=5
-  real, parameter :: mesherr=0.10e0                           ! kcal/mol
+  real :: mesherr=0.10e0                                      ! kcal/mol
   integer :: maxmesh=30000, large=500000, itrmax=100
   
   character(len=1024) :: wgtslnfl='soln/weight_soln'
@@ -49,7 +49,8 @@ module sysvars
        peread, uvread, slfslt, infchk, &
        zerosft, wgtfnform, refmerge, extsln, &
        wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
-       inptemp, pickgr, maxmesh, large, itrmax, error, tiny, &
+       inptemp, pickgr, msemin, msemax, mesherr, &
+       maxmesh, large, itrmax, error, tiny, &
        wgtslnfl, wgtreffl, slndnspf, slncorpf, refdnspf, refcorpf
 
 contains
@@ -208,8 +209,11 @@ contains
     if(clcond.eq.'basic') then
        write(6,*) ' How many data are grouped into one?'
        read(5,*) group
-       write(6,*) ' How many large-energy meshes are merged ? (in %)'
-       read(5,*) inft
+       inft = 0
+       if(infchk == 'yes') then
+          write(6,*) ' How many large-energy meshes are merged ? (in %)'
+          read(5,*) inft
+       endif
        svgrp(1)=group ; svinf(1)=inft
        write(6,*) ' What is the temperature in Kelvin?'
        read(5,*) temp
@@ -1304,7 +1308,7 @@ contains
           write(6,*)
           write(6,571) factor,mesherr
        endif
-571    format(' Warning: mesh error is ',f8.3,' kcal/mol and is larger'&
+571    format(' Warning: mesh error is ',f8.3,' kcal/mol and is larger',&
             ' than the recommended value of ',g12.3,' kcal/mol')
        deallocate( mshdif )
     endif
