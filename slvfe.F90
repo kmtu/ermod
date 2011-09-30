@@ -1304,7 +1304,7 @@ contains
           write(6,*)
           write(6,571) factor,mesherr
        endif
-571    format(' Warning: mesh error is ',f8.3,' kcal/mol and is larger'&
+571    format(' Warning: mesh error is ',f8.3,' kcal/mol and is larger',&
             ' than the recommended value of ',g12.3,' kcal/mol')
        deallocate( mshdif )
     endif
