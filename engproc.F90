@@ -956,6 +956,8 @@ contains
     integer :: k,idpick,idmax,picktest
     real :: egcrd
     real, parameter :: warn_threshold = 1e+8
+    logical, save :: warn_bin_firsttime = .true.
+
     if(pti.eq.0) idmax=esmax               ! solute self-energy
     if(pti.gt.0) idmax=uvmax(pti)          ! solute-solvent interaction
     idpick=0
@@ -972,12 +974,13 @@ contains
     endif
     iduv = picktest + idpick
 
-    if(picktest == idmax .and. engcoord < warn_threshold) then
+    if(picktest == idmax .and. engcoord < warn_threshold .and. warn_bin_firsttime) then
        ! Feature #52: put a warning if energy exceeds max binning region and pecore = 0
        ! Since it is hard to distinguish pecore = 0 bin at this moment,
        ! it is determined by looking engcoord: if too low, it is sprious
        write(stdout, '(A,g12.4,A,i3,A)'), '  energy of ', engcoord, ' for ', pti, '-th species'
        call warning('mbin')
+       warn_bin_firsttime = .false.
     endif
 
     ! FIXME: clean up the following
