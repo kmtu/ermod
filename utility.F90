@@ -88,5 +88,12 @@ contains
     out_cell_vectors(3, 3) = cell_len(3) * w
 
   end subroutine angles_to_cell_vector
+
+  character(len=16) function itoa(x)
+    integer, intent(in) :: x
+    character(len=16) :: buf
+    write(buf,"(I16)") x
+    itoa = buf
+  end function itoa
 end module utility
   

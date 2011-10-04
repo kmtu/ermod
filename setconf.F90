@@ -312,6 +312,7 @@ contains
          OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
          OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
     use mpiproc, only: halt_with_error
+    use utility, only: itoa
     implicit none
     integer, parameter :: large=1000000
     ! only integer power is allowed as the initialization expression (7.1.6.1)
@@ -329,10 +330,9 @@ contains
     integer, allocatable :: pttype(:), ptcnt(:), ptsite(:)
     real, dimension(:,:), allocatable :: psite
     character*8 atmtype
-    character*7 molfile
+    character*23 molfile
     character(*), parameter :: sltfile='SltInfo'
     character(*), parameter :: prmfile='MolPrm'
-    character(*), parameter :: numbers='123456789'
     integer, parameter :: sltio=71                 ! IO for sltfile
     integer, parameter :: molio=72                 ! IO for molfile
     integer, parameter :: PT_PHYSICAL = 0, PT_TEST = 1
@@ -460,7 +460,7 @@ contains
        uvtype = pttype(pti)
        if(uvtype == PT_SOLVENT) then            ! solvent
           cur_solvent = cur_solvent + 1
-          molfile = prmfile//numbers(cur_solvent:cur_solvent)
+          molfile = prmfile//trim(itoa(cur_solvent))
        else
           molfile = sltfile            ! solute / test particle
        endif
