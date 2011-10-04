@@ -39,6 +39,7 @@ ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJ
 ermod-recpcal.$(OBJEXT): recpcal.F90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT)
 ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT) ermod-bestfit.$(OBJEXT)
 ermod-setconf.$(OBJEXT): setconf.F90 ermod-utility.$(OBJEXT) ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-trajectory.$(OBJEXT)
+ermod-utility.$(OBJEXT): utility.F90 ermod-engmain.$(OBJEXT)
 
 slvfe_SOURCES = slvfe.F90
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)
