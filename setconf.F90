@@ -460,7 +460,7 @@ contains
        uvtype = pttype(pti)
        if(uvtype == PT_SOLVENT) then            ! solvent
           cur_solvent = cur_solvent + 1
-          molfile = prmfile//trim(itoa(cur_solvent))
+          molfile = prmfile//trim(adjustl(itoa(cur_solvent)))
        else
           molfile = sltfile            ! solute / test particle
        endif
@@ -554,7 +554,8 @@ contains
 ! returns number of frames read (EXCLUDING skipped frames)
   subroutine getconf_parallel(maxread, actual_read)
     use engmain, only: nummol,numatm,boxshp,&
-         numsite,sluvid,sitepos,cell,skpcnf
+         numsite,sluvid,sitepos,cell,skpcnf,&
+         stdout
     use OUTname, only: OUTconfig                     ! from outside
     use mpiproc
     implicit none
@@ -584,6 +585,7 @@ contains
        open(file = perm_file, unit = perm_io, action = 'read', iostat = stat)
        if(stat == 0) then
           ! file successfully opened
+          write(stdout, *) "Reading permutation information"
           allocate(permutation(OUTatm))
           do i = 1, OUTatm
              read(perm_io, *) permutation(i)
@@ -622,7 +624,7 @@ contains
        endif
 
        if(allocated(permutation)) then
-          sitepos(:, permutation(1:OUTatm)) = OUTpos(:, :)
+          sitepos(:, 1:OUTatm) = OUTpos(:, permutation(1:OUTatm))
        else
           sitepos(:, 1:OUTatm) = OUTpos(:, :)
        endif
