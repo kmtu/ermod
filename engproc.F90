@@ -24,7 +24,7 @@ contains
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
          ene_param, ene_confname, &
          io_flcuv, CAL_SOLN
-    use mpiproc, only: halt_with_error, myrank
+    use mpiproc, only: halt_with_error, warning, myrank
     implicit none
     real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
     real eclbin,ecfbin,ec0bin,finfac,ectmvl
@@ -201,9 +201,14 @@ contains
           ermax=ermax+pemax
        endif
     end do
-    !
+    
     allocate( uvcrd(ermax),edens(ermax) )
-    if(corrcal.eq.1) allocate( ecorr(ermax,ermax) )
+    if(corrcal.eq.1) then
+       if(ermax > 15000) then
+          call warning('emax')
+       endif
+       allocate( ecorr(ermax,ermax) )
+    endif
     allocate( escrd(esmax),eself(esmax) )
     if(slttype.eq.1) allocate( aveuv(engdiv,numslv),slnuv(numslv) )
     allocate( avediv(engdiv,2) )
