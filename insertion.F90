@@ -99,6 +99,8 @@ contains
     integer :: i
     real :: com(3), syscen(3), r(3), norm, dir, t, s
 
+    logical, save :: use_uniform = .false. ! used only for insposition = 4
+
     select case(insposition)
     case(0)
        ! fully random position within periodic box
@@ -147,20 +149,36 @@ contains
        ! do nothing
        return
     case(4)
-       ! get three N(0, 1) values
-       ! FIXME: this routine does not work for skewed periodic box
-       do i = 1, 3
-          do 
-             call nrand(r(i))
-             r(i) = r(i) * upreg ! to N(0, upreg)
-             if(abs(r(i)) < celllen(i) / 2) exit
+       ! 50% mixture of uniform distribution and weighted distribution
+       use_uniform = .not. use_uniform
+       if(use_uniform) then
+          ! use random position
+          do i = 1, 3
+             call urand(r(i))
           end do
-          ! N(0, upreg) \propto exp [- x**2 / (2 * upreg ** 2)]
-          ! weight should cancel this value ...
-          weight = weight * exp(r(i) ** 2 / (2 * upreg ** 2))
-       end do
-       
-       call shift_solute_com(insml, r)
+          com(:) = matmul(cell(:, :), r(:))
+
+          call set_solute_com(insml, com)
+          return
+       else
+          ! for weighted insertion
+          ! FIXME: this routine does not work for skewed periodic box
+          ! get three N(0, 1) values       
+          do i = 1, 3
+             do 
+                r(i) = nrand() * upreg ! to N(0, upreg)
+                if(abs(r(i)) < celllen(i) / 2) exit
+             end do
+             ! N(0, upreg) \propto exp [- x**2 / (2 * upreg ** 2)]
+             ! Z = 1 - 2 * erf(-Bx/upreg)
+             ! weight should cancel this value ...
+             weight = weight * exp(r(i) ** 2 / (2 * upreg ** 2)) *&
+                  (1 - 2 * erf(- celllen(i) / upreg)) / celllen(i)
+          end do
+
+          call shift_solute_com(insml, r)
+          return
+       endif
     case default
        stop "Unknown insposition"
     end select
@@ -585,17 +603,16 @@ contains
 
   ! Normal random variable N(0,1)
   ! uses Box-Muller method
-  subroutine nrand(rndm)
+  real function nrand()
     use engmain, only: pi
     implicit none
-    real, intent(out) :: rndm
     real :: r1, r2
     call urand(r1)
     call urand(r2)
     ! get (0,1] instead of [0, 1)
     r1 = 1 - r1
-    rndm = sqrt(-2.0 * log(r1)) * cos(2 * pi * r2)
-  end subroutine nrand
+    nrand = sqrt(-2.0 * log(r1)) * cos(2 * pi * r2)
+  end function nrand
 
   subroutine urand_init(seed)
     use mpiproc, only: myrank
