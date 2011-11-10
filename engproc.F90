@@ -731,12 +731,13 @@ contains
     call realcal_cleanup
   end subroutine get_uv_energy
 
-  subroutine update_histogram(stnum, stat_weight, uvengy)
+  subroutine update_histogram(stnum, stat_weight_solute, uvengy)
     use engmain, only: wgtslf, plmode, estype, slttype, corrcal, volume, temp, uvspec, &
          ermax, numslv, &
          slnuv, avslf,&
          minuv, maxuv, &
          edens, ecorr, eself, &
+         stat_weight_solution, &
          engnorm, engsmpl, voffset, voffset_initialized, &
          io_flcuv, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX,&
@@ -744,7 +745,7 @@ contains
     use mpiproc
     implicit none
     integer, intent(in) :: stnum
-    real, intent(in) :: uvengy(0:slvmax), stat_weight
+    real, intent(in) :: uvengy(0:slvmax), stat_weight_solute
 
     integer, allocatable :: insdst(:), engdst(:)
     real, allocatable :: svfl(:)
@@ -769,8 +770,9 @@ contains
           engnmfc=exp(-factor/temp)
        end select
     endif
+    engnmfc = engnmfc * stat_weight_solution
     if(estype == ES_NPT) call volcorrect(engnmfc)
-    if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc = engnmfc*stat_weight
+    if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc = engnmfc * stat_weight_solute
     !
     engnorm=engnorm+engnmfc               ! normalization factor
     engsmpl=engsmpl+1.0e0                 ! number of sampling

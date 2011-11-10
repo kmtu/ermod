@@ -148,6 +148,12 @@ end module
 module setconf
   implicit none
 
+  character(len=*), parameter :: weight_file = "SlnWght"
+  integer, parameter :: weight_io = 33
+
+  character(len=*), parameter :: perm_file = "PermIndex"
+  integer, parameter :: perm_io = 75
+
 contains
 !
 !  setting molecular simulation parameters
@@ -156,7 +162,7 @@ contains
     use engmain, only: init_params,&
          iseed,&
          skpcnf,corrcal,&
-         slttype,sltpick,refpick,wgtslf,wgtins,&
+         slttype,sltpick,refpick,wgtslf,wgtins,wgtsln,&
          estype,boxshp,inscnd,insposition, insorient, &
          inscfg,hostspec,ljformat,&
          inptemp,temp,&
@@ -202,7 +208,7 @@ contains
     
     if(slttype.eq.1) corrcal=0
     if(slttype.ge.2) corrcal=1
-    wgtslf=0 ; wgtins=0
+    wgtslf=0 ; wgtins=0 ; wgtsln=0
     if((slttype.ge.2).and.(cltype.ne.0)) wgtslf=1  ! Ewald and PME
     sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1
     maxins=1000 ; inscnd=0 ; inscfg=0 ; lwreg=0.0e0 ; upreg=5.0e0
@@ -555,7 +561,8 @@ contains
   subroutine getconf_parallel(maxread, actual_read)
     use engmain, only: nummol,numatm,boxshp,&
          numsite,sluvid,sitepos,cell,skpcnf,&
-         stdout
+         stdout,&
+         stat_weight_solution
     use OUTname, only: OUTconfig                     ! from outside
     use mpiproc
     implicit none
@@ -563,13 +570,12 @@ contains
     integer, intent(out) :: actual_read
     
     real, dimension(:,:), allocatable :: OUTpos,OUTcell
+    real :: weight
     integer i,m,k,OUTatm, iproc, nread
     character*3 rdconf
 
     logical, save :: first_time = .true.
     integer, allocatable, save :: permutation(:)
-    character(len=*), parameter :: perm_file = "PermIndex"
-    integer, parameter :: perm_io = 75
     integer :: stat
 
     rdconf='trj'                                     ! reading from file
@@ -602,6 +608,7 @@ contains
              ! get configuration and store in OUTpos / OUTcell
              do i = 1, skpcnf
                 call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
+                call read_weight(weight)
              end do
              
              if(iproc /= 1) then
@@ -611,6 +618,8 @@ contains
                      mpi_double_precision, iproc - 1, tag_coord, mpi_comm_world, ierror)
                 call mpi_send(OUTcell, 3 * 3, &
                      mpi_double_precision, iproc - 1, tag_cell, mpi_comm_world, ierror)
+                call mpi_send(weight, 1, &
+                     mpi_double_precision, iproc - 1, tag_weight, mpi_comm_world, ierror)
 #endif
              endif
           end do
@@ -620,6 +629,8 @@ contains
                mpi_double_precision, 0, tag_coord, mpi_comm_world, mpistatus, ierror)
           call mpi_recv(OUTcell, 3 * 3, &
                mpi_double_precision, 0, tag_cell, mpi_comm_world, mpistatus, ierror)
+          call mpi_recv(weight, 1, &
+               mpi_double_precision, 0, tag_weight, mpi_comm_world, mpistatus, ierror)
 #endif
        endif
 
@@ -629,11 +640,41 @@ contains
           sitepos(:, 1:OUTatm) = OUTpos(:, :)
        endif
        cell(:, :) = OUTcell(:, :)
+       stat_weight_solution = weight
     endif
 
     deallocate( OUTpos,OUTcell )
     actual_read = nread
+
   end subroutine getconf_parallel
+
+  subroutine read_weight(weight)
+    use engmain, only: wgtsln
+    implicit none
+    real, intent(out) :: weight
+    integer :: dummy, ioerr    
+    logical, save :: file_opened = .false.
+
+    if(wgtsln /= 1) then
+       weight = 1.0
+       return
+    endif
+
+    if(.not. file_opened) then
+       open(unit = weight_io, file = weight_file, action = 'read')
+       file_opened = .true.
+    endif
+    
+    read(weight_io, *, iostat = ioerr) dummy, weight
+    if(ioerr /= 0) then 
+       rewind(weight_io)
+       read(weight_io, *, iostat = ioerr) dummy, weight
+       if(ioerr /= 0) then
+          call set_stop('wgt')
+       endif
+    endif
+    
+  end subroutine read_weight
 
   subroutine set_stop(type)
     use engmain, only: io6
@@ -645,6 +686,7 @@ contains
     if(type.eq.'prs') write(io6,994)
     if(type.eq.'ins') write(io6,995)
     if(type.eq.'ewa') write(io6,996)
+    if(type.eq.'wgt') write(io6,*) " The weight file (", weight_file, ") is ill-formed"
 991 format(' The solute type is incorrectly set')
 992 format(' The number of molecules or atoms is incorrectly set')
 993 format(' The reference structure of solvent is incorrectly set')

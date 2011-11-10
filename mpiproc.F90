@@ -14,7 +14,7 @@ module mpiproc                                                   ! MPI
 
   ! mpi common variables
   integer ierror, mpistatus(mpi_status_size), myrank, nprocs         ! MPI
-  integer, parameter :: tag_cell = 11, tag_coord = 12
+  integer, parameter :: tag_cell = 11, tag_coord = 12, tag_weight = 13
   integer :: mpi_comm_activeprocs
 
   ! for performance counter

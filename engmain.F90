@@ -25,6 +25,8 @@
 !   wgtslf : weighting by the self-energy  --- 0 : no  1 : yes
 !   wgtins : weight of the solute intramolecular configuration
 !               0 : no  1 : yes (can be = 1 only when slttype = 3)
+!   wgtsln : weight of the solution / solvent configuration
+!               0 : no  1 : yes
 !   estype : type of system
 !               1 : constant volume  2 : constant pressure
 !   boxshp : shape of the unit cell box
@@ -175,7 +177,7 @@ module engmain
   real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
 !
   integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
-  integer :: slttype,sltpick,refpick,wgtslf,wgtins
+  integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsln
   integer :: estype,boxshp
   integer :: insfit, inscnd, insposition, insorient
   integer :: inscfg,hostspec,ljformat,iseed
@@ -220,6 +222,7 @@ module engmain
   real, allocatable :: minuv(:), maxuv(:)
   integer :: numslt
   integer, allocatable :: sltlist(:)
+  real :: stat_weight_solution
   real :: engnorm,engsmpl,voffset
   logical :: voffset_initialized = .false.
 
@@ -239,7 +242,7 @@ module engmain
 
   namelist /ene_param/ iseed, &
        skpcnf,corrcal, &
-       slttype,sltpick,refpick,wgtslf,wgtins, &
+       slttype,sltpick,refpick,wgtslf, wgtins, wgtsln, &
        estype,boxshp, &
        insfit, inscnd, insposition, insorient, inscfg, &
        hostspec, ljformat, &
