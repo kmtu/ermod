@@ -91,7 +91,8 @@ contains
          numsite, mol_begin_index, &
          lwreg, upreg, &
          sitepos, cell, invcl, celllen, &
-         boxshp, SYS_NONPERIODIC
+         boxshp, SYS_NONPERIODIC, &
+         pi
     implicit none
     integer, intent(in) :: insml
     real, intent(inout) :: weight
@@ -169,11 +170,13 @@ contains
                 r(i) = nrand() * upreg ! to N(0, upreg)
                 if(abs(r(i)) < celllen(i) / 2) exit
              end do
-             ! N(0, upreg) \propto exp [- x**2 / (2 * upreg ** 2)]
-             ! Z = 1 - 2 * erf(-Bx/upreg)
+             ! N(0, upreg) \propto \exp [- x^2 / (2 * upreg ^ 2)]
+             ! Z = \int_{-L/2}^{L/2} \exp [ - 1/2 x^2 / (2 * upreg^2)] dx
              ! weight should cancel this value ...
+             ! also adjusted by celllen(i) to be equal weight to uniform distribution.
              weight = weight * exp(r(i) ** 2 / (2 * upreg ** 2)) *&
-                  (1 - 2 * erf(- celllen(i) / upreg)) / celllen(i)
+                  sqrt(2.0e0 * pi) * upreg * &
+                  erf(celllen(i) / (2.0e0 * sqrt(2.0e0) * upreg)) / celllen(i)
           end do
 
           call shift_solute_com(insml, r)
