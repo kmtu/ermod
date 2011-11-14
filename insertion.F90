@@ -165,8 +165,9 @@ contains
 
       real, parameter :: uniform_ratio = 0.5
 
+      integer :: i
       real :: scaled_coord(3), sqsum
-      real :: r(3)
+      real :: r
 
       real, save :: l_of_sigma(3), z0, z1
       logical, save :: use_uniform = .false.
@@ -176,7 +177,7 @@ contains
          l_of_sigma(:) = (celllen(:) / 2) / upreg
          if(myrank == 0) print *, "Lx/2 / sigma = ", l_of_sigma(:)
          z0 = 8 * l_of_sigma(1) * l_of_sigma(2) * l_of_sigma(3)
-         z1 = sqrt(pi) ** 3 * erf(l_of_sigma(1)) * erf(l_of_sigma(2)) * erf(l_of_sigma(3))
+         z1 = (sqrt(pi) ** 3) * erf(l_of_sigma(1)) * erf(l_of_sigma(2)) * erf(l_of_sigma(3))
          first_time = .false.
       endif
 
@@ -184,29 +185,27 @@ contains
       if(use_uniform) then
          ! use random position
          do i = 1, 3
-            call urand(r(i))
-            r(i) = r(i) - 0.5
+            call urand(r)
+            scaled_coord(i) = (2 * r - 1) * l_of_sigma(i)
          end do
 
-         scaled_coord(:) = r(:) * (l_of_sigma(:) * 2)
-         com(:) = matmul(cell(:, :), r(:))
       else
          ! for weighted insertion
          ! W = x^2
          ! get three N(0, 1) values
          do i = 1, 3
             do 
-               r(i) = nrand()
-               if(abs(r(i)) < l_of_sigma(i)) exit
+               r = nrand() / sqrt(2.0)
+               if(abs(r) < l_of_sigma(i)) exit
             end do
+            scaled_coord(i) = r
          end do
-         
-         scaled_coord(:) = r(:)
-         com(:) = matmul(cell(:, :) , r(:) / (l_of_sigma(:) * 2))
+
       endif
       sqsum = sum(scaled_coord(:) ** 2)
       ! from WHAM
       weight = 1.0 / (uniform_ratio * 1 / z0 + (1 - uniform_ratio) * exp(-sqsum) / z1)
+      com(:) = matmul(cell(:, :) , scaled_coord(:) / (l_of_sigma(:) * 2))
     end subroutine uniform_gauss_mixture
 
     subroutine set_solute_com(insml, com)
