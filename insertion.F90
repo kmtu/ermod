@@ -100,8 +100,6 @@ contains
     integer :: i
     real :: com(3), syscen(3), r(3), norm, dir, t, s
 
-    logical, save :: use_uniform = .false. ! used only for insposition = 4
-
     select case(insposition)
     case(0)
        ! fully random position within periodic box
@@ -151,42 +149,66 @@ contains
        return
     case(4)
        ! 50% mixture of uniform distribution and weighted distribution
-       use_uniform = .not. use_uniform
-       if(use_uniform) then
-          ! use random position
-          do i = 1, 3
-             call urand(r(i))
-          end do
-          com(:) = matmul(cell(:, :), r(:))
-
-          call set_solute_com(insml, com)
-          return
-       else
-          ! for weighted insertion
-          ! FIXME: this routine does not work for skewed periodic box
-          ! get three N(0, 1) values       
-          do i = 1, 3
-             do 
-                r(i) = nrand() * upreg ! to N(0, upreg)
-                if(abs(r(i)) < celllen(i) / 2) exit
-             end do
-             ! N(0, upreg) \propto \exp [- x^2 / (2 * upreg ^ 2)]
-             ! Z = \int_{-L/2}^{L/2} \exp [ - 1/2 x^2 / (2 * upreg^2)] dx
-             ! weight should cancel this value ...
-             ! also adjusted by celllen(i) to be equal weight to uniform distribution.
-             weight = weight * exp(r(i) ** 2 / (2 * upreg ** 2)) *&
-                  sqrt(2.0e0 * pi) * upreg * &
-                  erf(celllen(i) / (2.0e0 * sqrt(2.0e0) * upreg)) / celllen(i)
-          end do
-
-          call shift_solute_com(insml, r)
-          return
-       endif
+       call uniform_gauss_mixture(com, weight)
+       call shift_solute_com(insml, com)
     case default
        stop "Unknown insposition"
     end select
 
   contains
+    ! FIXME: this routine does not work for skewed periodic box
+    subroutine uniform_gauss_mixture(com, weight)
+      use mpiproc, only: myrank
+      use engmain, only: pi, celllen, upreg
+      implicit none
+      real, intent(out) :: com(3), weight
+
+      real, parameter :: uniform_ratio = 0.5
+
+      real :: scaled_coord(3), sqsum
+      real :: r(3)
+
+      real, save :: l_of_sigma(3), z0, z1
+      logical, save :: use_uniform = .false.
+      logical, save :: first_time = .true.
+
+      if(first_time) then
+         l_of_sigma(:) = (celllen(:) / 2) / upreg
+         if(myrank == 0) print *, "Lx/2 / sigma = ", l_of_sigma(:)
+         z0 = 8 * l_of_sigma(1) * l_of_sigma(2) * l_of_sigma(3)
+         z1 = sqrt(pi) ** 3 * erf(l_of_sigma(1)) * erf(l_of_sigma(2)) * erf(l_of_sigma(3))
+         first_time = .false.
+      endif
+
+      use_uniform = .not. use_uniform
+      if(use_uniform) then
+         ! use random position
+         do i = 1, 3
+            call urand(r(i))
+            r(i) = r(i) - 0.5
+         end do
+
+         scaled_coord(:) = r(:) * (l_of_sigma(:) * 2)
+         com(:) = matmul(cell(:, :), r(:))
+      else
+         ! for weighted insertion
+         ! W = x^2
+         ! get three N(0, 1) values
+         do i = 1, 3
+            do 
+               r(i) = nrand()
+               if(abs(r(i)) < l_of_sigma(i)) exit
+            end do
+         end do
+         
+         scaled_coord(:) = r(:)
+         com(:) = matmul(cell(:, :) , r(:) / (l_of_sigma(:) * 2))
+      endif
+      sqsum = sum(scaled_coord(:) ** 2)
+      ! from WHAM
+      weight = 1.0 / (uniform_ratio * 1 / z0 + (1 - uniform_ratio) * exp(-sqsum) / z1)
+    end subroutine uniform_gauss_mixture
+
     subroutine set_solute_com(insml, com)
       use engmain, only: numsite, &
            mol_begin_index, mol_end_index, &
