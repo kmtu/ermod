@@ -15,12 +15,14 @@ contains
     type(handle), intent(inout) :: htraj
     character(len=*), intent(in) :: fname
     integer(4) :: dcd_header(21)
-    integer(4), parameter :: dcd_magic = X'44524f43'
+    integer(4), parameter :: dcd_magic_little = X'44524f43', dcd_magic_big = X'434f5244'
 
     open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="UNFORMATTED")
     ! Check dcd magic
     read(htraj%iohandle) dcd_header(:)
-    if(dcd_header(1) /= dcd_magic) stop "incorrect dcd format (maybe different endian?)"
+    if(dcd_header(1) /= dcd_magic_little .and. dcd_header(1) /= dcd_magic_big) then
+       stop "incorrect dcd format"
+    end if
     htraj%have_cell_info = (dcd_header(12) == 1)
     read(htraj%iohandle)
     read(htraj%iohandle)
