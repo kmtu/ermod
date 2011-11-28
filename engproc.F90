@@ -779,9 +779,9 @@ contains
 
     select case(estype)
     case (ES_NVT)
-       avslf=avslf+1.0e0
+       avslf=avslf+stat_weight_solute
     case (ES_NPT)
-       avslf=avslf+volume
+       avslf=avslf+stat_weight_solute * volume
     end select
 
 
