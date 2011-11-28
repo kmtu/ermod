@@ -15,7 +15,7 @@ contains
     type(handle), intent(inout) :: htraj
     character(len=*), intent(in) :: fname
     integer(4) :: dcd_header(21)
-    integer(4), parameter :: dcd_magic = X'434f5244'
+    integer(4), parameter :: dcd_magic = X'44524f43'
 
     open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="UNFORMATTED")
     ! Check dcd magic
