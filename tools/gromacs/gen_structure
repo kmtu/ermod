@@ -267,7 +267,23 @@ class topology:
             if state == "ATOMTYPES":
                 self.process_atomtypes(ls)
             elif state == "MOLECULETYPE":
-                return self.molecule(ls[0], fh)
+                self.molecule(ls[0], fh)
+                # for multiple solutes with the same name
+                # get duplicated molecule
+                solutes = []
+                dups = []
+                for (s, _n) in self.system:
+                    if s in solutes and s not in dups:
+                        dups.append(s)
+                    solutes.append(s)
+                # resolve conflicts
+                for i in range(len(self.system)):
+                    (s, n) = self.system[i]
+                    if s in dups:
+                        newname = "%s(%d)" % (s, (i + 1))
+                        self.system[i] = (newname, n)
+                        self.moleculetypes[newname] = self.moleculetypes[s]
+                return
             pass
 
 if not os.path.exists(options.topology):
