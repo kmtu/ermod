@@ -1,0 +1,400 @@
+#!/usr/bin/env python
+# -*- Python -*-
+
+import os.path
+import sys
+import re
+from optparse import OptionParser
+
+################################################################
+# Common modules, functions
+
+if sys.version_info < (2, 6):
+    from sets import Set
+    set = Set
+
+def log(x):
+    if options.verbose:
+        print >> sys.stderr, x
+
+def warn_or_error(x, col):
+    prefix = ""
+    suffix = ""
+    if os.isatty(sys.stderr.fileno()):
+        prefix = "\x1b[" + str(col) + ";1m"
+        suffix = "\x1b[0m"
+    print >> sys.stderr, prefix + x + suffix
+
+def warn(x):
+    warn_or_error("Warning: " + x, 33)
+
+def error(x):
+    warn_or_error("Error: " + x, 31)
+    sys.exit(1)
+
+def safe_close(fh):
+    # asynchronous NFS may miss file creation
+    # esp. combined with delayed allocation (ext4, XFS)
+    # The open-to-close consistency is preserved only when 
+    fh.flush()
+    os.fsync(fh.fileno())
+    fh.close()
+
+# End of common components
+################################################################
+
+parser = OptionParser()
+
+# topology
+parser.add_option("-p", "--pdb", dest = "pdb",
+                  help="Solution PDB (.pdb) file name to give molecular structure")
+# FIXME TODO: read soln/.extraparam!!!
+parser.add_option("-s", "--sltpick", dest = "pick", action="store", type="int",
+                  help="picked solute # (1-origin)", default = 1)
+
+parser.add_option("-v", "--verbose", dest = "verbose", action="store_true",
+                  help = "Be more verbose",
+                  default = False)
+
+(options, args) = parser.parse_args()
+
+if options.pdb == None:
+    error("Error: PDB file is not specified (try --help)")
+
+picked = options.pick - 1
+
+# TODO FIXME:
+if os.path.exists("soln/PermIndex"):
+    error("In this version mol_dissection cannot be executed twice: recover directory from archive, then remove soln/PermIndex")
+
+# read topology from MDinfo
+
+fh = open("soln/MDinfo", "rt")
+mols = int(fh.next().split()[1])
+ms = fh.next().split()
+ms = [int(i) for i in ms]
+ns = fh.next().split()
+ns = [int(i) for i in ns]
+
+assert mols == len(ms), "number of molecules does not match to MDinfo's 1st line"
+assert mols == len(ns), "number of atoms does not match to MDinfo's 1st line"
+
+begins = []
+t = 0
+for i in range(mols):
+    begins.append(t)
+    t += ms[i] * ns[i]
+# sentinel
+begins.append(t)
+totalatoms = t
+fh.close()
+
+molprms = []
+molprmnum = 1
+for i in range(mols):
+    if i == picked:
+        fn = "soln/SltInfo"
+    else:
+        fn = "soln/MolPrm%d" % molprmnum
+        molprmnum += 1
+    fh = open(fn, "rt")
+    lines = fh.readlines()
+    lines = [x.rstrip() for x in lines]
+    fh.close()
+    for j in range(ms[i]):
+        molprms.extend(lines)
+assert totalatoms == len(molprms), "Number of total lines in MolPrmX does not conform"
+
+# read residues from PDB
+fh = open(options.pdb, "rt")
+
+atoms = []
+for l in fh:
+    if len(l) < 6 or (l[0:6] != "ATOM  " and l[0:6] != "HETATM"):
+        continue
+    resname = l[17:20].strip()
+    resindex = int(l[22:26].strip())
+    atoms.append((False, resname, resindex))
+fh.close()
+
+assert len(atoms) == totalatoms, "PDB has %d atoms but MDinfo indicates %d atoms" % (len(atoms), totalatoms)
+
+permindex = list(range(totalatoms))
+# deep copy
+permindex_refs = [i for i in permindex]
+
+for i in range(begins[picked], begins[picked] + ns[picked]):
+    permindex_refs[i] = None
+    atoms[i] = (True, atoms[i][1], atoms[i][2])
+
+for i in range(begins[picked] + ns[picked], totalatoms):
+    permindex_refs[i] = permindex_refs[i] - ns[picked]
+
+def str_of_list(ls):
+    def add_result(a, b, ret):
+        ret += ","
+        if a == b:
+            ret += str(a)
+        else:
+            ret += "%d-%d" % (a, b)
+        return ret
+    ret = ""
+    prev = -1
+    prevstart = -1
+    pos = 0
+    while True:
+        if prev + 1 != ls[pos]:
+            if prev != -1:
+                ret = add_result(prevstart, prev, ret)
+            prevstart = ls[pos]
+        prev = ls[pos]
+        pos += 1
+        if pos == len(ls):
+            ret = add_result(prevstart, prev, ret)
+            break
+    return ret[1:]
+
+def name_of(molpos):
+    # single residue name -> residue name
+    # multiple residue name -> residue number range
+    resix = set()
+    resnames = set()
+    is_solute = False
+    for i in range(begins[molpos], begins[molpos+1]):
+        (is_solute_atom, rn, ri) = atoms[permindex[i]]
+        resix.add(ri)
+        resnames.add(rn)
+        is_solute = is_solute or is_solute_atom
+    resix = list(resix)
+    resnames = list(resnames)
+    resix.sort()
+    if len(resnames) == 1:
+        ret = resnames[0]
+    else:
+        ret = "Residues"
+    ret += " "
+    ret += str_of_list(resix)
+    if is_solute:
+        ret += "*"
+    return ret
+        
+while True:
+    def show_help():
+        print """commands:
+list         List molecules ("*" represents solute)
+split N R    Split molecule N just BEFORE residue nubmer R
+merge N M    Merge Nth and Mth molecule into a single molecule
+group N M    Group Nth and Mth molecule,
+             N and M must have exactly the same number of molecules
+save         Save
+quit         Save and quit
+QUIT         force quit without saving
+"""
+    
+    def show_list():
+        for i in range(mols):
+            print "%2d." % (i + 1),
+            print "%5d" % ms[i], "mols", "%5d" % ns[i], "atoms",
+            print name_of(i)
+
+    def save_mol():
+        global mols
+        # super-duper ad-hoc but must be enough for the case...
+        os.system("tar cf `date +%m%d%H%M%S`.tar soln/MDinfo soln/MolPrm* refs/MDinfo refs/MolPrm*")
+        os.system("rm -f soln/MolPrm*")
+        os.system("rm -f refs/MolPrm*")
+        # for metadata update with NFS async
+        os.stat("soln")
+        os.stat("refs")
+        os.stat(".")
+
+        # find solute
+        solute = -1
+        for i in range(mols):
+            if name_of(i)[-1] == '*':
+                solute = i
+                break
+
+        print "solute: ", solute + 1
+
+        global ms, ns, begins, permindex, permindex_refs, molprm
+        ms[solute] -= 1
+
+        for state in ["soln", "refs"]:
+            fh = open(state + "/MDinfo", "wt")
+            mstmp = [x for x in ms]
+            nstmp = [x for x in ns]
+            if state == "soln":
+                mstmp[solute] += 1
+            if mstmp[solute] == 0:
+                del mstmp[solute]
+                del nstmp[solute]
+                
+            print >> fh, "FRAMES %d" % len(mstmp)
+            for m in mstmp:
+                print >> fh, m,
+            print >> fh
+            for n in nstmp:
+                print >> fh, n,
+            print >> fh
+            safe_close(fh)
+            molprmid = 1
+
+            perm = open(state + "/PermIndex", "wt")
+            if state == "refs":
+                for i in range(totalatoms):
+                    orig = permindex[i]
+                    (is_solute, rn, ri) = atoms[orig]
+                    sol = ""
+                    if is_solute:
+                        sol = " (solute)"
+                    x = permindex_refs[orig]
+                    if x != None:
+                        print >> perm, "%6d %6d ! %s %d%s" % (i, x + 1, rn, ri, sol)
+            else:
+                for i in range(totalatoms):
+                    x = permindex[i]
+                    (is_solute, rn, ri) = atoms[x]
+                    sol = ""
+                    if is_solute:
+                        sol = " (solute)"
+                    print >> perm, "%6d %6d ! %s %d%s" % (i, x + 1, rn, ri, sol)
+            safe_close(perm)
+                        
+            for i in range(mols):
+                if (state == "soln" and i == solute) or ms[i] == 0:
+                    continue
+                        
+                fh = open(state + "/MolPrm%d" % molprmid, "wt")
+                molprmid += 1
+                for j in range(ns[i]):
+                    print >> fh, molprms[permindex[begins[i] + j]]
+                safe_close(fh)
+            
+            # does not touch SltInfo
+
+    def get_number_before(n, r):
+        global begins
+        ntot = begins[n + 1] - begins[n]
+        for i in range(ntot):
+            (_, _, ri) = atoms[permindex[begins[n] + i]]
+            if ri == r:
+                return i
+        return -1
+
+    def split_at(n, r):
+        global ns, ms, mols
+        if ms[n] != 1:
+            print "Cannot split multiple molecules"
+            return
+        
+        group_before = get_number_before(n, r)
+        if group_before <= 0 or group_before >= ns[n]:
+            print "No such molecule in molecule", n
+            return
+        # no change in permindex
+        ms.insert(n, 1)
+        ns.insert(n, group_before)
+        ns[n + 1] -= group_before
+        begins.insert(n, begins[n])
+        begins[n + 1] = begins[n] + group_before
+        mols += 1
+        pass
+
+    def merge_update_begins_permindex(n, m):
+        global begins, permindex
+        mthperm = permindex[begins[m]:begins[m+1]]
+        del permindex[begins[m]:begins[m+1]]
+        permindex[begins[n+1]:begins[n+1]] = mthperm
+        mtot = begins[m+1] - begins[m]
+        del begins[m]
+        for i in range(n+1, m):
+            # since no. m will be removed...
+            begins[i] += mtot
+
+    def merge_mol(n, m):
+        global ns, ms, mols
+        if n > m:
+            tmp = m
+            m = n
+            n = tmp
+        merge_update_begins_permindex(n, m)
+        ns[n] = ms[n] * ns[n] + ms[m] * ns[m]
+        ms[n] = 1
+        del ns[m]
+        del ms[m]
+        mols -= 1
+        return
+
+    def group_mol(n, m):
+        global ns, ms, mols
+        if ns[n] != ns[m]:
+            print "Failed to regruop: number of atoms does not match"
+            return
+        if n > m:
+            tmp = m
+            m = n
+            n = tmp
+        merge_update_begins_permindex(n, m)
+        ms[n] += ms[m]
+        del ns[m]
+        del ms[m]
+        mols -= 1
+        return
+
+    log("NS: " + repr(ns))
+    log("MS: " + repr(ms))
+    log("BS: " + repr(begins))
+    l = raw_input("> ").strip().split()
+    if l == []:
+        show_help()
+    elif l[0] == "list" or l[0] == "ls":
+        show_list()
+    elif l[0] == "split":
+        if len(l) != 3:
+            show_help()
+            continue
+        try:
+            n = int(l[1]) - 1
+            r = int(l[2])
+        except ValueError:
+            show_help()
+            continue
+        split_at(n, r)
+    elif l[0] == "merge":
+        if len(l) != 3:
+            show_help()
+            continue
+        try:
+            n = int(l[1]) - 1
+            m = int(l[2]) - 1
+        except ValueError:
+            show_help()
+            continue
+        merge_mol(n, m)
+    elif l[0] == "group":
+        if len(l) != 3:
+            show_help()
+            continue
+        try:
+            n = int(l[1]) - 1
+            m = int(l[2]) - 1
+        except ValueError:
+            show_help()
+            continue
+        group_mol(n, m)
+    elif l[0] == "save":
+        save_mol()
+    elif l[0] == "quit":
+        save_mol()
+        exit(0)
+    elif l[0] == "QUIT":
+        exit(0)
+    else:
+        print "Unknown command:", l[0]
+        show_help()
+
+        
+        
+        
+
