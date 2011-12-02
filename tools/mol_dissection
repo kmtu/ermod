@@ -63,7 +63,7 @@ if options.pdb == None:
 
 picked = options.pick - 1
 
-# TODO FIXME:
+# FIXME TODO:
 if os.path.exists("soln/PermIndex"):
     error("In this version mol_dissection cannot be executed twice: recover directory from archive, then remove soln/PermIndex")
 
@@ -139,12 +139,12 @@ def str_of_list(ls):
             ret += "%d-%d" % (a, b)
         return ret
     ret = ""
-    prev = -1
+    prev = None
     prevstart = -1
     pos = 0
     while True:
-        if prev + 1 != ls[pos]:
-            if prev != -1:
+        if prev != ls[pos] - 1:
+            if prev != None:
                 ret = add_result(prevstart, prev, ret)
             prevstart = ls[pos]
         prev = ls[pos]
@@ -208,6 +208,8 @@ QUIT         force quit without saving
         os.stat("refs")
         os.stat(".")
 
+        # FIXME TODO: output solution contents file
+
         # find solute
         solute = -1
         for i in range(mols):
@@ -215,7 +217,7 @@ QUIT         force quit without saving
                 solute = i
                 break
 
-        print "solute: ", solute + 1
+        print "New solute position: ", solute + 1 # FIXME TODO: output extraparam
 
         global ms, ns, begins, permindex, permindex_refs, molprm
         ms[solute] -= 1
@@ -250,7 +252,7 @@ QUIT         force quit without saving
                         sol = " (solute)"
                     x = permindex_refs[orig]
                     if x != None:
-                        print >> perm, "%6d %6d ! %s %d%s" % (i, x + 1, rn, ri, sol)
+                        print >> perm, "%6d ! %s %d%s" % (x + 1, rn, ri, sol)
             else:
                 for i in range(totalatoms):
                     x = permindex[i]
@@ -258,7 +260,7 @@ QUIT         force quit without saving
                     sol = ""
                     if is_solute:
                         sol = " (solute)"
-                    print >> perm, "%6d %6d ! %s %d%s" % (i, x + 1, rn, ri, sol)
+                    print >> perm, "%6d ! %s %d%s" % (x + 1, rn, ri, sol)
             safe_close(perm)
                         
             for i in range(mols):
