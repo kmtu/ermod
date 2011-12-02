@@ -595,8 +595,13 @@ contains
           allocate(permutation(OUTatm))
           do i = 1, OUTatm
              read(perm_io, *) permutation(i)
+             if (permutation(i) < 1 .or. permutation(i) > OUTatm) then
+                print *, i, "-th permutation points to ", permutation(i)
+                call halt_with_error('pmt')
+             endif
           end do
           close(perm_io)
+          ! FIXME TODO: sanity check permutation (doubling)
        endif
     end if
     
