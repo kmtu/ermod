@@ -339,8 +339,10 @@ contains
     character*23 molfile
     character(*), parameter :: sltfile='SltInfo'
     character(*), parameter :: prmfile='MolPrm'
+    character(len=*), parameter :: ljtablefile='LJTable'
     integer, parameter :: sltio=71                 ! IO for sltfile
     integer, parameter :: molio=72                 ! IO for molfile
+    integer, parameter :: ljtableio=70             ! IO for LJ table
     integer, parameter :: PT_PHYSICAL = 0, PT_TEST = 1
 
     call OUTinitial                ! initialization of OUTname module
@@ -471,6 +473,9 @@ contains
           molfile = sltfile            ! solute / test particle
        endif
        stmax = ptsite(pti)
+
+       ! This part is a bit complicated due to backward compatibility.
+       ! for ljtype /= 5, read the table and make table by program
        open(unit = molio, file = molfile, status='old')
        do sid = 1, stmax
           if(uvtype == 2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
@@ -494,28 +499,35 @@ contains
        end do
        close(molio)
 
-       ! allocate LJ types
-       do sid = 1, stmax
-          lj_is_new = .true.
-          do i = 1, ljtype_max
-             ! linear search LJ table
-             if(ljlen_temp_table(i) == ljlen_temp(sid) .and. &
-                  ljene_temp_table(i) == ljene_temp(sid)) then
-                ljtype_found = i
-                lj_is_new = .false.
-                exit
+       if(ljformat == 5) then
+          ! use numbers directly
+          ! No sane system will have the problem with 
+          ! string -> double -> int conversion ...
+          ljtype_temp(1:stmax) = ljene_temp(1:stmax)
+       else
+          ! allocate LJ types
+          do sid = 1, stmax
+             lj_is_new = .true.
+             do i = 1, ljtype_max
+                ! linear search LJ table
+                if(ljlen_temp_table(i) == ljlen_temp(sid) .and. &
+                     ljene_temp_table(i) == ljene_temp(sid)) then
+                   ljtype_found = i
+                   lj_is_new = .false.
+                   exit
+                endif
+             end do
+             if(lj_is_new) then
+                ! new LJ type
+                ljtype_max = ljtype_max + 1
+                ljlen_temp_table(ljtype_max) = ljlen_temp(sid)
+                ljene_temp_table(ljtype_max) = ljene_temp(sid)
+                ljtype_found = ljtype_max
              endif
+             ljtype_temp(sid) = ljtype_found
           end do
-          if(lj_is_new) then
-             ! new LJ type
-             ljtype_max = ljtype_max + 1
-             ljlen_temp_table(ljtype_max) = ljlen_temp(sid)
-             ljene_temp_table(ljtype_max) = ljene_temp(sid)
-             ljtype_found = ljtype_max
-          endif
-          ljtype_temp(sid) = ljtype_found
-       end do
-          
+       endif
+
        do i = 1, ptcnt(pti)
           ljtype(cur_atom:(cur_atom + stmax - 1)) = ljtype_temp(1:stmax)
           charge(cur_atom:(cur_atom + stmax - 1)) = charge_temp(1:stmax)
@@ -531,22 +543,39 @@ contains
     deallocate(psite, ljlen_temp, ljene_temp, ljtype_temp, charge_temp, sitemass_temp)
 
     ! Fill LJ table
-    allocate(ljlensq_mat(ljtype_max, ljtype_max), ljene_mat(ljtype_max, ljtype_max))
-    do i = 1, ljtype_max
-       select case(cmbrule)
-       case(0) ! arithmetic mean
-          ljlensq_mat(:, i) = ((ljlen_temp_table(1:ljtype_max) + ljlen_temp_table(i)) * 0.5) ** 2
-       case(1) ! geometric mean
-          ljlensq_mat(:, i) = ljlen_temp_table(1:ljtype_max) * ljlen_temp_table(i)
-       end select
-       ljene_mat(:, i) = sqrt(ljene_temp_table(1:ljtype_max) * ljene_temp_table(i))
-    end do
+    if(ljformat == 5) then
+       ! From table (directly)
+       open(unit = ljtableio, file = ljtablefile, action = 'read')
+       read(ljtableio, *) ljtype_max
+       allocate(ljlensq_mat(ljtype_max, ljtype_max), ljene_mat(ljtype_max, ljtype_max))
+       do i = 1, ljtype_max
+          read (ljtableio, *) ljlensq_mat(i, :)
+          ljlensq_mat(i, :) = ljlensq_mat(i, :) ** 2
+       end do
+       do i = 1, ljtype_max
+          read (ljtableio, *) ljene_mat(i, :)
+       end do
+       close(ljtableio)
+    else
+       ! From LJ data
+       allocate(ljlensq_mat(ljtype_max, ljtype_max), ljene_mat(ljtype_max, ljtype_max))
+       do i = 1, ljtype_max
+          select case(cmbrule)
+          case(0) ! arithmetic mean
+             ljlensq_mat(:, i) = ((ljlen_temp_table(1:ljtype_max) + ljlen_temp_table(i)) * 0.5) ** 2
+          case(1) ! geometric mean
+             ljlensq_mat(:, i) = ljlen_temp_table(1:ljtype_max) * ljlen_temp_table(i)
+          end select
+          ljene_mat(:, i) = sqrt(ljene_temp_table(1:ljtype_max) * ljene_temp_table(i))
+       end do
+    endif
     deallocate(ljlen_temp_table, ljene_temp_table)
+
 
     ! conversion to (kcal/mol angstrom)^(1/2)
     ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
     charge(1:numatm) = 18.22261721e0 * charge(1:numatm)
-    
+
     ! get molecule-wise charges
     do i = 1, nummol
        mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
