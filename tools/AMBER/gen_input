@@ -121,6 +121,14 @@ def directory_check():
                  "but current directory name does not match")
 directory_check()
 
+def save_parameters_fe(temp):
+    feparamf = "../parameters_fe"
+    fh = open(feparamf, "wt")
+    print >> fh, "&fevars"
+    print >> fh, "inptemp=%f" % temp
+    print >> fh, "/"
+    safe_close(fh)
+
 def parse_log():
     logfh = open(options.log, "rt")
     temp = 300.0
@@ -168,7 +176,10 @@ def parse_log():
 
     params = {}
     params['slttype'] = {"rigid": 2, "flexible": 3, "solution": 1 }[mode]
-    params['inptemp'] = control['temp0']
+    temp = control['temp0']
+    params['inptemp'] = temp
+    if mode == "solution":
+        save_parameters_fe(temp)
     
     # AMBER supports cutoff only
     params['upljcut'] = control['cut']
