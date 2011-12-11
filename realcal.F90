@@ -671,7 +671,7 @@ contains
     deallocate(work)
 
     do i = 1, 3
-       cell_len_normal(i) = cell_normal(i, i)
+       cell_len_normal(i) = abs(cell_normal(i, i))
     end do
     invcell_normal(:) = 1 / cell_len_normal(:)
 

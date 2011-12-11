@@ -15,12 +15,14 @@ contains
     type(handle), intent(inout) :: htraj
     character(len=*), intent(in) :: fname
     integer(4) :: dcd_header(21)
-    integer(4), parameter :: dcd_magic = X'434f5244'
+    integer(4), parameter :: dcd_magic_little = X'44524f43', dcd_magic_big = X'434f5244'
 
     open(unit=newunit(htraj%iohandle), file=fname, action="READ", form="UNFORMATTED")
     ! Check dcd magic
     read(htraj%iohandle) dcd_header(:)
-    if(dcd_header(1) /= dcd_magic) stop "incorrect dcd format (maybe different endian?)"
+    if(dcd_header(1) /= dcd_magic_little .and. dcd_header(1) /= dcd_magic_big) then
+       stop "incorrect dcd format"
+    end if
     htraj%have_cell_info = (dcd_header(12) == 1)
     read(htraj%iohandle)
     read(htraj%iohandle)
@@ -49,21 +51,22 @@ contains
     real(4), allocatable :: buffer(:)
 
     cell(:, :) = 0.
+    allocate(buffer(natom))
+
     if(is_periodic) then
        if(.not. htraj%have_cell_info) stop "Cell info is requested, but does not exist!"
        read(htraj%iohandle, err=999) cell(1,1), cell(1,2), cell(2,2), cell(1,3), cell(2,3), cell(3,3)
     end if
 
-    allocate(buffer(natom))
     read(htraj%iohandle, err=999) buffer(:)
     crd(1, :) = buffer(:)
     read(htraj%iohandle, err=999) buffer(:)
-    crd(2, :) = buffer
+    crd(2, :) = buffer(:)
     read(htraj%iohandle, err=999) buffer(:)
-    crd(3, :) = buffer
-    deallocate(buffer)
+    crd(3, :) = buffer(:)
 
     status = 0
+    deallocate(buffer)
     return
 
 999 status = 1
