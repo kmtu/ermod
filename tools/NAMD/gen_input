@@ -17,10 +17,12 @@ parser.add_option("-x", "--dcd", dest = "dcd",
                   help = "Solution or reference trajectory file")
 
 parser.add_option("-p", "--pdb", dest = "pdb",
-                  help = "Solute structure PDB file")
+                  help = "(deprecated) same as --rigid")
+parser.add_option("-r", "--rigid", dest = "pdb",
+                  help = "Solute structure PDB file (for rigid insertion)")
 
 parser.add_option("-s", "--flexible", dest = "solute",
-                  help = "Solute trajectory file")
+                  help = "Solute trajectory file (for flexible insertion)")
 
 parser.add_option("-d", "--div", dest = "div", type = "int",
                   help = "Number of sections divided into",
