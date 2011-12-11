@@ -1,0 +1,295 @@
+#!/usr/bin/env python
+
+import os
+import os.path
+import shutil
+import sys
+import re
+from optparse import OptionParser
+
+# Some routines are used for 2.3 compatibility
+import warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+
+################################################################
+# Common modules, functions
+
+if sys.version_info < (2, 6):
+    from sets import Set
+    set = Set
+
+def log(x):
+    if options.verbose:
+        print >> sys.stderr, x
+
+def warn_or_error(x, col):
+    prefix = ""
+    suffix = ""
+    if os.isatty(sys.stderr.fileno()):
+        prefix = "\x1b[" + str(col) + ";1m"
+        suffix = "\x1b[0m"
+    print >> sys.stderr, prefix + x + suffix
+
+def warn(x):
+    warn_or_error("Warning: " + x, 33)
+
+def error(x):
+    warn_or_error("Error: " + x, 31)
+    sys.exit(1)
+
+def safe_close(fh):
+    # asynchronous NFS may miss file creation
+    # esp. combined with delayed allocation (ext4, XFS)
+    # The open-to-close consistency is preserved only when 
+    fh.flush()
+    os.fsync(fh.fileno())
+    fh.close()
+
+# End of common components
+################################################################
+
+
+
+parser = OptionParser()
+
+# only have to specify one of three:
+parser.add_option("-l", "--log", dest = "log",
+                  help = "AMBER log (mdout) file")
+
+parser.add_option("-x", "--traj", dest = "traj",
+                  help = "Solution or reference trajectory file (netcdf)")
+
+parser.add_option("-r", "--rigid", dest = "rigid",
+                  help = "Solute structure (PDB file)")
+
+parser.add_option("-f", "--flexible", dest = "flexible",
+                  help = "Solute trajectory file (netcdf)")
+
+parser.add_option("-d", "--div", dest = "div", type = "int",
+                  help = "Number of sections divided into",
+                  default = None)
+
+parser.add_option("--minenergy", dest = "minenergy", type = "float",
+                  help = "Minimum energy",
+                  default = -20.0)
+
+parser.add_option("-v", "--verbose", dest = "verbose", action="store_true",
+                  help = "Be more verbose",
+                  default = False)
+
+(options, args) = parser.parse_args()
+
+if options.log == None:
+    print >> sys.stderr, "Error: log file is not specified (try --help)"
+    sys.exit(1)
+
+if options.traj == None:
+    print >> sys.stderr, "Error: trajctory file is not specified (try --help)"
+    sys.exit(1)
+
+def check_exists(f):
+    if not os.path.exists(f):
+        print >> sys.stderr, "Error:", f, "file does not exist"
+        sys.exit(1)
+
+check_exists("MDinfo")
+check_exists("SltInfo")
+check_exists(options.traj)
+check_exists(options.log)
+if options.rigid:
+    check_exists(options.rigid)
+if options.flexible:
+    check_exists(options.flexible)
+
+# set mode
+if options.rigid:
+    mode = "rigid"
+elif options.flexible:
+    mode = "flexible"
+else:
+    mode = "solution"
+
+# sanity check
+def directory_check():
+    if mode in ["rigid", "flexible"]:
+        if os.path.basename(os.getcwd()) != "refs":
+            warn("The option is specified for insertion (reference system), " + 
+                 "but current directory name does not match")
+    else:
+        if os.path.basename(os.getcwd()) != "soln":
+            warn("The option is specified for insertion (reference system), " + 
+                 "but current directory name does not match")
+directory_check()
+
+def parse_log():
+    logfh = open(options.log, "rt")
+    temp = 300.0
+    is_periodic = 0
+    cut = 0.
+    switchlj = 0.
+    coulombtype = 0
+    total = 0
+    freq = 0
+
+    # gather control data
+    info_begin = re.compile(r"CONTROL\s+DATA\s+FOR\s+THE\s+RUN")
+    info_end = re.compile(r"ATOMIC\s+COORDINATES\s+AND\s+VELOCITIES")
+    for l in logfh:
+        m = info_begin.search(l)
+        if m:
+            break
+
+    lines = []
+
+    for l in logfh:
+        m = info_end.search(l)
+        if m:
+            break
+        else:
+            lines.append(l)
+
+    logfh.close()
+    
+    # parse lines
+    control = {}
+    re_float = r"[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?"
+    secpat = re.compile(r"\s*([A-Za-z0-9 ]+?)\s*=\s*(%s),?" % re_float)
+
+    for l in lines:
+        # finditer returns *non-overlapping* matches
+        matches = secpat.finditer(l)
+        for m in matches:
+            section = m.group(1)
+            value = float(m.group(2))
+            control[section] = value
+
+    log(control)
+    # At this moment all data is concentrated in "control" dictionary
+
+    params = {}
+    params['slttype'] = {"rigid": 2, "flexible": 3, "solution": 1 }[mode]
+    params['inptemp'] = control['temp0']
+    
+    # AMBER supports cutoff only
+    params['upljcut'] = control['cut']
+    params['lwljcut'] = control['cut']
+    params['elecut'] = control['cut']
+    
+    # Periodic?
+    if control['ntb'] > 0:
+        params['boxshp'] = 1
+        # PME is automatically assumed!
+        params['cltype'] = 2
+        params['ms1max'] = int(control['NFFT1'])
+        params['ms2max'] = int(control['NFFT2'])
+        params['ms3max'] = int(control['NFFT3'])
+        params['splodr'] = int(control['Interpolation order'])
+        params['screen'] = control['Ewald Coefficient']
+    else:
+        params['boxshp'] = 0
+        params['cltype'] = 0
+
+    # NVT or NPT?
+    if 'ntp' in control and control['ntp'] > 0:
+        params['estype'] = 2
+    else:
+        params['estype'] = 1
+
+    if options.div != None:
+        params['engdiv'] = options.div
+    else:
+        if mode == "solution":
+            params['engdiv'] = 10
+        else:
+            params['engdiv'] = 5
+
+    ofh = open("parameters_er", "wt")
+    print >> ofh, "&ene_param"
+    keys = params.keys()
+    keys.sort()
+    for k in keys:
+        v = params[k]
+        if isinstance(v, str):
+            print >> ofh, "        %s = \"%s\"," % (k, v)
+        elif isinstance(v, int):
+            print >> ofh, "        %s = %d," % (k, v)
+        elif isinstance(v, float):
+            print >> ofh, "        %s = %g," % (k, v)
+        else:
+            error("Unknown output type")
+    
+    print >> ofh, """/
+&hist
+      eclbin=5.0e-2, ecfbin=2.0e-3, ec0bin=2.0e-4, finfac=10.0e0,
+      ecdmin=%f, ecfmns=-0.20e0, ecdcen=0.0e0, eccore=20.0e0,
+      ecdmax=1.0e11, pecore=200
+/
+""" % options.minenergy
+
+    steps = int(control["nstlim"])
+    steps_per_output = int(control["ntwx"])
+    frames = steps / steps_per_output
+    return frames
+
+frames = parse_log()
+
+# update MDinfo
+if frames:
+    ifh = open("MDinfo", "rt")
+    ofh = open("MDinfo.new", "wt")
+    l = ifh.next().split()
+    print >> ofh, frames, l[1]
+    print >> ofh, ifh.next().strip()
+    print >> ofh, ifh.next().strip()
+    ifh.close()
+    safe_close(ofh)
+    shutil.move("MDinfo", "MDinfo.bak")
+    shutil.move("MDinfo.new", "MDinfo")
+
+def symlink(src, dest):
+    if os.path.exists(dest):
+        if os.path.islink(dest):
+            # renew link
+            os.remove(dest)
+        else:
+            return
+    os.symlink(src, dest)
+
+# link or generate trajectory
+(_, ext) = os.path.splitext(options.traj)
+symlink(options.traj, "HISTORY")
+
+if options.flexible:
+    # flexible
+    symlink(options.flexible, "SltConf")
+
+elif options.rigid:
+    def get_pdb_coord():
+        # fixed
+        fh = open(options.rigid, "rt")
+        coords = []
+        # overwrite SltInfo with coordinate information
+        for l in fh:
+            if l[0:4] == "ATOM" or l[0:6] == "HETATM":
+                coords.append((float(l[30:38]), float(l[38:46]), float(l[46:54])))
+        fh.close()
+        return coords
+
+    (_, ext) = os.path.splitext(options.rigid)
+    if ext == ".pdb" or ext == ".PDB":
+        coords = get_pdb_coord()
+    else:
+        error("Unknown rigid file extension")
+    
+    ifh = open("SltInfo", "rt")
+    ofh = open("SltInfo.new", "wt")
+    pos = 0
+    for l in ifh:
+        print >> ofh, ' '.join((l.split())[0:5]), coords[pos][0], coords[pos][1], coords[pos][2]
+        pos += 1
+
+    ifh.close()
+    safe_close(ofh)
+    shutil.move("SltInfo", "SltInfo.bak")
+    shutil.move("SltInfo.new", "SltInfo")
+
