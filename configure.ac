@@ -8,9 +8,9 @@ AC_CONFIG_MACRO_DIR(m4)
 
 # Checks for programs.
 AC_PROG_CPP
-AC_PROG_CC([icc gcc cc fcc])
+AC_PROG_CC([icc fcc gcc cc])
 AC_PROG_CC_C_O
-AC_PROG_FC([ifort gfortran xlf f95 f90 g95 xlf90])
+AC_PROG_FC([ifort xlf90 xlf f95 f90 frt gfortran g95])
 
 # modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran)
@@ -23,6 +23,7 @@ AS_IF([test "x$FC" = "x"],
       [])
 
 AC_OPENMP
+
 AC_ARG_ENABLE([vmdplugin],
 	AS_HELP_STRING([--disable-vmdplugin],
 		[disable VMD plugin]))
@@ -110,7 +111,7 @@ my_fc_real_double_cv_flag,
 [AC_LANG_PUSH(Fortran)
 save_FCFLAGS=$FCFLAGS
 # for default, gfortran, ifort, xlf, Fujitsu f90
-for flag in "" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-A d"; do
+for flag in "" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-Ad"; do
 FCFLAGS="$save_FCFLAGS $flag"
   AC_RUN_IFELSE(
     [AC_LANG_PROGRAM([], [dnl
@@ -261,7 +262,6 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
 AM_CONDITIONAL([USE_FFTW], [test x$with_fft = xfftw])
 AM_CONDITIONAL([USE_MKL], [test x$with_fft = xmkl])
 AM_CONDITIONAL([USE_VMDPLUGIN], [test x$enable_vmdplugin = xyes || test x$enable_vmdplugin = x])
-
 
 AS_IF([test "x$lapack_exist" != xyes],
 	    [AC_MSG_ERROR(
