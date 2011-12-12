@@ -545,7 +545,7 @@ contains
     ! Fill LJ table
     if(ljformat == 5) then
        ! From table (directly)
-       open(unit = ljtableio, file = ljtablefile, action = 'read')
+       open(unit = ljtableio, file = ljtablefile, status = 'old', action = 'read')
        read(ljtableio, *) ljtype_max
        allocate(ljlensq_mat(ljtype_max, ljtype_max), ljene_mat(ljtype_max, ljtype_max))
        do i = 1, ljtype_max
