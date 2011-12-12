@@ -24,6 +24,10 @@ AS_IF([test "x$FC" = "x"],
 
 AC_OPENMP
 
+AC_ARG_ENABLE([vmdplugin],
+	AS_HELP_STRING([--disable-vmdplugin],
+		[disable VMD plugin]))
+
 AC_DEFUN([MY_CHECK_BLAS], [
   AC_MSG_CHECKING([whether $1 is available])
   save_LIBS=$LIBS
@@ -255,8 +259,11 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
 
 # AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
 
+echo x$enable_vmdplugin
+
 AM_CONDITIONAL([USE_FFTW], [test x$with_fft = xfftw])
 AM_CONDITIONAL([USE_MKL], [test x$with_fft = xmkl])
+AM_CONDITIONAL([USE_VMDPLUGIN], [test x$enable_vmdplugin = xyes || test x$enable_vmdplugin = x])
 
 AS_IF([test "x$lapack_exist" != xyes],
 	    [AC_MSG_ERROR(
