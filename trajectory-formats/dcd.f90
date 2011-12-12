@@ -55,14 +55,14 @@ contains
 
     if(is_periodic) then
        if(.not. htraj%have_cell_info) stop "Cell info is requested, but does not exist!"
-       read(htraj%iohandle, err=999) cell(1,1), cell(1,2), cell(2,2), cell(1,3), cell(2,3), cell(3,3)
+       read(htraj%iohandle, err=999, end=999) cell(1,1), cell(1,2), cell(2,2), cell(1,3), cell(2,3), cell(3,3)
     end if
 
-    read(htraj%iohandle, err=999) buffer(:)
+    read(htraj%iohandle, err=999, end=999) buffer(:)
     crd(1, :) = buffer(:)
-    read(htraj%iohandle, err=999) buffer(:)
+    read(htraj%iohandle, err=999, end=999) buffer(:)
     crd(2, :) = buffer(:)
-    read(htraj%iohandle, err=999) buffer(:)
+    read(htraj%iohandle, err=999, end=999) buffer(:)
     crd(3, :) = buffer(:)
 
     status = 0
