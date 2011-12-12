@@ -325,7 +325,7 @@ if options.solute:
     solute = options.solute.split(',')
 else:
     # interactive input
-    print "Segment names in psf files:"
+    print "Segment names in topology file:"
     print 
     for i in range(len(merged)):
         print "%d: %s" % (i + 1, merged[i]["segname"])
@@ -448,13 +448,30 @@ for mode in ["soln", "refs"]:
     ico = topology["NONBONDED_PARM_INDEX"]
     cn1 = topology["LENNARD_JONES_ACOEF"]
     cn2 = topology["LENNARD_JONES_BCOEF"]
+
+    # Convert back to length and eps
+    lentable = [[None] * ntypes for i in range(ntypes)]
+    enetable = [[None] * ntypes for i in range(ntypes)]
+
+    for i in range(ntypes):
+        for j in range(ntypes):
+            acoeff = cn1[ico[(i * ntypes) + j] - 1]
+            bcoeff = cn2[ico[(i * ntypes) + j] - 1]
+            if bcoeff == 0.0:
+                lentable[i][j] = 0
+                enetable[i][j] = 0
+            else:
+                r = acoeff / bcoeff
+                lentable[i][j] = r ** (1. / 6.)
+                enetable[i][j] = bcoeff / (4.0 * r)
+    
     print >> fh, ntypes
     for i in range(ntypes):
-        print >> fh, " ".join(["%11.5E" % cn1[x - 1]
-                               for x in ico[(i * ntypes):((i+1) * ntypes)]])
+        print >> fh, " ".join(["%11.5E" % lentable[i][j]
+                               for j in range(ntypes)])
     for i in range(ntypes):
-        print >> fh, " ".join(["%11.5E" % cn2[x - 1]
-                               for x in ico[(i * ntypes):((i+1) * ntypes)]])
+        print >> fh, " ".join(["%11.5E" % enetable[i][j]
+                               for j in range(ntypes)])
     safe_close(fh)
                              
     # Output permutation
@@ -493,7 +510,7 @@ for mode in ["soln", "refs"]:
     if perm == range(len(perm)):
         # yay, not necessary!
         if os.path.exists(fn):
-            unlink(fn)
+            os.unlink(fn)
         continue
 
     fh = open(fn, "wt")

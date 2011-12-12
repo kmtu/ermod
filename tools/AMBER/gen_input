@@ -176,6 +176,7 @@ def parse_log():
 
     params = {}
     params['slttype'] = {"rigid": 2, "flexible": 3, "solution": 1 }[mode]
+    params['ljformat'] = 5
     temp = control['temp0']
     params['inptemp'] = temp
     if mode == "solution":
