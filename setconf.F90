@@ -617,7 +617,7 @@ contains
     ! first time setup: read index permutation
     if(first_time) then
        first_time = .false.
-       open(file = perm_file, unit = perm_io, action = 'read', iostat = stat)
+       open(file = perm_file, unit = perm_io, status = 'old', action = 'read', iostat = stat)
        if(stat == 0) then
           ! file successfully opened
           write(stdout, *) "Reading permutation information"
