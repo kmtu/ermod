@@ -1,16 +1,16 @@
 #                                               -*- Autoconf -*-
 
 AC_PREREQ([2.59])
-#AC_INIT(ermod, 0.2.rc1.%rev%, Matubayasi Laboratory)
-AC_INIT(ermod, 0.2.0, Matubayasi Laboratory)
+#AC_INIT(ermod, 0.2.1.%rev%, Matubayasi Laboratory)
+AC_INIT(ermod, 0.2.1, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
 # Checks for programs.
 AC_PROG_CPP
-AC_PROG_CC([icc gcc cc fcc])
+AC_PROG_CC([icc fcc gcc cc])
 AC_PROG_CC_C_O
-AC_PROG_FC([ifort gfortran xlf f95 f90 g95 xlf90])
+AC_PROG_FC([ifort xlf90 xlf f95 f90 frt gfortran g95])
 
 # modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran)
@@ -107,7 +107,7 @@ my_fc_real_double_cv_flag,
 [AC_LANG_PUSH(Fortran)
 save_FCFLAGS=$FCFLAGS
 # for default, gfortran, ifort, xlf, Fujitsu f90
-for flag in "" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-A d"; do
+for flag in "" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-Ad"; do
 FCFLAGS="$save_FCFLAGS $flag"
   AC_RUN_IFELSE(
     [AC_LANG_PROGRAM([], [dnl
