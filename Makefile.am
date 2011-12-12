@@ -25,9 +25,13 @@ if USE_MKL
 FFTFLAGS = -DMKL
 endif
 
+if USE_VMDPLUGIN
+VMDPLUGINFLAGS = -DVMDPLUGINS
+endif
+
 ermod_SOURCES = $(ersources) vmdfio_if.F90 vmdfio.c
 ermod_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
-ermod_FCFLAGS = -DVMDPLUGINS $(FFTFLAGS)
+ermod_FCFLAGS = $(VMDPLUGINFLAGS) $(FFTFLAGS)
 ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
 
 extra_flags = 

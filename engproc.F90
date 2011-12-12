@@ -985,7 +985,7 @@ contains
        ! Feature #52: put a warning if energy exceeds max binning region and pecore = 0
        ! Since it is hard to distinguish pecore = 0 bin at this moment,
        ! it is determined by looking engcoord: if too low, it is sprious
-       write(stdout, '(A,g12.4,A,i3,A)'), '  energy of ', engcoord, ' for ', pti, '-th species'
+       write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
        call warning('mbin')
        warn_bin_firsttime = .false.
     endif
