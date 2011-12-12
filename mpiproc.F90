@@ -172,9 +172,9 @@ contains
     if(type.eq.'min') write(stdout,999)
     if(type.eq.'ecd') write(stdout,981)
     if(type.eq.'fst') write(stdout,982)
-    if(type.eq.'slb') write(stdout,"(A)"), " Slab condition can only used in periodic system"
-    if(type.eq.'bug') write(stdout,"(A)"), " Critical failure in the program detected"
-    if(type.eq.'trj') write(stdout,"(A)"), " Trajectory is shorter than specified in MDinfo"
+    if(type.eq.'slb') write(stdout,"(A)") " Slab condition can only used in periodic system"
+    if(type.eq.'bug') write(stdout,"(A)") " Critical failure in the program detected"
+    if(type.eq.'trj') write(stdout,"(A)") " Trajectory is shorter than specified in MDinfo"
 991 format(' The number of solute types is incorrectly set')
 992 format(' The number of solute molecules is incorrectly set')
 993 format(' The solute numbering is incorrect for insertion')
@@ -194,8 +194,8 @@ contains
     use engmain, only: stdout, force_calculation
     implicit none
     character(len=4), intent(in) :: typ
-    if(typ == 'mbin') write(stdout, '(A)'), " Warning: the maximum binning energy is too low for this species"
-    if(typ == 'insu') write(stdout, '(A)'), " Warning: unique pair of snapshots is smaller than expected"
+    if(typ == 'mbin') write(stdout, '(A)') " Warning: the maximum binning energy is too low for this species"
+    if(typ == 'insu') write(stdout, '(A)') " Warning: unique pair of snapshots is smaller than expected"
     if(force_calculation) return
     write(stdout, '(A)') "The program aborts becaue there is a warning"
     write(stdout, '(A,A)') "If you wish to force program running, specify 'force_calculation = .true.' in parameters_er, ", &
