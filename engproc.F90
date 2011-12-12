@@ -664,6 +664,7 @@ contains
        tagslt=sltlist(cntdst)
        call check_mol_configuration(has_error)
        if(has_error) return
+       weighting = 1.0
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        tagslt=sltlist(1)
        if(.not. initialized) then
@@ -772,9 +773,9 @@ contains
 
     select case(estype)
     case (ES_NVT)
-       avslf=avslf+1.0e0
+       avslf = avslf + stat_weight
     case (ES_NPT)
-       avslf=avslf+volume
+       avslf = avslf + stat_weight * volume
     end select
 
 
