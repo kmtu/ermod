@@ -259,8 +259,6 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
 
 # AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
 
-echo x$enable_vmdplugin
-
 AM_CONDITIONAL([USE_FFTW], [test x$with_fft = xfftw])
 AM_CONDITIONAL([USE_MKL], [test x$with_fft = xmkl])
 AM_CONDITIONAL([USE_VMDPLUGIN], [test x$enable_vmdplugin = xyes || test x$enable_vmdplugin = x])
