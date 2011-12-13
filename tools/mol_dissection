@@ -183,6 +183,7 @@ while True:
         print """commands:
 list         List molecules ("*" represents solute)
 split N R    Split molecule N just BEFORE residue nubmer R
+pick N R     Pick residue R in molecule N and separate from other residues
 merge N M    Merge Nth and Mth molecule into a single molecule
 group N M    Group Nth and Mth molecule,
              N and M must have exactly the same number of molecules
@@ -284,6 +285,29 @@ QUIT         force quit without saving
                 return i
         return -1
 
+    def get_number_after(n, r):
+        global begins
+        before = get_number_before(n, r)
+        if before == -1:
+            # not found
+            return -1
+        ntot = begins[n + 1] - begins[n]
+        for i in range(before, ntot):
+            (_, _, ri) = atoms[permindex[begins[n] + i]]
+            if ri != r:
+                return i
+        return ntot
+
+    def split_impl(n, pos):
+        global ns, ms, mols
+        # no change in permindex
+        ms.insert(n, 1)
+        ns.insert(n, pos)
+        ns[n + 1] -= pos
+        begins.insert(n, begins[n])
+        begins[n + 1] = begins[n] + pos
+        mols += 1
+
     def split_at(n, r):
         global ns, ms, mols
         if ms[n] != 1:
@@ -291,17 +315,12 @@ QUIT         force quit without saving
             return
         
         group_before = get_number_before(n, r)
-        if group_before <= 0 or group_before >= ns[n]:
-            print "No such molecule in molecule", n
+        if group_before < 0 or group_before >= ns[n]:
+            print "No such molecule in molecule %d" % n
             return
-        # no change in permindex
-        ms.insert(n, 1)
-        ns.insert(n, group_before)
-        ns[n + 1] -= group_before
-        begins.insert(n, begins[n])
-        begins[n + 1] = begins[n] + group_before
-        mols += 1
-        pass
+        elif group_before == 0:
+            print "No other molecule before residue %d" % r
+        split_impl(n, group_before)
 
     def merge_update_begins_permindex(n, m):
         global begins, permindex
@@ -327,6 +346,21 @@ QUIT         force quit without saving
         del ms[m]
         mols -= 1
         return
+
+    def pick(n, r):
+        global ns, ms, mols
+        if ms[n] != 1:
+            print "Cannot pick multiple molecules"
+            return
+        
+        group_before = get_number_before(n, r)
+        if group_before < 0 or group_before >= ns[n]:
+            print "No such molecule in molecule", n
+            return
+        split_impl(n, group_before)
+        group_after = get_number_after(n + 1, r)
+        split_impl(n + 1, group_after)
+        merge_mol(n, n + 2)
 
     def group_mol(n, m):
         global ns, ms, mols
@@ -363,6 +397,17 @@ QUIT         force quit without saving
             show_help()
             continue
         split_at(n, r)
+    elif l[0] == "pick":
+        if len(l) != 3:
+            show_help()
+            continue
+        try:
+            n = int(l[1]) - 1
+            r = int(l[2])
+        except ValueError:
+            show_help()
+            continue
+        pick(n, r)
     elif l[0] == "merge":
         if len(l) != 3:
             show_help()
