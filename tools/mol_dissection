@@ -192,11 +192,11 @@ quit         Save and quit
 QUIT         force quit without saving
 """
     
-    def show_list():
+    def show_list(handle):
         for i in range(mols):
-            print "%2d." % (i + 1),
-            print "%5d" % ms[i], "mols", "%5d" % ns[i], "atoms",
-            print name_of(i)
+            print >> handle, "%2d." % (i + 1),
+            print >> handle, "%5d" % ms[i], "mols", "%5d" % ns[i], "atoms",
+            print >> handle, name_of(i)
 
     def save_mol():
         global mols
@@ -209,7 +209,9 @@ QUIT         force quit without saving
         os.stat("refs")
         os.stat(".")
 
-        # FIXME TODO: output solution contents file
+        fh = open("system-info", "wt")
+        show_list(fh)
+        safe_close(fh)
 
         # find solute
         solute = -1
@@ -403,7 +405,7 @@ QUIT         force quit without saving
     if l == []:
         show_help()
     elif l[0] == "list" or l[0] == "ls":
-        show_list()
+        show_list(sys.stdout)
     elif l[0] == "split":
         if len(l) != 3:
             show_help()
