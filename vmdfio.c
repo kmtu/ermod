@@ -280,8 +280,8 @@ void vmdfio_read_traj_step_(void **handle, double* xout, double* box, int *natom
     natoms = *natoms_aux;
   }else{
     /* check integrity */
-    if(natoms != p -> natoms && firstcall){
-      fprintf(stderr, "Warning: # of atoms in trajectory does not match with # of atoms in configurations\n");
+    if(natoms != *natoms_aux && firstcall){
+      fprintf(stderr, "Warning: # of atoms in trajectory does not match with # of atoms in configurations. Perhaps you mistook the trajectory?\n");
       firstcall = 0;
     }
   }
