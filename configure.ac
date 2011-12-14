@@ -2,7 +2,7 @@
 
 AC_PREREQ([2.59])
 #AC_INIT(ermod, 0.2.1.%rev%, Matubayasi Laboratory)
-AC_INIT(ermod, 0.2.1, Matubayasi Laboratory)
+AC_INIT(ermod, 0.2.2, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
