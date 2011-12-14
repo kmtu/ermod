@@ -7,7 +7,7 @@ nobase_pkgdata_SCRIPTS = \
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
-ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 bestfit.F90 hash_real.c
+ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 bestfit.F90
 
 EXTRA_DIST = parameters_er.example parameters_fe.example
 EXTRA_DIST += trajectory-formats/*
@@ -28,14 +28,19 @@ FFTFLAGS = -DMKL
 endif
 
 ermod_SOURCES = $(ersources)
+ermod_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
+ermod_FCFLAGS = $(VMDPLUGINFLAGS) $(FFTFLAGS)
+ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
 
 if USE_VMDPLUGIN
 ermod_SOURCES += vmdfio.c
 endif
 
-ermod_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
-ermod_FCFLAGS = $(VMDPLUGINFLAGS) $(FFTFLAGS)
-ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
+if USE_TRANSFER
+ermod_FCFLAGS += -DHAVE_TRANSFER
+else
+ermod_SOURCES += hash_real.c
+endif
 
 extra_flags = 
 

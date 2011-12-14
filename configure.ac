@@ -105,6 +105,8 @@ ACX_BLAS
 ACX_LAPACK([lapack_exist=yes],
            [lapack_exist=no])
 
+################################
+
 AC_DEFUN([MY_FC_REAL_DOUBLE],[
 AC_CACHE_CHECK([how to read real as real(8) as default],
 my_fc_real_double_cv_flag,
@@ -140,6 +142,26 @@ AC_LANG_POP(Fortran)
 ])])
 
 MY_FC_REAL_DOUBLE
+
+################################
+
+AC_LANG_PUSH(Fortran)
+AC_LINK_IFELSE(
+  [AC_LANG_PROGRAM([], [dnl
+      implicit none
+      integer(8) :: a = 1
+      real(8) :: b = 1.0d0
+      
+      a = transfer(b, a)
+      print *, a
+])], [my_check_have_transfer=yes], [my_check_have_transfer=no])
+
+echo -n $my_check_have_transfer
+AC_LANG_POP(Fortran)
+
+AM_CONDITIONAL([USE_TRANSFER], [test "x$my_check_have_transfer" = "xyes"])
+
+################################
 
 # set to f90 as default
 AC_FC_SRCEXT(f90)

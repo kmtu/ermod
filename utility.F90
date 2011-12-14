@@ -4,6 +4,26 @@ module utility
   implicit none
 
 contains
+
+#ifdef HAVE_TRANSFER
+  integer(8) function hash(arr, size) 
+    implicit none
+    integer, intent(in) :: size
+    real, intent(in) :: arr(size)
+    integer(8) :: ret
+    integer :: i
+    ret = 0
+
+    do i = 1, size
+       ret = ishftc(ret, 7)
+       ret = ieor(ret, transfer(arr(i), ret))
+    end do
+
+    hash = ret
+  end function hash
+
+#else
+! (== not HAVE_TRANSFER)
   integer(8) function hash(arr, size) 
     implicit none
     integer, intent(in) :: size
@@ -20,6 +40,7 @@ contains
     end select
     hash = ret
   end function hash
+#endif
 
   ! The following function is a snippet from Fortran wiki and in public domain.
   ! 
