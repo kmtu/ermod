@@ -554,7 +554,7 @@ contains
           end do
           endfile(75)
           close(75)
-751       format(i5,99999f15.5)
+751       format(i5,9999f15.5)
        endif
        if(slttype.eq.1) open(unit=73,file='weight_soln',status='new')
        if(slttype.ge.2) open(unit=73,file='weight_refs',status='new')

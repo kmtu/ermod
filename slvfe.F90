@@ -675,9 +675,9 @@ contains
           endif
        end do
     endif
-381 format('  Zero shift for solution             = ', 999999f12.4)
-382 format('  Zero shift for reference solvent    = ', 999999f12.4)
-383 format('  Zero shift for solution correlation = ', 999999f12.4)
+381 format('  Zero shift for solution             = ', 9999f12.4)
+382 format('  Zero shift for reference solvent    = ', 9999f12.4)
+383 format('  Zero shift for solution correlation = ', 9999f12.4)
     !
     deallocate( slncv,inscv,zrsln,zrref )
     if(slncor.eq.'yes') deallocate( sdrcv,zrsdr,edscr )
@@ -1253,14 +1253,14 @@ contains
        end do
        if(slfslt.eq.'yes') factor=factor+slfeng
        write(6,332) factor
-331    format('  Solute-solvent energy       =   ', 999999f12.4)
+331    format('  Solute-solvent energy       =   ', 9999f12.4)
 332    format('  Total solvation energy      =   ',f12.4, '  kcal/mol')
     endif
     !
     if(clcond.eq.'basic') then
        if(numslv.gt.1) write(6,351) (chmpt(pti,1,1), pti=1,numslv)
        write(6,352) chmpt(0,1,1)
-351    format('  Solvation free energy       =   ', 999999f12.4)
+351    format('  Solvation free energy       =   ', 9999f12.4)
 352    format('  Total solvation free energy =   ',f12.4, '  kcal/mol')
     endif
     !
@@ -1414,10 +1414,10 @@ contains
              j=numrun-5*k
              if(j.gt.0) write(6,127) (shcp(m), m=5*k+1,numrun)
           endif
-121       format(i4,i7,999999f13.4)
+121       format(i4,i7,9999f13.4)
 125       format(i4,i7,5f13.4)
 126       format('           ',5f13.4)
-127       format('           ',999999f13.4)
+127       format('           ',9999f13.4)
        end do
     end do
     !
@@ -1477,9 +1477,9 @@ contains
        endif
     end do
 772 format(i3,f11.4)
-773 format(i3,f11.4,999999f22.4)
+773 format(i3,f11.4,9999f22.4)
 774 format(i3,2f11.4)
-775 format(i3,999999f11.4)
+775 format(i3,9999f11.4)
     deallocate( runcp,runer )
     return
   end subroutine wrtcumu
