@@ -5,22 +5,6 @@ module OUTglobal
   integer GLBnrun,GLBntype,GLBens,GLBpbc,GLBclt,GLBspl
   real GLBtmp,GLBelc,GLBvdc,GLBsrc
   integer GLBew1,GLBew2,GLBew3
-#ifndef trjctry
-#ifdef DLPOLY
-contains
-  subroutine DLglobal(nstinit,nstrun,ntpmls,keyens,imcon,keyfce,&
-       temp,rcut,rvdw,alpha,nospl,kmax1,kmax2,kmax3)
-    integer nstinit,nstrun,ntpmls,keyens,imcon,keyfce,nospl
-    real temp,rcut,rvdw,alpha
-    integer kmax1,kmax2,kmax3
-    GLBnrun=nstrun-nstinit ; GLBntype=ntpmls
-    GLBens=keyens ; GLBpbc=imcon ; GLBclt=keyfce ; GLBspl=nospl
-    GLBtmp=temp ; GLBelc=rcut ; GLBvdc=rvdw ; GLBsrc=alpha
-    GLBew1=kmax1 ; GLBew2=kmax2 ; GLBew3=kmax3
-    return
-  end subroutine DLglobal
-#endif
-#endif
 end module OUTglobal
 !
 !
