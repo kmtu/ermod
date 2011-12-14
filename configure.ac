@@ -237,11 +237,16 @@ AC_ARG_ENABLE([perf],
                       CFLAGS="$CFLAGS -fno-omit-frame-pointer"
                       LDFLAGS="$LDFLAGS -lprofiler"]))
 
+AM_CONDITIONAL(USE_MPI, [test "x$use_mpi" = "xyes"])
+
 AS_IF([test "x$use_mpi" = "xyes"],
 	    [mpi_result="enabled"
+	     FC_CANONICAL="$FC"
 	     FC="$MPIFC"],
 	    [mpi_result="disabled"
+	     FC_CANONICAL="$FC"
 	     FCFLAGS="$FCFLAGS -DnoMPI"])
+AC_SUBST([FC_CANONICAL])
 
 # optimization flags
 AC_DEFUN([MY_FC_OPT_ACCEPT_NATIVE],[

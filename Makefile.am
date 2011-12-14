@@ -55,4 +55,4 @@ ermod-utility.$(OBJEXT): utility.F90 ermod-engmain.$(OBJEXT)
 
 slvfe_SOURCES = slvfe.F90
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)
-
+slvfe_LINK = $(FC_CANONICAL) $(FCFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
