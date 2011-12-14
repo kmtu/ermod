@@ -310,6 +310,9 @@ QUIT         force quit without saving
 
     def split_at(n, r):
         global ns, ms, mols
+        if n < 0 or n >= mols:
+            print "Invalid molecular index"
+            return
         if ms[n] != 1:
             print "Cannot split multiple molecules"
             return
@@ -335,6 +338,12 @@ QUIT         force quit without saving
 
     def merge_mol(n, m):
         global ns, ms, mols
+        if n < 0 or m < 0 or n >= mols or m >= mols:
+            print "Invalid molecular index"
+            return
+        if n == m:
+            print "Cannot merge the same molecule"
+            return
         if n > m:
             tmp = m
             m = n
@@ -349,6 +358,9 @@ QUIT         force quit without saving
 
     def pick(n, r):
         global ns, ms, mols
+        if n < 0 or n >= mols:
+            print "Invalid molecular index"
+            return
         if ms[n] != 1:
             print "Cannot pick multiple molecules"
             return
@@ -364,6 +376,12 @@ QUIT         force quit without saving
 
     def group_mol(n, m):
         global ns, ms, mols
+        if n < 0 or m < 0 or n >= mols or m >= mols:
+            print "Invalid molecular index"
+            return
+        if n == m:
+            print "Cannot group the same molecule"
+            return
         if ns[n] != ns[m]:
             print "Failed to regruop: number of atoms does not match"
             return
