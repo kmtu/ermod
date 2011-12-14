@@ -27,11 +27,12 @@ if USE_MKL
 FFTFLAGS = -DMKL
 endif
 
+ermod_SOURCES = $(ersources)
+
 if USE_VMDPLUGIN
-VMDPLUGINFLAGS = -DVMDPLUGINS
+ermod_SOURCES += vmdfio.c
 endif
 
-ermod_SOURCES = $(ersources) vmdfio_if.F90 vmdfio.c
 ermod_CFLAGS = -DINSTALL_PLUGIN_PATH=\"$(pkglibexecdir)\"
 ermod_FCFLAGS = $(VMDPLUGINFLAGS) $(FFTFLAGS)
 ermod_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(FFTLIBS) $(MPILIBS) -ldl -lm 
@@ -41,7 +42,7 @@ extra_flags =
 # module dependencies
 ermod-realcal.$(OBJEXT): realcal.F90 ermod-utility.$(OBJEXT)
 ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-utility.$(OBJEXT)
-ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-vmdfio_if.$(OBJEXT)
+ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) 
 ermod-recpcal.$(OBJEXT): recpcal.F90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT)
 ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT) ermod-bestfit.$(OBJEXT)
 ermod-setconf.$(OBJEXT): setconf.F90 ermod-utility.$(OBJEXT) ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-trajectory.$(OBJEXT)

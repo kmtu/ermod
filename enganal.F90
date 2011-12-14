@@ -25,7 +25,7 @@ program trjmain
   use engmain, only: maxcnf, skpcnf, engdiv
   use OUTname, only: opentrj, closetrj, OUTinitial, initconf, finiconf
   use setconf, only: getconf_parallel
-  use vmdfio_interface, only: init_vmdplugins, finish_vmdplugins
+  use trajectory, only: init_trajectory, finish_trajectory
   use engproc, only: engclear,engstore, engproc_cleanup
   use mpiproc               ! MPI
   implicit none
@@ -35,9 +35,7 @@ program trjmain
   call initconf()
 
   if(myrank == 0) then
-#ifdef VMDPLUGINS
-     call init_vmdplugins()
-#endif
+     call init_trajectory()
      call opentrj()
   end if
 
@@ -62,9 +60,7 @@ program trjmain
 
   if(myrank == 0) then
      call closetrj
-#ifdef VMDPLUGINS
-     call finish_vmdplugins()
-#endif
+     call finish_trajectory()
   end if
 
   call finiconf

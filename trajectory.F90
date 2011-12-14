@@ -7,6 +7,17 @@ module trajectory
   end type handle
   
 contains
+  subroutine init_trajectory()
+    implicit none
+    external vmdfio_init_traj
+    call vmdfio_init_traj()
+  end subroutine init_trajectory
+
+  subroutine finish_trajectory()
+    implicit none
+    external vmdfio_fini_traj
+    call vmdfio_fini_traj()
+  end subroutine finish_trajectory
 
   ! Open trajectory and returns handle as htraj. 
   ! Should open fails, the program abends.
@@ -52,5 +63,6 @@ contains
 
     call vmdfio_read_traj_step(htraj%vmdhandle, crd, cell, natom, status)
   end subroutine read_trajectory
+
 
 end module trajectory

@@ -6,6 +6,14 @@ module trajectory
   
 contains
 
+  subroutine init_trajectory()
+    implicit none
+  end subroutine init_trajectory
+
+  subroutine finish_trajectory()
+    implicit none
+  end subroutine finish_trajectory
+
   ! Open trajectory and returns handle as htraj. 
   ! Should open fails, the program abends.
   subroutine open_trajectory(htraj, fname)
