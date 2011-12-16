@@ -115,15 +115,14 @@ save_FCFLAGS=$FCFLAGS
 # for default, gfortran, ifort, xlf, Fujitsu f90
 for flag in "" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-Ad"; do
 FCFLAGS="$save_FCFLAGS $flag"
-  AC_RUN_IFELSE(
+# This is very tricky indeed...
+  AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM([], [dnl
+      implicit none
       real :: a
-      real(8) :: b
-      a = 1.000000001d0
-      b = 1.000000001d0
-      if(dble(a) /= b) then
-        stop 1
-      end if
+      integer, parameter :: len = kind(a)
+      integer, parameter :: x(len) = (/ 1, 2, 3, 4, 5, 6, 7, 8 /)
+      print *, "Success"
 ])], [my_check_realasdouble=yes], [my_check_realasdouble=no])
   if test $my_check_realasdouble = yes; then
     break

@@ -101,18 +101,31 @@ fi
 fi
 
 # BLAS linked to by default?  (happens on some supercomputers)
+# Trick learned from patch #7320 by Jaroslav Hajek
 if test $acx_blas_ok = no; then
 	save_LIBS="$LIBS"; LIBS="$LIBS"
-	AC_CHECK_FUNC($sgemm, [acx_blas_ok=yes])
+	AC_MSG_CHECKING([if $sgemm is being linked in already])
+	AC_TRY_LINK_FUNC($sgemm, [acx_blas_ok=yes])
+        AC_MSG_RESULT($acx_blas_ok)
 	LIBS="$save_LIBS"
 fi
 
 # BLAS linked to by -mkl=parallel? (Intel compiler + MKL)
 if test $acx_blas_ok = no; then
-	AC_CHECK_LIB([], $sgemm, 
-                     [acx_blas_ok=yes
-                      BLAS_LIBS="-mkl=parallel"],
-                     [], [-mkl=parallel])
+	save_LIBS="$LIBS"; LIBS="-mkl=parallel $LIBS"
+	AC_MSG_CHECKING([if $sgemm is available with -mkl=parallel])
+	AC_TRY_LINK_FUNC($sgemm, [acx_blas_ok=yes;BLAS_LIBS="-mkl=parallel"])
+        AC_MSG_RESULT($acx_blas_ok)
+	LIBS="$save_LIBS"
+fi
+
+# BLAS in SSL2 library (Fujitsu)?
+if test $acx_blas_ok = no; then
+	save_LIBS="$LIBS"; LIBS="-SSL2 $LIBS"
+	AC_MSG_CHECKING([if $sgemm is available with -SSL2])
+	AC_TRY_LINK_FUNC($sgemm, [acx_blas_ok=yes;BLAS_LIBS="-SSL2"])
+        AC_MSG_RESULT($acx_blas_ok)
+	LIBS="$save_LIBS"
 fi
 
 # BLAS in ATLAS library? (http://math-atlas.sourceforge.net/)
@@ -136,13 +149,6 @@ fi
 # BLAS in Intel MKL library?
 if test $acx_blas_ok = no; then
 	AC_CHECK_LIB(mkl, $sgemm, [acx_blas_ok=yes;BLAS_LIBS="-lmkl"])
-fi
-
-# BLAS in SSL2 library?
-if test $acx_blas_ok = no; then
-	save_LIBS="$LIBS"; LIBS="-SSL2 $LIBS"
-	AC_CHECK_FUNC($sgemm, [acx_blas_ok=yes;BLAS_LIBS="-SSL2"])
-	LIBS="$save_LIBS"
 fi
 
 # BLAS in Apple vecLib library?
