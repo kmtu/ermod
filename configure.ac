@@ -296,7 +296,18 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
 
 # Check OpenMP
 AS_IF([test "$enable_openmp" != "no"],
-  [FCFLAGS="$FCFLAGS $OPENMP_FCFLAGS"])
+  [FCFLAGS="$FCFLAGS $OPENMP_FCFLAGS"
+   # Check OpenMP version
+   AC_MSG_CHECKING([whether OpenMP version >= 3.0])
+   AC_COMPILE_IFELSE(
+     [AC_LANG_PROGRAM([], [dnl
+!\$omp task
+  print *, "test"
+!\$omp end task
+])], 
+     [AC_MSG_RESULT([yes])], 
+     [AC_MSG_RESULT([no])
+      AC_MSG_ERROR([OpenMP must be >= 3.0])])])
 
 # AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
 AM_CONDITIONAL([USE_FFTW], [test x$with_fft = xfftw])
@@ -311,10 +322,15 @@ Try specifying --with-lapack=<lib> options or set FCFLAGS/FLIBS environment vari
 
 lapack_result="$LAPACK_LIBS $BLAS_LIBS"
 
-
 AC_CONFIG_FILES([Makefile])
 AC_CONFIG_HEADERS([config.h])
 AC_OUTPUT
+
+AS_IF([test "$enable_openmp" != "no" && test "$with_fft" = "fftw" && test "$have_fftw3_mp" != "yes"],
+  [AC_MSG_WARN([dnl
+OpenMP is enabled, but your FFTW does not support multithreading.
+This results in lower FFTW performance.
+It is recommended to recompile FFTW library with --enable-omp or --enable-threads; see the FFTW manual for details.])])
 
 AC_MSG_RESULT([dnl
 LAPACK: $lapack_result
