@@ -54,7 +54,7 @@ contains
     real(8), intent(out) :: cell(3,3)
     integer, intent(out) :: status
 
-    read(htraj%iohandle, err = 999) ! read cells, coodinates, etc.
+    read(htraj%iohandle, err = 999, eof = 999) ! read cells, coodinates, etc.
     ! if necessary, angles_to_cell_vector() in module utility will help
 
     status = 0
