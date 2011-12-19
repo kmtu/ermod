@@ -569,8 +569,8 @@ contains
        end do
        endfile(73)
        close(73)
-731    format(i5,f15.3)
-732    format(i5,f15.3,g17.5)
+731    format(i5,g15.5)
+732    format(i5,g15.5,g17.5)
        open(77,file='uvrange.tt',status='new')
        write(77,771)
        do pti=0,numslv
