@@ -28,7 +28,8 @@ contains
 
   subroutine fft_set_size(fftsize_in)
 #ifdef FFTW
-    !$ import omp
+    !$ use omp_lib, only: omp_get_num_threads
+    external dfftw_init_threads
 #endif
     integer, intent(in) :: fftsize_in(3)  
     fftsize(:) = fftsize_in(:)

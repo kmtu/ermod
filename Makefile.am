@@ -20,7 +20,7 @@ CLEANFILES = *.mod
 
 if USE_FFTW
 FFTFLAGS = -DFFTW
-FFTLIBS = -lfftw3
+FFTLIBS = $(FFTWLIBS)
 endif
 
 if USE_MKL

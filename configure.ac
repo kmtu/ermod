@@ -178,11 +178,13 @@ AC_ARG_WITH([fft],
 )
 
 # Search for fftw3 - libfftw3.a
-AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes], [have_fftw3=no], [-lm])
+AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes;FFTWLIBS=-lfftw3], [have_fftw3=no], [-lm])
 have_fftw3_mp=no
 AS_IF([test "$enable_openmp" != no],
   [AC_CHECK_LIB([fftw3_threads], [dfftw_init_threads], [have_fftw3_mp=yes;fftw3_mp=-lfftw3_threads], [], [-lfftw3 -lm])
-   AC_CHECK_LIB([fftw3_omp], [dfftw_init_threads], [have_fftw3_mp=yes;fftw3_mp=-lfftw3_omp], [], [-lfftw3 -lm $OPENMP_FCFLAGS])])
+   AC_CHECK_LIB([fftw3_omp], [dfftw_init_threads], [have_fftw3_mp=yes;fftw3_mp=-lfftw3_omp], [], [-lfftw3 -lm $OPENMP_FCFLAGS])]
+   FFTWLIBS="$fftw3_mp $FFTWLIBS")
+AC_SUBST([FFTWLIBS])
 
 AS_IF([test "x$with_fft" == xfftw], 
             [AS_IF([test "x$have_fftw3" == xno],
