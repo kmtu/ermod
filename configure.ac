@@ -18,11 +18,15 @@ ACX_MPI_MY
 AC_LANG(Fortran)
 ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 
+: ${enable_openmp=no}
+AC_ARG_ENABLE([openmp],
+              AS_HELP_STRING([--enable-openmp],
+                             [use OpenMP]))
+AC_OPENMP
+
 AS_IF([test "x$FC" = "x"],
       [AC_MSG_ERROR("Failed to find Fortran Compiler (Fortran 90). Set environment variable FC to work around")]
       [])
-
-AC_OPENMP
 
 AC_ARG_ENABLE([vmdplugin],
 	AS_HELP_STRING([--disable-vmdplugin],
@@ -175,8 +179,10 @@ AC_ARG_WITH([fft],
 
 # Search for fftw3 - libfftw3.a
 AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes], [have_fftw3=no], [-lm])
-AC_CHECK_LIB([fftw3_threads], [dfftw_init_threads], [have_fftw3_mp=yes], [have_fftw3_mp=no], [-lfftw3 -lm])
-AC_CHECK_LIB([fftw3_omp], [dfftw_init_threads], [have_fftw3_mp=yes], [have_fftw3_mp=no], [-lfftw3 -lm $OPENMP_FCFLAGS])
+have_fftw3_mp=no
+AS_IF([test "$enable_openmp" != no],
+  [AC_CHECK_LIB([fftw3_threads], [dfftw_init_threads], [have_fftw3_mp=yes;fftw3_mp=-lfftw3_threads], [], [-lfftw3 -lm])
+   AC_CHECK_LIB([fftw3_omp], [dfftw_init_threads], [have_fftw3_mp=yes;fftw3_mp=-lfftw3_omp], [], [-lfftw3 -lm $OPENMP_FCFLAGS])])
 
 AS_IF([test "x$with_fft" == xfftw], 
             [AS_IF([test "x$have_fftw3" == xno],
@@ -285,8 +291,11 @@ AS_IF([test x$enable_opt = xyes || test x$enable_opt = x],
          esac])
    FCFLAGS="$FCFLAGS $optflag"])
 
-# AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
+# Check OpenMP
+AS_IF([test "$enable_openmp" != "no"],
+  [FCFLAGS="$FCFLAGS $OPENMP_FCFLAGS"])
 
+# AM_CONDITIONAL([MPI], [test x$use_mpi = xyes])
 AM_CONDITIONAL([USE_FFTW], [test x$with_fft = xfftw])
 AM_CONDITIONAL([USE_MKL], [test x$with_fft = xmkl])
 AM_CONDITIONAL([USE_VMDPLUGIN], [test x$enable_vmdplugin = xyes || test x$enable_vmdplugin = x])
@@ -308,6 +317,7 @@ AC_MSG_RESULT([dnl
 LAPACK: $lapack_result
 FFT: $with_fft
 MPI: $mpi_result
+OpenMP: $enable_openmp
 FCFLAGS=$FCFLAGS
 
 Configuration complete; type \"make\" to start compiling])

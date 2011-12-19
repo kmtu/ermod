@@ -27,8 +27,14 @@ module fft_iface
 contains 
 
   subroutine fft_set_size(fftsize_in)
+#ifdef FFTW
+    !$ import omp
+#endif
     integer, intent(in) :: fftsize_in(3)  
     fftsize(:) = fftsize_in(:)
+#ifdef FFTW
+    !$ call dfftw_init_threads(omp_get_num_threads())
+#endif
   end subroutine fft_set_size
 
 #ifdef MKL
