@@ -174,7 +174,9 @@ AC_ARG_WITH([fft],
 )
 
 # Search for fftw3 - libfftw3.a
-AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes], [have_fftw3=no])
+AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes], [have_fftw3=no], [-lm])
+AC_CHECK_LIB([fftw3_threads], [dfftw_init_threads], [have_fftw3_mp=yes], [have_fftw3_mp=no], [-lfftw3 -lm])
+AC_CHECK_LIB([fftw3_omp], [dfftw_init_threads], [have_fftw3_mp=yes], [have_fftw3_mp=no], [-lfftw3 -lm $OPENMP_FCFLAGS])
 
 AS_IF([test "x$with_fft" == xfftw], 
             [AS_IF([test "x$have_fftw3" == xno],
