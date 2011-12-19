@@ -178,6 +178,7 @@ AC_ARG_WITH([fft],
 )
 
 # Search for fftw3 - libfftw3.a
+FFTWLIBS=
 AC_CHECK_LIB([fftw3], [dfftw_execute], [have_fftw3=yes;FFTWLIBS=-lfftw3], [have_fftw3=no], [-lm])
 have_fftw3_mp=no
 AS_IF([test "$enable_openmp" != no],
