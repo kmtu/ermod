@@ -230,7 +230,7 @@ contains
 
     ismax=numsite(i)
 
-    !$omp parallel do reduction(+:pairep)
+    !$omp parallel do private(is,js,ati,atj,chr2,epcl,rst,dis2,xst) reduction(+:pairep)
     do is=1,ismax
        ati=specatm(is,i)
 
