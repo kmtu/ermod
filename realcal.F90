@@ -458,6 +458,7 @@ contains
     do u3 = 0, block_size(3) - 1
        do u2 = 0, block_size(2) - 1
           do u1 = 0, block_size(1) - 1
+             !$omp task
              upos = u1 + block_size(1) * (u2 + block_size(2) * u3)
              if(psum_solu(upos + 1) /= psum_solu(upos)) then ! if solute have atoms in the block
                 do i = 1, subcell_num_neighbour
@@ -489,9 +490,11 @@ contains
                    endif
                 end do
              end if
+             !$omp end task
           end do
        end do
     end do
+    !$omp taskwait
   end subroutine get_pair_energy
 
   ! Computational kernel to calculate distance between particles
