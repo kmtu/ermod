@@ -38,7 +38,7 @@ module realcal
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
     use engmain, only: numsite
-    !$ use omp_lib, only: omp_get_num_threads
+    !$ use omp_lib, only: omp_get_num_procs
     integer, intent(in) :: target_solu, tagpt(:), slvmax
     real, intent(out) :: uvengy(0:slvmax)
     real, allocatable :: eng(:, :)
@@ -46,7 +46,7 @@ contains
     integer :: npar
 
     npar = 1
-    !$ npar = omp_get_num_threads()
+    !$ npar = omp_get_num_procs()
     
     ! print *, "DEBUG: relcal_proc called"
     ! FIXME: fix calling convention & upstream call tree
@@ -455,8 +455,9 @@ contains
     integer :: i, upos, vpos_base, vpos_line_end, vpos_begin, vpos_end
     integer :: xlen
 
-    !$omp parallel do default(firstprivate) &
-    !$omp   private(u1,u2,u3,upos,vbs) shared(energy_vec) collapse(3) &
+    !$omp parallel do default(shared) &
+    !$omp   private(u1, u2, u3, upos, i, vbs, vpos_begin, vpos_base, vpos_end, vpos_line_end, xlen) &
+    !$omp   shared(energy_vec) collapse(3) &
     !$omp   schedule(dynamic)
     do u3 = 0, block_size(3) - 1
        do u2 = 0, block_size(2) - 1
