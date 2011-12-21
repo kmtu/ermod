@@ -38,16 +38,13 @@ module realcal
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
     use engmain, only: numsite
-    !$ use omp_lib, only: omp_get_num_procs
+    !$ use omp_lib, only: omp_get_num_threads
     integer, intent(in) :: target_solu, tagpt(:), slvmax
     real, intent(out) :: uvengy(0:slvmax)
     real, allocatable :: eng(:, :)
     integer :: lsize, i, j
     integer :: npar
 
-    npar = 1
-    !$ npar = omp_get_num_procs()
-    
     ! print *, "DEBUG: relcal_proc called"
     ! FIXME: fix calling convention & upstream call tree
     ! to calculate several solutes at once
@@ -88,6 +85,10 @@ contains
        end do
     end do
     lsize = max_solu_block * max_solv_block
+
+    !$omp parallel
+    npar = 1
+    !$ npar = omp_get_num_threads()
     
     allocate(ljeps_lowlj(lsize, npar), ljsgm2_lowlj(lsize, npar), dist_lowlj(lsize, npar), belong_lowlj(lsize, npar))
     allocate(ljeps_switch(lsize, npar), ljsgm2_switch(lsize, npar), dist_switch(lsize, npar), belong_switch(lsize, npar))
@@ -99,6 +100,7 @@ contains
     allocate(eng(1:slvmax, npar))
     eng(:, :) = 0
     call get_pair_energy(eng)
+    !$omp end parallel
 
     uvengy(1:slvmax) = sum(eng(1:slvmax, 1:npar), 2)
 
@@ -456,15 +458,14 @@ contains
     integer :: i, upos, vpos_base, vpos_line_end, vpos_begin, vpos_end
     integer :: xlen
 
-    !$omp parallel do default(shared) &
-    !$omp   private(u1, u2, u3, upos, i, vbs, vpos_begin, vpos_base, vpos_end, vpos_line_end, xlen) &
-    !$omp   shared(energy_vec) collapse(3) &
-    !$omp   schedule(dynamic)
     do u3 = 0, block_size(3) - 1
        do u2 = 0, block_size(2) - 1
           do u1 = 0, block_size(1) - 1
              upos = u1 + block_size(1) * (u2 + block_size(2) * u3)
              if(psum_solu(upos + 1) /= psum_solu(upos)) then ! if solute have atoms in the block
+                !$omp task &
+                !$omp   private(u1, u2, u3, upos, i, vbs, vpos_begin, vpos_base, vpos_end, vpos_line_end, xlen) &
+                !$omp   shared(energy_vec)
                 do i = 1, subcell_num_neighbour
                    vbs(2) = mod(u2 + subcell_neighbour(2, i) , block_size(2))
                    vbs(3) = mod(u3 + subcell_neighbour(3, i) , block_size(3))
@@ -493,11 +494,11 @@ contains
                       endif
                    endif
                 end do
+                !$omp end task
              end if
           end do
        end do
     end do
-    !$omp end parallel do
   end subroutine get_pair_energy
 
   ! Computational kernel to calculate distance between particles
