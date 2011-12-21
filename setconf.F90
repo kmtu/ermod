@@ -606,7 +606,9 @@ contains
        open(file = perm_file, unit = perm_io, status = 'old', action = 'read', iostat = stat)
        if(stat == 0) then
           ! file successfully opened
-          write(stdout, *) "Reading permutation information"
+          if(myrank == 0) then
+             write(stdout, *) "Reading permutation information"
+          endif
           allocate(permutation(OUTatm))
           do i = 1, OUTatm
              read(perm_io, *) permutation(i)
