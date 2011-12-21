@@ -455,8 +455,7 @@ contains
     integer :: i, upos, vpos_base, vpos_line_end, vpos_begin, vpos_end
     integer :: xlen
 
-    !$omp parallel
-    !$omp do default(firstprivate) &
+    !$omp parallel do default(firstprivate) &
     !$omp   private(u1,u2,u3,upos,vbs) collapse(3) &
     !$omp   schedule(dynamic)
     do u3 = 0, block_size(3) - 1
@@ -496,6 +495,7 @@ contains
           end do
        end do
     end do
+    !$omp end parallel do
   end subroutine get_pair_energy
 
   ! Computational kernel to calculate distance between particles
