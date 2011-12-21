@@ -456,7 +456,7 @@ contains
     integer :: xlen
 
     !$omp parallel do default(firstprivate) &
-    !$omp   private(u1,u2,u3,upos,vbs) collapse(3) &
+    !$omp   private(u1,u2,u3,upos,vbs) shared(energy_vec) collapse(3) &
     !$omp   schedule(dynamic)
     do u3 = 0, block_size(3) - 1
        do u2 = 0, block_size(2) - 1
