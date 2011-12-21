@@ -14,13 +14,13 @@ module realcal
 
   integer :: max_solu_block, max_solv_block
 
-  real, allocatable :: ljeps_lowlj(:), ljsgm2_lowlj(:), dist_lowlj(:)
-  integer, allocatable :: belong_lowlj(:)
-  real, allocatable :: ljeps_switch(:), ljsgm2_switch(:), dist_switch(:)
-  integer, allocatable :: belong_switch(:)
-  real, allocatable :: charge_el(:), dist_el(:)
-  integer, allocatable :: belong_el(:)
-  real, allocatable :: e_t(:)
+  real, allocatable :: ljeps_lowlj(:, :), ljsgm2_lowlj(:, :), dist_lowlj(:, :)
+  integer, allocatable :: belong_lowlj(:, :)
+  real, allocatable :: ljeps_switch(:, :), ljsgm2_switch(:, :), dist_switch(:, :)
+  integer, allocatable :: belong_switch(:, :)
+  real, allocatable :: charge_el(:, :), dist_el(:, :)
+  integer, allocatable :: belong_el(:, :)
+  real, allocatable :: e_t(:, :)
 
   ! subcell_neighbour only stores the neighbour list on y-z plane. x direction is stored on subcell_xlen.
   ! (looks like sub"pillar" rather than cell)
@@ -38,10 +38,15 @@ module realcal
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
     use engmain, only: numsite
+    !$ use omp_lib, only: omp_get_num_threads
     integer, intent(in) :: target_solu, tagpt(:), slvmax
     real, intent(out) :: uvengy(0:slvmax)
-    real, allocatable :: eng(:)
+    real, allocatable :: eng(:, :)
     integer :: lsize, i, j
+    integer :: npar
+
+    npar = 1
+    !$ npar = omp_get_num_threads()
     
     ! print *, "DEBUG: relcal_proc called"
     ! FIXME: fix calling convention & upstream call tree
@@ -84,18 +89,18 @@ contains
     end do
     lsize = max_solu_block * max_solv_block
     
-    allocate(ljeps_lowlj(lsize), ljsgm2_lowlj(lsize), dist_lowlj(lsize), belong_lowlj(lsize))
-    allocate(ljeps_switch(lsize), ljsgm2_switch(lsize), dist_switch(lsize), belong_switch(lsize))
-    allocate(charge_el(lsize), dist_el(lsize), belong_el(lsize))
-    allocate(e_t(lsize))
+    allocate(ljeps_lowlj(lsize, npar), ljsgm2_lowlj(lsize, npar), dist_lowlj(lsize, npar), belong_lowlj(lsize, npar))
+    allocate(ljeps_switch(lsize, npar), ljsgm2_switch(lsize, npar), dist_switch(lsize, npar), belong_switch(lsize, npar))
+    allocate(charge_el(lsize, npar), dist_el(lsize, npar), belong_el(lsize, npar))
+    allocate(e_t(lsize, npar))
     ! assertion
     ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
 
-    allocate(eng(1:slvmax))
-    eng(:) = 0
+    allocate(eng(1:slvmax, npar))
+    eng(:, :) = 0
     call get_pair_energy(eng)
 
-    uvengy(1:slvmax) = eng(1:slvmax)
+    uvengy(1:slvmax) = sum(eng(1:slvmax, 1:npar), 2)
 
     deallocate(ljeps_lowlj, ljsgm2_lowlj, dist_lowlj, belong_lowlj)
     deallocate(ljeps_switch, ljsgm2_switch, dist_switch, belong_switch)
@@ -444,7 +449,7 @@ contains
   subroutine get_pair_energy(energy_vec)
     ! calculate for each subcell
     ! cut-off by subcell distance
-    real, intent(out) :: energy_vec(:)
+    real, intent(out) :: energy_vec(:, :)
     integer :: u1, u2, u3
     integer :: vbs(3)
     integer :: i, upos, vpos_base, vpos_line_end, vpos_begin, vpos_end
@@ -493,19 +498,23 @@ contains
   subroutine get_pair_energy_block(upos, vpos_b, vpos_e, energy_vec)
     use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, screen, charge,&
          ljtype, ljtype_max, ljene_mat, ljlensq_mat
+    !$ use omp_lib, only: omp_get_thread_num
     implicit none
     integer, intent(in) :: upos, vpos_b, vpos_e
-    real, intent(out) :: energy_vec(:)
+    real, intent(out) :: energy_vec(:, :)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
     real :: crdu(3), crdv(3), d(3), dist, r, dist_next
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
     real :: upljcut2, lwljcut2, elecut2, half_cell(3)
     integer :: n_lowlj, n_switch, n_el
-    integer :: i
+    integer :: i, curp
     
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
+
+    curp = 1
+    !$ curp = omp_get_thread_num() + 1
 
     half_cell(:) = 0.5 * cell_len_normal(:)
 
@@ -553,23 +562,23 @@ contains
           ! lines up all variables, to enable vectorization in 2nd phase
           if(dist <= lwljcut2) then
              n_lowlj = n_lowlj + 1
-             ljeps_lowlj (n_lowlj) = ljene_mat(ljtype_v, ljtype_u)
-             ljsgm2_lowlj(n_lowlj) = ljlensq_mat(ljtype_v, ljtype_u)
-             dist_lowlj(n_lowlj) = dist
-             belong_lowlj(n_lowlj) = belong_v
+             ljeps_lowlj (n_lowlj, curp) = ljene_mat(ljtype_v, ljtype_u)
+             ljsgm2_lowlj(n_lowlj, curp) = ljlensq_mat(ljtype_v, ljtype_u)
+             dist_lowlj(n_lowlj, curp) = dist
+             belong_lowlj(n_lowlj, curp) = belong_v
           elseif(dist <= upljcut2) then
              n_switch = n_switch + 1
-             ljeps_switch (n_switch) = ljene_mat(ljtype_v, ljtype_u)
-             ljsgm2_switch(n_switch) = ljlensq_mat(ljtype_v, ljtype_u)
-             dist_switch(n_switch) = dist
-             belong_switch(n_switch) = belong_v
+             ljeps_switch (n_switch, curp) = ljene_mat(ljtype_v, ljtype_u)
+             ljsgm2_switch(n_switch, curp) = ljlensq_mat(ljtype_v, ljtype_u)
+             dist_switch(n_switch, curp) = dist
+             belong_switch(n_switch, curp) = belong_v
           end if
           
           if(dist <= elecut2) then
              n_el = n_el + 1
-             charge_el(n_el) = charge(ua) * charge(va)
-             dist_el(n_el) = dist
-             belong_el(n_el) = belong_v
+             charge_el(n_el, curp) = charge(ua) * charge(va)
+             dist_el(n_el, curp) = dist
+             belong_el(n_el, curp) = belong_v
           end if
        end do
     end do
@@ -581,33 +590,33 @@ contains
 
     ! LJ inside low cutoff
     do i = 1, n_lowlj
-       rtp1 = ljsgm2_lowlj(i) / dist_lowlj(i)
+       rtp1 = ljsgm2_lowlj(i, curp) / dist_lowlj(i, curp)
        rtp2 = rtp1 * rtp1 * rtp1
-       e_t(i) = 4.0e0 * ljeps_lowlj(i) * rtp2 * (rtp2 - 1.0e0)
+       e_t(i, curp) = 4.0e0 * ljeps_lowlj(i, curp) * rtp2 * (rtp2 - 1.0e0)
     end do
     do i = 1, n_lowlj
-       energy_vec(belong_lowlj(i)) = energy_vec(belong_lowlj(i)) + e_t(i)
+       energy_vec(belong_lowlj(i, curp), curp) = energy_vec(belong_lowlj(i, curp), curp) + e_t(i, curp)
     end do
 
     ! LJ switching region
     do i = 1, n_switch
-       rtp1 = ljsgm2_switch(i) / dist_switch(i)
+       rtp1 = ljsgm2_switch(i, curp) / dist_switch(i, curp)
        rtp2 = rtp1 * rtp1 * rtp1
-       e_t(i) = 4.0e0 * ljeps_switch(i) * rtp2 * (rtp2 - 1.0e0) * &
-            (2.0e0 * dist_switch(i) + upljcut2 - 3.0e0 * lwljcut2) * &
-            ((dist_switch(i) - upljcut2) ** 2) * (1.0 / (upljcut2 - lwljcut2) ** 3)
+       e_t(i, curp) = 4.0e0 * ljeps_switch(i, curp) * rtp2 * (rtp2 - 1.0e0) * &
+            (2.0e0 * dist_switch(i, curp) + upljcut2 - 3.0e0 * lwljcut2) * &
+            ((dist_switch(i, curp) - upljcut2) ** 2) * (1.0 / (upljcut2 - lwljcut2) ** 3)
     end do
     do i = 1, n_switch
-       energy_vec(belong_switch(i)) = energy_vec(belong_switch(i)) + e_t(i)
+       energy_vec(belong_switch(i, curp), curp) = energy_vec(belong_switch(i, curp), curp) + e_t(i, curp)
     end do
 
     ! ewald electrostatic
     do i = 1, n_el
-       r = sqrt(dist_el(i))
-       e_t(i) = charge_el(i) * (1.0e0 - erf(screen * r)) / r
+       r = sqrt(dist_el(i, curp))
+       e_t(i, curp) = charge_el(i, curp) * (1.0e0 - erf(screen * r)) / r
     end do
     do i = 1, n_el
-       energy_vec(belong_el(i)) = energy_vec(belong_el(i)) + e_t(i)
+       energy_vec(belong_el(i, curp), curp) = energy_vec(belong_el(i, curp), curp) + e_t(i, curp)
     end do
   end subroutine get_pair_energy_block
 
