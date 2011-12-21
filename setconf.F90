@@ -582,8 +582,9 @@ contains
     integer, intent(in) :: maxread
     integer, intent(out) :: actual_read
     
-    real, dimension(:,:), allocatable :: OUTpos,OUTcell
-    real :: weight
+    real, dimension(:,:), allocatable :: OUTpos, OUTcell, readpos
+    real :: readcell(3, 3)
+    real :: weight, readweight
     integer i,m,k,OUTatm, iproc, nread
     character*3 rdconf
 
@@ -596,6 +597,7 @@ contains
     do i=1,nummol
        if(sluvid(i).le.1) OUTatm=OUTatm+numsite(i) ! only solvent & solute; no test particles
     end do
+    if(myrank == 0) allocate(readpos(3, OUTatm))
     allocate( OUTpos(3,OUTatm), OUTcell(3,3) )
 
     ! first time setup: read index permutation
@@ -625,20 +627,25 @@ contains
           do iproc = 1, nread
              ! get configuration and store in OUTpos / OUTcell
              do i = 1, skpcnf
-                call OUTconfig(OUTpos,OUTcell,OUTatm,boxshp,0,rdconf)
-                call read_weight(weight)
+                call OUTconfig(readpos,readcell,OUTatm,boxshp,0,rdconf)
+                call read_weight(readweight)
              end do
              
              if(iproc /= 1) then
 #ifndef noMPI
                 ! FIXME: rewrite with grouping and scatter?
-                call mpi_send(OUTpos, 3 * OUTatm, &
+                call mpi_send(readpos, 3 * OUTatm, &
                      mpi_double_precision, iproc - 1, tag_coord, mpi_comm_world, ierror)
-                call mpi_send(OUTcell, 3 * 3, &
+                call mpi_send(readcell, 3 * 3, &
                      mpi_double_precision, iproc - 1, tag_cell, mpi_comm_world, ierror)
-                call mpi_send(weight, 1, &
+                call mpi_send(readweight, 1, &
                      mpi_double_precision, iproc - 1, tag_weight, mpi_comm_world, ierror)
 #endif
+             else
+                ! if this causes memory bottleneck, rewrite with in-place permutation
+                OUTpos(:, :) = readpos(:, :)
+                OUTcell(:, :) = readcell(:, :)
+                weight = readweight
              endif
           end do
        else
@@ -661,6 +668,7 @@ contains
        stat_weight_solution = weight
     endif
 
+    if(myrank == 0) deallocate(readpos)
     deallocate( OUTpos,OUTcell )
     actual_read = nread
 
