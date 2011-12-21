@@ -20,14 +20,17 @@ module mpiproc                                                   ! MPI
   ! for performance counter
   integer :: prev_state_num
   real(8) :: prev_time
-  real(8) :: times(6)
-  character(len=8), parameter :: timer_names(6) = (/&
+  real(8) :: times(9)
+  character(len=8), parameter :: timer_names(9) = (/&
        "RealBlck", &
-       "undefs  ", &
-       "undefs  ", &
-       "undefs  ", &
-       "undefs  ", &
-       "undefs  " /)
+       "RealSelf", &
+       "RecpChrg", &
+       "RecpFFT ", &
+       "RecpU-V ", &
+       "RecpSelf", &
+       "RecpGren", &
+       "RecpPrep", &
+       "RealPrep" /)
 
 contains
   subroutine mpi_setup(type)                                       ! MPI
@@ -149,6 +152,22 @@ contains
        select case(state)
        case("rblk")
           prev_state_num = 1
+       case("rslf")
+          prev_state_num = 2
+       case("kchg")
+          prev_state_num = 3
+       case("kfft")
+          prev_state_num = 4
+       case("kuve")
+          prev_state_num = 5
+       case("kslf")
+          prev_state_num = 6
+       case("kgrn")
+          prev_state_num = 7
+       case("kpre")
+          prev_state_num = 8
+       case("rpre")
+          prev_state_num = 9
        end select
     end if
 #endif

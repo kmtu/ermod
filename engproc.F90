@@ -357,16 +357,20 @@ contains
           
           ! check whether cell size changes
           ! recpcal is called only when cell size differ
+          call perf_time("kgrn")
           if((.not. pme_initialized) .or. &
                (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
+          call perf_time()
           prevcl(:, :) = cell(:, :)
           
           pme_initialized = .true.
-          
+
+          call perf_time("kpre")
           do k=1,slvmax
              i=tagpt(k)
              call recpcal_prepare_solvent(i)
           end do
+          call perf_time()
        endif
 
        ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
@@ -691,7 +695,9 @@ contains
        call perf_time("rblk")
        call realcal_proc(tagslt, tagpt, slvmax, uvengy)
        call perf_time()
+       call perf_time("kslf")
        call recpcal_self_energy(uvengy(0))
+       call perf_time()
     endif
 
     ! solute-solute self energy
@@ -704,7 +710,9 @@ contains
        ! though the self energy will not change.
        pairep = usreal ! reuse
     else
+       call perf_time("rslf")
        call realcal_self(tagslt, pairep) ! calculate self-interaction
+       call perf_time()
        usreal = pairep
     endif
     solute_hash = current_solute_hash

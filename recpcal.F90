@@ -153,6 +153,7 @@ contains
   subroutine recpcal_prepare_solute(tagslt)
     use engmain, only: ms1max, ms2max, ms3max, sitepos, invcl, numsite, splodr, specatm, charge
     use fft_iface, only: fft_ctr, fft_rtc
+    use mpiproc, only: perf_time
     implicit none
     integer, intent(in) :: tagslt
     real :: xst(3), inm(3)
@@ -165,6 +166,7 @@ contains
 
     stmax=numsite(tagslt)
     allocate( splval(0:splodr-1,3,stmax),grdval(3,stmax) )
+    call perf_time("kchg")
     call calc_spline_molecule(tagslt, stmax, splval(:,:,1:stmax), grdval(:,1:stmax))
     cnvslt(:, :, :)=0.0e0
     do sid=1,stmax
@@ -183,9 +185,13 @@ contains
           end do
        end do
     end do
+    call perf_time()
 
+    call perf_time("kfft")
     call fft_rtc(handle_r2c, cnvslt, rcpslt)                         ! 3D-FFT
+    call perf_time()
 
+    call perf_time("kslf")
     ! original form is:
     ! 0.5 * sum(engfac(:, :, :) * real(rcpslt_c(:, :, :)) * conjg(rcpslt_c(:, :, :)))
     ! where rcpslt_c(rc1, rc2, rc3) = conjg(rcpslt_buf(ms1max - rc1, ms2max - rc2, ms3max - rc3))
@@ -200,9 +206,15 @@ contains
             sum(engfac(1:ccemax, :, :) * real(rcpslt(1:ccemax, :, :) * conjg(rcpslt(1:ccemax, :, :)))) + &
             0.5 * sum(engfac(0,      :, :) * real(rcpslt(0,      :, :) * conjg(rcpslt(0,      :, :))))
     endif
+    call perf_time()
 
+    call perf_time("kuve")
     rcpslt(:, :, :) = engfac(:, :, :) * rcpslt(:, :, :)
+    call perf_time()
+
+    call perf_time("kfft")
     call fft_ctr(handle_c2r, rcpslt, cnvslt)                    ! 3D-FFT
+    call perf_time()
 
     deallocate( splval,grdval )
   end subroutine recpcal_prepare_solute
@@ -253,7 +265,7 @@ contains
 
   subroutine recpcal_energy(tagslt, i, pairep)
     use engmain, only: ms1max, ms2max, ms3max, splodr, numsite, specatm, sluvid, charge
-    use mpiproc, only: halt_with_error
+    use mpiproc, only: halt_with_error, perf_time
     implicit none
     integer, intent(in) :: tagslt, i
     real, intent(inout) :: pairep
@@ -263,6 +275,7 @@ contains
     integer :: grid1
     complex :: rcpt
 
+    call perf_time("kuve")
     pairep=0.0e0
     k=sluvid(tagslt)
     if(k.eq.0) call halt_with_error('fst')
@@ -302,6 +315,7 @@ contains
           end do
        end do
     endif
+    call perf_time()
   end subroutine recpcal_energy
 
 end module reciprocal
