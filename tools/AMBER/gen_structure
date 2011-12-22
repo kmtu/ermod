@@ -473,6 +473,12 @@ for mode in ["soln", "refs"]:
         print >> fh, " ".join(["%11.5E" % enetable[i][j]
                                for j in range(ntypes)])
     safe_close(fh)
+
+    # Output Extraparam
+    extra = {'sltpick': solute + 1}
+    fh = open("soln/.extraparam", "wt")
+    pickle.dump(extra, fh)
+    safe_close(fh)
                              
     # Output permutation
     log("Output Permutation")

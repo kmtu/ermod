@@ -215,6 +215,17 @@ def parse_log():
         else:
             params['engdiv'] = 5
 
+    params = {}
+    try:
+        ifh = file(".extraparam", "rt")
+        carryover = pickle.load(ifh)
+        ifh.close()
+
+        if mode == "solution" and "sltpick" in carryover:
+            params["sltpick"] = carryover["sltpick"]
+    except OSError:
+        pass
+
     ofh = open("parameters_er", "wt")
     print >> ofh, "&ene_param"
     keys = params.keys()
