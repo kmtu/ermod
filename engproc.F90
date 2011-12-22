@@ -103,7 +103,7 @@ contains
           stop "parameter file does not exist"
        end if
        if(peread.eq.1) then   ! read coordinate parameters from separate file
-          open(unit=ecdio,file=ecdfile,status='old')
+          open(unit=ecdio,file=ecdfile,action='read',status='old')
           read(ecdio,*)        ! comment line
           do i=1,large
              read(ecdio,*,end=3109) q
@@ -238,9 +238,11 @@ contains
     ! Output for energy fluctuation
     if(myrank == 0) then
        if(slttype == CAL_SOLN) then
-          open(unit=io_flcuv,file='flcuv.tt',status='new')   ! open flcuv file
+          ! open flcuv file
+          open(unit=io_flcuv,file='flcuv.tt',status='new', action='write')
        else
-          open(unit=io_flcuv,file='progress.tt')   ! open progress file
+          ! open progress file
+          open(unit=io_flcuv,file='progress.tt', status='new', action='write')
        endif
     endif
 
@@ -558,7 +560,7 @@ contains
     !
     if(division == engdiv) then
        if(slttype.eq.1) then
-          open(unit=75,file='aveuv.tt',status='new')
+          open(unit=75,file='aveuv.tt',action='write')
           do k=1,engdiv
              write(75,751) k,(aveuv(k,pti), pti=1,numslv)
           end do
@@ -566,8 +568,8 @@ contains
           close(75)
 751       format(i5,9999f15.5)
        endif
-       if(slttype.eq.1) open(unit=73,file='weight_soln',status='new')
-       if(slttype.ge.2) open(unit=73,file='weight_refs',status='new')
+       if(slttype.eq.1) open(unit=73,file='weight_soln', action='write')
+       if(slttype.ge.2) open(unit=73,file='weight_refs', action='write')
        do k=1,engdiv
           if(wgtslf.eq.0) write(73,731) k,avediv(k,1)
           if(wgtslf.eq.1) write(73,732) k,avediv(k,1),avediv(k,2)
@@ -576,7 +578,7 @@ contains
        close(73)
 731    format(i5,e15.8)
 732    format(i5,e15.8,e15.7)
-       open(77,file='uvrange.tt',status='new')
+       open(77,file='uvrange.tt',action='write')
        write(77,771)
        do pti=0,numslv
           factor=maxuv(pti)
@@ -610,7 +612,7 @@ contains
           endif
        endif
        if(cntdst.eq.3) engfile='slfeng'//suffeng
-       open(unit=71,file=engfile,status='new', form=trim(formtype))
+       open(unit=71,file=engfile, form=trim(formtype), action='write')
        if(cntdst.eq.1) then
           do iduv=1,ermax
              call repval(iduv,factor,pti,'intn')
