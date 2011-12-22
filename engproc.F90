@@ -366,6 +366,7 @@ contains
           pme_initialized = .true.
 
           call perf_time("kpre")
+          !$omp parallel do schedule(dynamic) private(k, i)
           do k=1,slvmax
              i=tagpt(k)
              call recpcal_prepare_solvent(i)
