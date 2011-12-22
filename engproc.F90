@@ -721,6 +721,7 @@ contains
     uvengy(0) = uvengy(0) + pairep + residual
 
     ! solute-solvent pair
+    !$omp parallel do schedule(dynamic) private(i, k, pairep, factor)
     do k=1,slvmax
        i=tagpt(k)
        if(i.eq.tagslt) cycle
@@ -734,6 +735,7 @@ contains
        else
           call realcal_bare(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
        endif
+       !$omp atomic
        uvengy(k) = uvengy(k) + pairep
     enddo
 
