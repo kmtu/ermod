@@ -31,11 +31,15 @@
 !               1 : constant volume  2 : constant pressure
 !   boxshp : shape of the unit cell box
 !               0 : non-periodic  1 : periodic and parallelepiped
-!   insfit : whether fit to reference structure.
-!               0 : (default) never fit to reference structure
+!   insorigin : the origin of the insertion position
+!               0 : (default) use reference solute coordinate
+!                   The file for the solute configuration
+!                   is SltInfo when slttype = 2 and is SltConf when slttype = 3
 !               1 : fit to reference structure.
 !                   reference structure should be given as RefInfo in PDB format.
 !                   RefInfo should conatin structure specified in refpick, and the solute structure, in order.
+!               2 : mass weighted center is moved to (0, 0, 0)
+!               3 : mass weighted center is moved to system center (defined by hostspec)
 !   insposition : position for the inserted solute
 !               0 : fully random position (within perodic bondary)
 !               1 : spherically random position, with radius specified from lwreg to upreg.
@@ -45,13 +49,13 @@
 !                   Position is much more complex for parallelpiped structure. (see insertion.F90)
 !               3 : fixed position
 !               4 : (experimental) Gaussian random position. Position is given by displacing 
-!                   reference coordinate, or coordinate fit to reference (insfit = 1), with upreg.
+!                   reference coordinate, or coordinate fit to reference (insorigin = 1), with upreg.
 !                   Solute weight is automatically adjusted
 !   inscnd : (deprecated) geometrical condition of the solute configuration
-!               0 : random    (insposition = 0) 
-!               1 : spherical (insposition = 1)
-!               2 : slab      (insposition = 2)
-!               3 : reference (insfit = 1, insposition = 4)
+!               0 : random    (insorigin = 0, insposition = 0) 
+!               1 : spherical (insorigin = 4, insposition = 1)
+!               2 : slab      (insorigin = 4, insposition = 2)
+!               3 : reference (insorigin = 1, insposition = 4)
 !   insorient : orientation for the inserted solute
 !               0 : fixed orientation
 !               1 : random orientation
@@ -179,7 +183,7 @@ module engmain
   integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
   integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsln
   integer :: estype,boxshp
-  integer :: insfit, inscnd, insposition, insorient
+  integer :: insorigin, inscnd, insposition, insorient
   integer :: inscfg,hostspec,ljformat,iseed
   real :: block_threshold
   real :: inptemp,temp
@@ -244,7 +248,7 @@ module engmain
        skpcnf,corrcal, &
        slttype,sltpick,refpick,wgtslf, wgtins, wgtsln, &
        estype,boxshp, &
-       insfit, inscnd, insposition, insorient, inscfg, &
+       insorigin, inscnd, insposition, insorient, inscfg, &
        hostspec, ljformat, &
        inptemp,temp, &
        engdiv,maxins, &

@@ -41,15 +41,13 @@ module ptinsrt
   !
 contains
   subroutine instslt(wgtslcf,caltype)
-    use engmain, only: nummol,slttype,insfit,inscnd,inscfg,numslt,sltlist,iseed, &
+    use engmain, only: nummol,slttype,insorigin,inscnd,inscfg,numslt,sltlist,iseed, &
          numsite, mol_begin_index, sitepos, bfcoord
     implicit none
     integer insml,m
     real wgtslcf,pcom(3),qrtn(0:3)
     character*4 caltype
     character*3 insyn
-
-    integer :: nsite, molb, mole
     
     call instwgt(wgtslcf,caltype)
 
@@ -66,18 +64,10 @@ contains
 
     insml=nummol                                       ! inserted solute
     if(slttype.eq.3) call getsolute(insml,'conf')      ! flexible solute
-    if(insfit == 1) then
-       call reffit(insml)
-    else
-       nsite = numsite(insml)
-       molb = mol_begin_index(insml)
-       mole = mol_begin_index(insml + 1) - 1
-       
-       sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
-    end if
 
     insyn='not'
     do while(insyn.eq.'not')
+       call set_solute_origin(insml)
        call set_shift_com(insml, wgtslcf)
        call apply_orientation(insml)
        call insscheme(insml,insyn)       ! user-defined scheme to apply change / reject configuration
@@ -85,6 +75,36 @@ contains
     
     return
   end subroutine instslt
+
+  subroutine set_solute_origin(insml)
+    use engmain, only: insorigin, &
+         numsite, mol_begin_index, bfcoord, sitepos
+    implicit none
+    integer, intent(in) :: insml
+    integer :: molb, mole, nsite
+    real :: syscen(3)
+
+    nsite = numsite(insml)
+    molb = mol_begin_index(insml)
+    mole = mol_begin_index(insml + 1) - 1
+
+    sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
+
+
+    
+    select case(insorigin)
+    case(0)
+       ! do nothing
+    case(1)
+       call reffit(insml)
+    case(2)
+       syscen(:) = (/ 0., 0., 0. /)
+       call set_solute_com(insml, syscen)
+    case(3)
+       call get_system_com(syscen)
+       call set_solute_com(insml, syscen)
+    end select
+  end subroutine set_solute_origin
 
   subroutine set_shift_com(insml, weight)
     use engmain, only: insposition, inscnd, &
@@ -112,7 +132,6 @@ contains
        call set_solute_com(insml, com)
        return
     case(1) ! spherical random position
-       call get_system_com(syscen)
        ! rejection method. Probability may not be good esp. lwreg ~ upreg.
        do
           do i = 1, 3
@@ -122,14 +141,11 @@ contains
           norm = sum(r ** 2)
           if(norm < 1 .and. norm > (lwreg/upreg) ** 2) exit
        end do
-       com(:) = syscen(:) + r(:) * upreg
-       call set_solute_com(insml, com)
+       com(:) = r(:) * upreg
+       call shift_solute_com(insml, com)
        return
     case(2) ! slab position
        if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
-       
-       call get_system_com(syscen)
-       
        call urand(r(1))
        call urand(r(2))
        
@@ -138,10 +154,10 @@ contains
        
        t = t * (upreg - lwreg) + lwreg
        if(dir > 0.5) t = -t
-       r(3) = t / celllen(3) + dot_product(invcl(3, :), syscen(:))
+       r(3) = t / celllen(3)
        
        com(:) = matmul(cell(:, :), r(:))
-       call set_solute_com(insml, com)
+       call shift_solute_com(insml, com)
        return
     case(3)
        ! fixed position
@@ -208,27 +224,6 @@ contains
       com(:) = matmul(cell(:, :) , scaled_coord(:) / (l_of_sigma(:) * 2))
     end subroutine uniform_gauss_mixture
 
-    subroutine set_solute_com(insml, com)
-      use engmain, only: numsite, &
-           mol_begin_index, mol_end_index, &
-           sitepos, sitemass
-      use bestfit, only: com_shift, com_unshift
-      implicit none
-      integer, intent(in) :: insml
-      real, intent(in) :: com(3)
-      integer :: insb, inse, i, n
-      real :: tempcom(3)
-      
-      n = numsite(insml)
-      insb = mol_begin_index(insml)
-      inse = mol_end_index(insml)
-      
-      call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), tempcom)
-      do i = 1, 3
-         sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
-      end do
-    end subroutine set_solute_com
-
     subroutine shift_solute_com(insml, com)
       use engmain, only: numsite, &
            mol_begin_index, mol_end_index, &
@@ -248,6 +243,29 @@ contains
     end subroutine shift_solute_com
 
   end subroutine set_shift_com
+
+  subroutine set_solute_com(insml, com)
+    use engmain, only: numsite, &
+         mol_begin_index, mol_end_index, &
+         sitepos, sitemass
+    use bestfit, only: com_shift, com_unshift
+    implicit none
+    integer, intent(in) :: insml
+    real, intent(in) :: com(3)
+    integer :: insb, inse, i, n
+    real :: tempcom(3)
+    
+    n = numsite(insml)
+    insb = mol_begin_index(insml)
+    inse = mol_end_index(insml)
+    
+    call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), tempcom)
+    do i = 1, 3
+       sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
+    end do
+  end subroutine set_solute_com
+
+
 
   subroutine apply_orientation(insml)
     use engmain, only: insorient, &

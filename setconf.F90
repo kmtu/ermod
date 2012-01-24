@@ -147,7 +147,7 @@ contains
          iseed,&
          skpcnf,corrcal,&
          slttype,sltpick,refpick,wgtslf,wgtins,wgtsln,&
-         estype,boxshp,inscnd,insposition, insorient, &
+         estype,boxshp,inscnd, insorigin, insposition, insorient, &
          inscfg,hostspec,ljformat,&
          inptemp,temp,&
          engdiv,maxins,&
@@ -201,6 +201,22 @@ contains
        ew2max=ew1max ; ew3max=ew1max
        ms2max=ms1max ; ms3max=ms1max
     endif
+
+    select case(inscnd)
+    case(0)
+       insorigin = 0
+       insposition = 0
+    case(1)
+       insorigin = 4
+       insposition = 1
+    case(2)
+       insorigin = 4
+       insposition = 2
+    case(3)
+       insorigin = 1
+       insposition = 4
+    end select
+
     select case(inscfg)
     case(0)
        insposition = 0
@@ -258,6 +274,7 @@ contains
        if(inscnd.eq.3) call set_stop('ins')
     endif
 
+    if((insorigin < 0).or.(insorigin > 3)) call set_stop('ins')
     if((insposition < 0).or.(insposition > 4)) call set_stop('ins')
     if((insorient < 0).or.(insorient > 1)) call set_stop('ins')
 
