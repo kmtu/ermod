@@ -31,6 +31,7 @@
 !               1 : constant volume  2 : constant pressure
 !   boxshp : shape of the unit cell box
 !               0 : non-periodic  1 : periodic and parallelepiped
+!
 !   insorigin : the origin of the insertion position
 !               0 : (default) use reference solute coordinate
 !                   The file for the solute configuration
@@ -41,7 +42,7 @@
 !               2 : mass weighted center is moved to (0, 0, 0)
 !               3 : mass weighted center is moved to system center (defined by hostspec)
 !   insposition : position for the inserted solute
-!               0 : fully random position (within perodic bondary)
+!               0 : (default) fully random position (within perodic bondary)
 !               1 : spherically random position, with radius specified from lwreg to upreg.
 !               2 : slab random position
 !                   slab geometry inserts solute at z = com(system) + dz and
@@ -51,14 +52,15 @@
 !               4 : (experimental) Gaussian random position. Position is given by displacing 
 !                   reference coordinate, or coordinate fit to reference (insorigin = 1), with upreg.
 !                   Solute weight is automatically adjusted
+!   insorient : orientation for the inserted solute
+!               0 : fixed orientation
+!               1 : (default) random orientation
+!
 !   inscnd : (deprecated) geometrical condition of the solute configuration
 !               0 : random    (insorigin = 0, insposition = 0) 
 !               1 : spherical (insorigin = 4, insposition = 1)
 !               2 : slab      (insorigin = 4, insposition = 2)
 !               3 : reference (insorigin = 1, insposition = 4)
-!   insorient : orientation for the inserted solute
-!               0 : fixed orientation
-!               1 : random orientation
 !   inscfg : (deprecated) position and orientation for the inserted solute
 !               0 : only the intramolecular configuration is from the file. (insposition = 0, insorient = 1)
 !               1 : orientation is fixed from the file with random position (insposition = 0, insorient = 0)

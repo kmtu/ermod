@@ -179,6 +179,11 @@ contains
     ewtoler=1.0e-6 ; elecut=12.0e0
     splodr=4 ; scrtype='dis'
     upljcut=elecut ; lwljcut=upljcut-2.0e0
+    
+    inscnd = -1 ! deprecated
+    inscfg = -1 ! deprecated
+
+    insorigin = 0
     insposition = 0
     insorient = 1
 
@@ -195,7 +200,7 @@ contains
     wgtslf=0 ; wgtins=0 ; wgtsln=0
     if((slttype.ge.2).and.(cltype.ne.0)) wgtslf=1  ! Ewald and PME
     sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1
-    maxins=1000 ; inscnd=0 ; inscfg=0 ; lwreg=0.0e0 ; upreg=5.0e0
+    maxins=1000 ; lwreg=0.0e0 ; upreg=5.0e0
     if(intprm.ne.0) then
        cmbrule=0
        ew2max=ew1max ; ew3max=ew1max
@@ -261,17 +266,14 @@ contains
     if(wgtins.eq.1) then        ! check the consistency of insertion scheme
        if(slttype.ne.3) call set_stop('ins')
     endif
-    if(slttype.eq.1) then
-       inscfg=0   ! inscfg is effective only for insertion
+    if(slttype == CAL_SOLN) then
+       ! insorigin, insposition, insorient is effective only for insertion
+       insorigin = 0
        insposition = 0
        insorient = 1
     endif
     if((inscfg.lt.0).or.(inscfg.gt.2)) then        ! check inscfg parameter
        call set_stop('ins')
-    endif
-    if(inscfg.ne.0) then        ! check the consistency against inscfg
-       if(slttype.eq.1) call set_stop('prs')
-       if(inscnd.eq.3) call set_stop('ins')
     endif
 
     if((insorigin < 0).or.(insorigin > 3)) call set_stop('ins')
