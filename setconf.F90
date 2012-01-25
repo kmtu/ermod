@@ -272,9 +272,6 @@ contains
        insposition = 0
        insorient = 1
     endif
-    if((inscfg.lt.0).or.(inscfg.gt.2)) then        ! check inscfg parameter
-       call set_stop('ins')
-    endif
 
     if((insorigin < 0).or.(insorigin > 3)) call set_stop('ins')
     if((insposition < 0).or.(insposition > 4)) call set_stop('ins')
