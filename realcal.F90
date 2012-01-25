@@ -515,7 +515,7 @@ contains
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
     real :: crdu(3), crdv(3), d(3), dist, r, dist_next
     real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
-    real :: upljcut2, lwljcut2, elecut2, half_cell(3)
+    real :: upljcut2, lwljcut2, elecut2, half_cell(3), e_eps
     integer :: n_lowlj, n_switch, n_el
     integer :: i, curp
     
@@ -569,18 +569,21 @@ contains
           dist_next = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
 
           ! lines up all variables, to enable vectorization in 2nd phase
-          if(dist <= lwljcut2) then
-             n_lowlj = n_lowlj + 1
-             ljeps_lowlj (n_lowlj, curp) = ljene_mat(ljtype_v, ljtype_u)
-             ljsgm2_lowlj(n_lowlj, curp) = ljlensq_mat(ljtype_v, ljtype_u)
-             dist_lowlj(n_lowlj, curp) = dist
-             belong_lowlj(n_lowlj, curp) = belong_v
-          elseif(dist <= upljcut2) then
-             n_switch = n_switch + 1
-             ljeps_switch (n_switch, curp) = ljene_mat(ljtype_v, ljtype_u)
-             ljsgm2_switch(n_switch, curp) = ljlensq_mat(ljtype_v, ljtype_u)
-             dist_switch(n_switch, curp) = dist
-             belong_switch(n_switch, curp) = belong_v
+          e_eps = ljene_mat(ljtype_v, ljtype_u)
+          if(e_eps > 0) then
+             if(dist <= lwljcut2) then
+                n_lowlj = n_lowlj + 1
+                ljeps_lowlj (n_lowlj, curp) = e_eps
+                ljsgm2_lowlj(n_lowlj, curp) = ljlensq_mat(ljtype_v, ljtype_u)
+                dist_lowlj(n_lowlj, curp) = dist
+                belong_lowlj(n_lowlj, curp) = belong_v
+             elseif(dist <= upljcut2) then
+                n_switch = n_switch + 1
+                ljeps_switch (n_switch, curp) = e_eps
+                ljsgm2_switch(n_switch, curp) = ljlensq_mat(ljtype_v, ljtype_u)
+                dist_switch(n_switch, curp) = dist
+                belong_switch(n_switch, curp) = belong_v
+             end if
           end if
           
           if(dist <= elecut2) then
