@@ -674,7 +674,7 @@ contains
     select case(slttype) 
     case(CAL_SOLN)
        tagslt=sltlist(cntdst)
-       call check_mol_configuration(has_error)
+       !call check_mol_configuration(has_error)
        if(has_error) return
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        tagslt=sltlist(1)
