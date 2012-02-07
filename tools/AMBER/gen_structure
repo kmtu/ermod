@@ -4,6 +4,7 @@ import os.path
 import sys
 import re
 import copy
+import pickle
 from optparse import OptionParser
 
 # Some routines are used for 2.3 compatibility

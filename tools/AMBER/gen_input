@@ -5,6 +5,7 @@ import os.path
 import shutil
 import sys
 import re
+import pickle
 from optparse import OptionParser
 
 # Some routines are used for 2.3 compatibility
@@ -80,17 +81,14 @@ parser.add_option("-v", "--verbose", dest = "verbose", action="store_true",
 (options, args) = parser.parse_args()
 
 if options.log == None:
-    print >> sys.stderr, "Error: log file is not specified (try --help)"
-    sys.exit(1)
+    error("log file is not specified (try --help)")
 
 if options.traj == None:
-    print >> sys.stderr, "Error: trajctory file is not specified (try --help)"
-    sys.exit(1)
+    error("Error: trajctory file is not specified (try --help)")
 
 def check_exists(f):
     if not os.path.exists(f):
-        print >> sys.stderr, "Error:", f, "file does not exist"
-        sys.exit(1)
+        error(f + ": file does not exist")
 
 check_exists("MDinfo")
 check_exists("SltInfo")
@@ -197,6 +195,7 @@ def parse_log():
         params['ms3max'] = int(control['NFFT3'])
         params['splodr'] = int(control['Interpolation order'])
         params['screen'] = control['Ewald Coefficient']
+        params['ewtoler'] = control['Tol']
     else:
         params['boxshp'] = 0
         params['cltype'] = 0
@@ -215,7 +214,6 @@ def parse_log():
         else:
             params['engdiv'] = 5
 
-    params = {}
     try:
         ifh = file(".extraparam", "rt")
         carryover = pickle.load(ifh)
@@ -224,6 +222,8 @@ def parse_log():
         if mode == "solution" and "sltpick" in carryover:
             params["sltpick"] = carryover["sltpick"]
     except OSError:
+        pass
+    except IOError:
         pass
 
     ofh = open("parameters_er", "wt")
