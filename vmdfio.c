@@ -231,7 +231,13 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
       if(strncmp(ptr, ext, extlen) == 0 && 
 	 (ptr[extlen] == '\0' || ptr[extlen] == ',')){
 	void* fh;
-	vmdpluginio* pp = malloc(sizeof(vmdpluginio));
+	vmdpluginio* pp;
+	if(p -> abiversion <= 10) {
+	  fprintf(stderr, "Error: \"%s\" supports trajectory format, but it is too old (requires ABI version > 10)\n", p -> prettyname);
+	  continue;
+	}
+
+	pp = malloc(sizeof(vmdpluginio));
 	pp -> plugin = p;
 
 	/* Found, open with this plugin */
