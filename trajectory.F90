@@ -20,7 +20,7 @@ contains
   end subroutine finish_trajectory
 
   ! Open trajectory and returns handle as htraj. 
-  ! Should open fails, the program abends.
+  ! Should open fail, the program abends.
   subroutine open_trajectory(htraj, fname)
     implicit none
     type(handle), intent(inout) :: htraj
