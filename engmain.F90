@@ -78,6 +78,7 @@
 !               2 : epsilon (kJ/mol) and sigma (nm)
 !               3 : A (kcal/mol A^12) and C (kcal/mol A^6)
 !               4 : C12 (kJ/mol nm^12) and C6 (kJ/mol nm^6)
+!               5 : Read from table, LJTable file (sigma as AA and epsilon as kcal/mol)
 !              default = 1
 !   iseed : seed parameter for uniform random number
 !   inptemp : temperature of the system in Kelvin

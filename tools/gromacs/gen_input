@@ -61,7 +61,8 @@ try:
 
     params["ljformat"] = {
         'C6C12': 4,
-        'sigeps': 2
+        'sigeps': 2,
+        'table': 5
         }[carryover["ljformat"]]
 
     params["cmbrule"] = {

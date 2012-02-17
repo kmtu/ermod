@@ -9,7 +9,12 @@ import os.path
 import sys
 import pickle
 import popen2
+import math
 from optparse import OptionParser
+
+if sys.version_info < (2, 6):
+    from sets import Set
+    set = Set
 
 parser = OptionParser()
 
@@ -126,6 +131,7 @@ class topology:
         self.molecules = []
         self.system = []
         self.ljtype = 0
+        self.paircorrection = {}
 
     def process_defaults(self, ls):
         if int(ls[0]) != 1:
@@ -182,6 +188,27 @@ class topology:
         self.atom2charge[aname] = charge
         self.atom2sigma[aname] = sigma
         self.atom2epsilon[aname] = eps
+
+    def process_pairwise_mod(self, ls):
+        # process [ nonbond_params ] section
+        try:
+            functype = int(ls[2])
+        except e:
+            error("LJ function type in [ nonbond_params ] is string, not integer")
+
+        if functype == 2:
+            error("Buckingham LJ is not supported at this moment")
+        elif functype != 1:
+            error("Unknown LJ function type in [ nonbond_params ]")
+        atom1 = ls[0]
+        atom2 = ls[1]
+        try:
+            v = float(ls[3])
+            w = float(ls[4])
+        except e:
+            error("LJ parameter in [ nonbond_params ] is broken")
+        self.paircorrection[(atom1, atom2)] = (v, w)
+        self.paircorrection[(atom2, atom1)] = (v, w)
 
     def process_atoms(self, mtype, ls):
         _anum = ls[0]
@@ -266,6 +293,8 @@ class topology:
                 self.process_defaults(ls)
             if state == "ATOMTYPES":
                 self.process_atomtypes(ls)
+            elif state == "NONBOND_PARAMS":
+                self.process_pairwise_mod(ls)
             elif state == "MOLECULETYPE":
                 self.molecule(ls[0], fh)
                 # for multiple solutes with the same name
@@ -407,6 +436,84 @@ else:
             molno = top.moleculetypes[s]
             mols.append((s, n, False, top.molecules[molno]))
 
+lenconv = 10.0 # nm to angstrom
+eneconv = 1.0e0/4.184e0 # kJ/mol to kcal/mol
+def canonicalize_lj_format(v, w):
+    # Note: I think it is insane to write C6/C12 to eps/sigma conversion table in every program.
+    # It should be cleaned up, but it breaks backward comptibility...
+
+    # Either C6/C12 or sigeps
+    ljformat = carryover["ljformat"]
+
+    if ljformat == "sigeps":
+        # nm to angstrom
+        sig = v
+        eps = w
+    elif ljformat == "C6C12":
+        # convert from C6/C12 to sigeps
+        c6 = v
+        c12 = w
+        eps = 0
+        sig = 0
+        if c12 != 0:
+            f = c12 / c6
+            eps = c6 / (4.0 * f)
+            sig = f ** (1.0 / 6.0)
+    else:
+        assert False, "Unknown LJ format"
+    sig *= lenconv
+    eps *= eneconv
+    return (sig, eps)
+
+# Check whether LJ table is necessary
+use_ljtable = False
+if top.paircorrection != {}:
+    # Generate pair-wise LJ table
+    use_ljtable = True
+
+    # make LJ table
+    # Either geometric or arithmetic
+    ljtype = carryover["ljtype"]
+
+    # List up all atoms used
+    atomsused = set()
+    for (_s, _n, _is_solute, atoms) in mols:
+        for (atype, _atom, _charge, _mass) in atoms:
+            atomsused.add(atype)
+
+    ljatoms = list(atomsused)
+    n = len(ljatoms)
+    atom2num = {}
+    for i in range(n):
+        atom2num[ljatoms[i]] = i
+
+    ljtable = [[0] * n for _ in range(n)]
+
+    # And generate table
+    for i in range(n):
+        for j in range(n):
+            (sigi, epsi) = canonicalize_lj_format(top.atom2sigma[ljatoms[i]], top.atom2epsilon[ljatoms[i]])
+            (sigj, epsj) = canonicalize_lj_format(top.atom2sigma[ljatoms[j]], top.atom2epsilon[ljatoms[j]])
+            if carryover["ljtype"] == "geometric":
+                sig = math.sqrt(sigi * sigj)
+            else:
+                sig = (sigi + sigj) / 2
+            eps = math.sqrt(epsi * epsj)
+            ljtable[i][j] = (sig, eps)
+
+    # Fill in corrections
+    for k in top.paircorrection:
+        (a1, a2) = k
+        (v, w) = top.paircorrection[k]
+        (sig, eps) = canonicalize_lj_format(v, w)
+        if (a1 in ljatoms) and (a2 in ljatoms):
+            i = atom2num[a1]
+            j = atom2num[a2]
+            log("%s - %s: %s replaced with %s" % (a1, a2, repr(ljtable[i][j]), repr((sig, eps))))
+            ljtable[i][j] = (sig, eps)
+
+    carryover["ljformat"] = "table"
+
 def gen(mode):
     if not os.path.exists(mode):
         os.mkdir(mode)
@@ -456,6 +563,9 @@ def gen(mode):
             eps = top.atom2epsilon[atype]
             sig = top.atom2sigma[atype]
             atom = atomtype_of_mass(float(mass))
+            if use_ljtable:
+                eps = float(atom2num[atype] + 1) 
+                sig = 0.
             print >> ofh, ("%d %s %.8g %.8g %.8g" % 
                            (k, atom, charge, eps, sig))
             k += 1
@@ -465,6 +575,22 @@ def gen(mode):
     ofh = file(mode + "/.extraparam", "wt")
     pickle.dump(carryover, ofh)
     safe_close(ofh)
+
+    if use_ljtable:
+        ofh = file(mode + "/LJTable", "wt")
+        n = len(ljatoms)
+        print >> ofh, n
+        # FIXME: len-> eps order is used, but program uses ene -> len order
+        for i in range(n):
+            for j in range(n):
+                print >> ofh, "%+.6e" % ljtable[i][j][0],
+            print >> ofh
+        # eps
+        for i in range(n):
+            for j in range(n):
+                print >> ofh, "%+.6e" % ljtable[i][j][1],
+            print >> ofh
+        safe_close(ofh)
 
 gen("soln")
 gen("refs")
