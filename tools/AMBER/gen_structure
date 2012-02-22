@@ -380,8 +380,8 @@ else:
     atomsall = merged[storeto]["atoms"] * merged[storeto]["nmol"]
     merged[storeto]["atoms"] = atomsall
     merged[storeto]["nmol"] = 1
-    for i in range(len(solute_num)):
-        if i != 0 and solute_num[i] != solute_num[i-1]:
+    for i in range(1, len(solute_num)):
+        if solute_num[i] != solute_num[i-1] + 1:
             error("""Solute is not contiguous.
 Such structure is not supported on this version of gen_structure""")
         # merge them into solute_num[0]
