@@ -211,7 +211,7 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
     if(lastdot == NULL) goto cleanup;
     ext = lastdot + 1;
   }
-  fprintf(stderr, "Opening: %s...\n", buf);
+  fprintf(stderr, "Opening: \"%s\"...\n", buf);
 
   for(i = 0; i < typecounts; ++i){
     int extlen = strlen(ext);
