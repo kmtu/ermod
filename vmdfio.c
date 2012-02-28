@@ -256,7 +256,7 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
 	  /* Special error message for AMBER */
 	  if(strcmp(ext, "nc") == 0) {
 	    fprintf(stderr,
-		    "Perhaps you forgot to specify ioutfm = 1 in AMBER?\n");
+		    "Perhaps you forgot to specify \"ioutfm = 1\" in AMBER?\n");
 	  }
 	  exit(1);
 	}
