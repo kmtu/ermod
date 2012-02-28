@@ -211,7 +211,7 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
     if(lastdot == NULL) goto cleanup;
     ext = lastdot + 1;
   }
-  fprintf(stderr, "Opening: %s...", buf);
+  fprintf(stderr, "Opening: %s...\n", buf);
 
   for(i = 0; i < typecounts; ++i){
     int extlen = strlen(ext);
@@ -232,8 +232,12 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
 	 (ptr[extlen] == '\0' || ptr[extlen] == ',')){
 	void* fh;
 	vmdpluginio* pp;
+
+	fprintf(stderr, "  Trying plugin \"%s\"...", p -> prettyname);
+
 	if(p -> abiversion <= 10) {
 	  fprintf(stderr, "Error: \"%s\" supports trajectory format, but it is too old (requires ABI version > 10)\n", p -> prettyname);
+	  fprintf(stderr, "Please update plugin files to those of the latest VMD's\n");
 	  continue;
 	}
 
@@ -244,11 +248,20 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
 	pp -> natoms = MOLFILE_NUMATOMS_UNKNOWN;
 	fh = (p -> open_file_read)(buf, ext, &(pp->natoms));
 	if(fh == NULL){
-	  fprintf(stderr, "Error while opening %s\n", buf);
+	  fprintf(stderr,
+		  "Error!\n"
+		  "Plugin supports the extension \"%s\", but the file format of \"%s\" does not match to the extension.\n"
+		  "This is either the file format does not match to the file extension, or the trajectory file header is corrupt.\n",
+		  ext, buf);
+	  /* Special error message for AMBER */
+	  if(strcmp(ext, "nc") == 0) {
+	    fprintf(stderr,
+		    "Perhaps you forgot to specify ioutfm = 1 in AMBER?\n");
+	  }
 	  exit(1);
 	}
 	pp -> filehandle = fh;
-	fprintf(stderr, "OK, successfully opened with \"%s\"\n", p -> prettyname);
+	fprintf(stderr, "OK\n");
 
 	*handle = pp;
 	break;
