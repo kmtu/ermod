@@ -168,6 +168,8 @@ def parse_mdp():
 
     logfh.close()
 
+    if temp == 0.0:
+        warn("Warning: failed to obtain correct input temperature. This may happen if you use more than one heat baths in the system. Please manually correct parameters_er.")
     params["inptemp"] = temp
     if mode == "solution":
         save_parameters_fe(temp)
