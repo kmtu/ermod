@@ -143,3 +143,23 @@ int ermod_send_trajctory(void* handle_p, int natoms, double cell[], double coord
   if(r){ show_mpi_error(r); return 1; }
   return 0;
 }
+
+/* Fortran interfaces */
+
+void ermod_connect_(void** handle_p_p)
+{
+  void* ptr = ermod_connect();
+  *handle_p_p = ptr;
+}
+
+void ermod_disconnect_(void** handle_p_p)
+{
+  ermod_disconnect(*handle_p_p);
+}
+
+void ermod_send_trajctory_(void** handle_p_p, int* natoms_p, double cell[], double coords[], int* status_p)
+{
+  int status = ermod_send_trajctory(handle_p_p, *natoms_p, cell, coords);
+  *status_p = status;
+}
+
