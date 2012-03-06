@@ -211,8 +211,8 @@ AC_ARG_ENABLE([defaults],
 		[Disable deafult flags]))
 
 AS_IF([test x$enable_defaults != xno],
-CFLAGS="$CFLAGS -g"
-FCFLAGS="$FCFLAGS -g -Dtrjctry")
+CFLAGS="$CFLAGS"
+FCFLAGS="$FCFLAGS -Dtrjctry")
 
 AC_ARG_ENABLE([perf],
 	AS_HELP_STRING([--enable-perf],
