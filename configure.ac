@@ -6,6 +6,14 @@ AC_INIT(ermod, 0.3.alpha1, Matubayasi Laboratory)
 AM_INIT_AUTOMAKE([foreign])
 AC_CONFIG_MACRO_DIR(m4)
 
+AC_ARG_ENABLE([debug-symbol],
+	AS_HELP_STRING([--disable-debug-symbol],
+		[Disable debug symbol]))
+
+AS_IF([test x$enable_debug_symbol = xno],
+      [ac_cv_prog_cc_g=no
+       ac_cv_prog_fc_g=no])
+
 # Checks for programs.
 AC_PROG_CPP
 AC_PROG_CC([icc fcc gcc cc])
