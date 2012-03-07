@@ -241,11 +241,11 @@ AC_ARG_ENABLE([mpi],
 
 AC_ARG_ENABLE([defaults],
 	AS_HELP_STRING([--disable-defaults],
-		[Disable deafult flags]))
+		[(deprcated)]))
 
 AS_IF([test x$enable_defaults != xno],
-CFLAGS="$CFLAGS -g"
-FCFLAGS="$FCFLAGS -g")
+CFLAGS="$CFLAGS"
+FCFLAGS="$FCFLAGS")
 
 AC_ARG_ENABLE([perf],
 	AS_HELP_STRING([--enable-perf],
