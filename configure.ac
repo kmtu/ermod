@@ -103,7 +103,7 @@ AS_IF([test "x$with_fftw" != "x"],
   [FFTWROOT=$with_fftw
    CFLAGS="$CFLAGS -I$FFTWROOT/include"
    FCFLAGS="$FCFLAGS -I$FFTWROOT/include"
-   LDFLAGS="$LDFLAGS -L$FFTWROOT/lib"])
+   LDFLAGS="$LDFLAGS -L$FFTWROOT/lib -L$FFTWROOT/lib64"])
 
 ACX_BLAS
 ACX_LAPACK([lapack_exist=yes],
