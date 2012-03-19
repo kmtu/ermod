@@ -1,3 +1,5 @@
+! -*- F90 -*-
+
 ! Trajectory module template file
 ! If you would like to make custom trajectory I/O module, use this file as a template.
 module trajectory

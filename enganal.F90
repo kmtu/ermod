@@ -1,4 +1,29 @@
 ! -*- F90 -*-
+! ERMOD - Eneregy Representation Module
+! Copyright (C) 2000-2012 Nobuyuki Matubayasi
+! Copyright (C) 2010-2012 Shun Sakuraba
+! 
+! This program is free software; you can redistribute it and/or
+! modify it under the terms of the GNU General Public License
+! as published by the Free Software Foundation; either version 2
+! of the License, or (at your option) any later version.
+! 
+! This program is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+! 
+! You should have received a copy of the GNU General Public License
+! along with this program; if not, write to the Free Software
+! Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifndef PACKAGE_VERSION
+#define PACKAGE_VERSION ""
+#endif
 
 subroutine enganal_init()
   use setconf, only: setparam
@@ -34,6 +59,14 @@ program trjmain
   integer :: stnum, iproc, iskip, idiv, frames_per_div, nread, iframe
 
   call mpi_setup('init')    ! MPI
+  if(myrank == 0) then
+     print *, "ERMOD " // PACKAGE_VERSION // ", Copyright (C) 2000-2012 Nobuyuki Matubayasi"
+     print *, "                           2010-2012 Shun Sakuraba"
+     print *, "ERMOD comes with ABSOLUTELY NO WARRANTY."
+     print *, "This is free software, and you can redistribute it"
+     print *, "and/or modify it under certain conditions."
+     print *, "See LICENSE file for details."
+  end if
   call initconf()
 
   if(myrank == 0) then
