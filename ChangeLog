@@ -1,6 +1,12 @@
 
+version 0.3.alpha2 (03/19/2012)
+* Parameters:
+    * The specification for insertion configuration is rewritten with much more general setting.
 
 version 0.2.3 (03/19/2012)
+* General:
+    * ERMOD is now licensed under GPL v2 or later.
 * Install:
     * Fixed compilation problems on FX10 from Fujitsu.
+
 
