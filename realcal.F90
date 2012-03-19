@@ -17,8 +17,6 @@
 ! along with this program; if not, write to the Free Software
 ! Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-! DO NOT rewrite realcal.F90,
-! realcal.F90 is generated from realcal.F90.php.
 module realcal
   implicit none
   integer :: nsolu_atom, nsolv_atom
