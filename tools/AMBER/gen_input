@@ -63,7 +63,7 @@ parser.add_option("-x", "--traj", dest = "traj",
 parser.add_option("-r", "--rigid", dest = "rigid",
                   help = "Solute structure (PDB file)")
 
-parser.add_option("-f", "--flexible", dest = "flexible",
+parser.add_option("-s", "--flexible", dest = "flexible",
                   help = "Solute trajectory file (netcdf)")
 
 parser.add_option("-d", "--div", dest = "div", type = "int",

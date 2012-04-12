@@ -1,3 +1,6 @@
+version 0.3.alpha3 (04/12/2012)
+* Misc:
+    * tools/AMBER/gen_input: --flexible is now abbreviated to -s.
 
 version 0.3.alpha2 (03/19/2012)
 * Parameters:
