@@ -2,9 +2,10 @@
 
 AC_PREREQ([2.59])
 #AC_INIT(ermod, 0.3.%rev%, Matubayasi Laboratory)
-AC_INIT(ermod, 0.3.alpha2, Matubayasi Laboratory)
-AM_INIT_AUTOMAKE
+AC_INIT(ermod, 0.3.alpha3, Matubayasi Laboratory)
 AC_CONFIG_MACRO_DIR(m4)
+AC_CONFIG_SRCDIR([vmdfio.c])
+AM_INIT_AUTOMAKE
 
 AC_ARG_ENABLE([debug-symbol],
 	AS_HELP_STRING([--disable-debug-symbol],
@@ -18,6 +19,7 @@ AS_IF([test x$enable_debug_symbol = xno],
 AC_PROG_CPP
 AC_PROG_CC([icc fcc gcc cc])
 AC_PROG_CC_C_O
+AM_PROG_CC_C_O
 AC_PROG_FC([ifort xlf90 xlf f95 f90 frt gfortran g95])
 
 # modified MPI detector (searches mpiifort first)

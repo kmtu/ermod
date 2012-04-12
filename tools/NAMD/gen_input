@@ -233,12 +233,6 @@ def symlink(src, dest):
 
 # link dcd
 symlink(options.dcd, "HISTORY")
-if is_periodic == 1:
-    (xst, _) = os.path.splitext(options.dcd)
-    xst += ".xst"
-    if not os.path.exists(xst):
-        print >> sys.stderr, "Warning: could not find xst file, did you forget copying?"
-    symlink(xst, "HISTCELL")
 
 if options.solute:
     # flexible
