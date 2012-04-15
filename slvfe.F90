@@ -27,7 +27,7 @@ module sysvars
 
   character*3 :: peread='not', uvread='yes'
   character*3 :: slfslt='yes', infchk='not'
-  character*4 :: zerosft='mxco',wgtfnform='harm'
+  character*4 :: zerosft='orig',wgtfnform='harm'
   character*3 :: refmerge='yes',extsln='lin'
   character*3 :: wgtf2smpl='yes',slncor='not'
   character*3 :: normalize='yes',showdst='not'
