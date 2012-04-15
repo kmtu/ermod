@@ -342,7 +342,7 @@ contains
     allocate( tplst(nummol) )
     slvmax=0
     do i=1,nummol
-       if(sluvid(i) == 0) then ! 0 == exists in trajectory
+       if(sluvid(i) <= 1) then ! exists in trajectory (0 = solvent, 1 = solute w/o insertion)
           slvmax=slvmax+1
           tplst(slvmax)=i ! which particle is treated by this node?
        end if
