@@ -413,7 +413,7 @@ contains
                       if(maxdst.eq.1) then
                          write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
                       else
-                         write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+                         write(io_flcuv, 912) i, (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
                       endif
 911                   format(i9,999f15.5)
 912                   format(2i9,999f15.5)
@@ -1028,12 +1028,12 @@ contains
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        ! sluvid should be 0 (solvent), 2, 3 (test particles)
        if(any(sluvid(:) == 1)) call halt_with_error('par')
+       ! solvent must exist
+       if(all(sluvid(:) /= 0)) call halt_with_error('par')
     end select
 
     ! solute / test particle must exist
     if(all(sluvid(:) == 0)) call halt_with_error('par')
-    ! solvent must exist
-    if(all(sluvid(:) /= 0)) call halt_with_error('par')
   end subroutine sanity_check_sluvid
 
   ! Check whether molecule is within specified region (of sltcnd)
