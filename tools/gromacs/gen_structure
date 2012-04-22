@@ -392,22 +392,33 @@ else:
             mols.append((s, n, False, top.molecules[molno]))
 
 def gen(mode):
+    import copy
+
     if not os.path.exists(mode):
         os.mkdir(mode)
 
-    npos = 1 # 1-origin
+    curmols = copy.deepcopy(mols)
     nmols = []
     sites = []
-    for (s, n, is_solute, atoms) in mols:
-        if mode == "refs" and is_solute:
-            n = n - 1
-        if n == 0:
-            continue
-        nmols.append(n)
-        sites.append(len(atoms))
-        if is_solute and (mode == "soln"):
-            carryover["sltpick"] = npos
-        npos += 1
+    # edit molecule for refs: for multiple solutes with n-molecules, refs should be described as 
+    # 1 solute + (n-1) solvents
+    if mode == "refs":
+        for i in range(len(mols)):
+            (s, n, is_solute, atoms) = mols[i]
+            if is_solute and n > 1:
+                curmols[i:i+1] = [(s, 1, True, atoms),
+                                  (s, n-1, False, atoms)]
+                break
+
+    nmols = [n for (_, n, is_solute, _) in curmols
+             if not (mode == "refs" and is_solute)]
+    sites = [len(atoms) for (_, _, is_solute, atoms) in curmols
+             if not (mode == "refs" and is_solute)]
+    
+    if mode == "soln":
+        for i in range(len(mols)):
+            if curmols[i][2]:
+                carryover["sltpick"] = i + 1 # 1-origin
 
     # output MDinfo
     mdifh = file(mode + "/MDinfo", "wt")
@@ -423,7 +434,7 @@ def gen(mode):
     
     solvent_cnt = 1
     ofh = None
-    for (s, n, is_solute, atoms) in mols:
+    for (s, n, is_solute, atoms) in curmols:
         if is_solute:
             fn = "SltInfo"
         else:
