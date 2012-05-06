@@ -1,3 +1,7 @@
+version 0.3.alpha4 (05/06/2012)
+* Misc:
+    * trajectory-formats/modylas.F90: Added I/O for Modylas MD package
+
 version 0.3.alpha3 (04/12/2012)
 * Misc:
     * tools/AMBER/gen_input: --flexible is now abbreviated to -s.
