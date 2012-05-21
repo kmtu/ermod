@@ -1022,8 +1022,9 @@ contains
        ! sluvid should be 0 (solvent) or 1 (solute)
        if(any(sluvid(:) >= 2)) call halt_with_error('par')
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
-       ! sluvid should be 0 (solvent), 2, 3 (test particles) and solvent must exist
+       ! sluvid should be 0 (solvent), 2, 3 (test particles)
        if(any(sluvid(:) == 1)) call halt_with_error('par')
+       ! solvent must exist
        if(all(sluvid(:) /= 0)) call halt_with_error('par')
     end select
 
