@@ -40,12 +40,12 @@ contains
          voffset, &
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
          ene_param, ene_confname, &
-         io_flcuv, CAL_SOLN
+         io_flcuv, CAL_SOLN, PT_SOLVENT
     use mpiproc, only: halt_with_error, myrank
     implicit none
     real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
     real eclbin,ecfbin,ec0bin,finfac,ectmvl
-    integer peread,pemax,pesoft,pecore,sltmltp
+    integer peread,pemax,pesoft,pecore,solute_moltype
     character(*), parameter :: ecdfile='EcdInfo'
     integer, parameter :: ecdio=51       ! IO for ecdfile
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
@@ -69,42 +69,38 @@ contains
        if(sluvid(i).gt.0) then
           numslt=numslt+1
           tplst(numslt)=i
-          sltmltp=moltype(i)
+          solute_moltype=moltype(i)
        endif
     end do
-    do i=1,nummol
-       if((sluvid(i).gt.0).and.(moltype(i).ne.sltmltp)) then
-          call halt_with_error('typ')
-       endif
-    end do
+    ! solute must have moltype value equal to solute_moltype
+    if(any(sluvid(:) /= PT_SOLVENT .and. moltype(:) /= solute_moltype)) call halt_with_error('typ')
+    ! solvent must have moltype value not equal to solute_moltype
+    if(any(sluvid(:) == PT_SOLVENT .and. moltype(:) == solute_moltype)) call halt_with_error('typ')
+    !
+    ! consistency check between slttype and numslt (number of solute molecules)
     iduv=0
     if(numslt.le.0) iduv=9
     if((slttype.ge.2).and.(numslt.ne.1)) iduv=9
     if(iduv.ne.0) call halt_with_error('num')
+    !
     allocate( sltlist(numslt) )
-    do i=1,numslt
-       sltlist(i)=tplst(i)
-    end do
-    if((slttype.ge.2).and.(sltlist(1).ne.nummol)) call halt_with_error('ins')
+    sltlist(1:numslt)=tplst(1:numslt)   ! list of solute molecules
     deallocate( tplst )
     !
+    ! solute needs to be the last particle in reference system
+    if((slttype.ge.2).and.(sltlist(1).ne.nummol)) call halt_with_error('ins')
+    !
+    ! number of solvent species
     if(numslt.eq.1) numslv=numtype-1
-    if(numslt.gt.1) numslv=numtype
+    if(numslt.gt.1) numslv=numtype      ! solute can also be a solvent species
     !
     allocate( uvspec(nummol) )
-    do i=1,nummol
-       pti=moltype(i)
-       if(sluvid(i).eq.0) then            ! solvent
-          if(pti.lt.sltmltp) uvspec(i)=pti
-          if(pti.eq.sltmltp) call halt_with_error('typ')
-          if(pti.gt.sltmltp) uvspec(i)=pti-1
-       endif
-       if(sluvid(i).ne.0) then            ! solute
-          if(pti.ne.sltmltp) call halt_with_error('typ')
-          if(numslt.eq.1) uvspec(i)=0
-          if(numslt.gt.1) uvspec(i)=numtype
-       endif
-    enddo
+    uvspec(1:nummol) = moltype(1:nummol)
+    if(numslt == 1) then    ! solute totally disappears in reference system
+      where(sluvid(:) /= PT_SOLVENT) uvspec(:) = 0 ! solute
+      ! After the solute, slide the value of molecule type
+      where(sluvid(:) == PT_SOLVENT .and. moltype(:) > solute_moltype) uvspec(:) = uvspec(:) - 1
+    endif
     !
     allocate( uvmax(numslv),uvsoft(numslv),ercrd(large,0:numslv) )
     !
@@ -342,9 +338,9 @@ contains
     allocate( tplst(nummol) )
     slvmax=0
     do i=1,nummol
-       if(sluvid(i) <= 1) then ! exists in trajectory (0 = solvent, 1 = solute w/o insertion)
+       if(sluvid(i) <= 1) then ! exists in trajectory (0 = solvent, 1 = solute in soln)
           slvmax=slvmax+1
-          tplst(slvmax)=i ! which particle is treated by this node?
+          tplst(slvmax)=i
        end if
     end do
     allocate( tagpt(slvmax) )
@@ -408,12 +404,12 @@ contains
           
           if(myrank == 0) then
              do irank = 1, nactiveproc
-                do i = 1, maxdst
+                do cntdst = 1, maxdst
                    if(flceng_stored_g(maxdst, irank)) then
                       if(maxdst.eq.1) then
-                         write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+                         write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, (flceng_g(pti, cntdst, irank), pti=1,numslv)
                       else
-                         write(io_flcuv, 912) i, (stnum + irank - 1) * skpcnf, (flceng_g(pti, i, irank), pti=1,numslv)
+                         write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, (flceng_g(pti, cntdst, irank), pti=1,numslv)
                       endif
 911                   format(i9,999f15.5)
 912                   format(2i9,999f15.5)
@@ -1026,9 +1022,8 @@ contains
        ! sluvid should be 0 (solvent) or 1 (solute)
        if(any(sluvid(:) >= 2)) call halt_with_error('par')
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
-       ! sluvid should be 0 (solvent), 2, 3 (test particles)
+       ! sluvid should be 0 (solvent), 2, 3 (test particles) and solvent must exist
        if(any(sluvid(:) == 1)) call halt_with_error('par')
-       ! solvent must exist
        if(all(sluvid(:) /= 0)) call halt_with_error('par')
     end select
 
