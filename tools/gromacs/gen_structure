@@ -391,20 +391,19 @@ def get_topology_info():
     # At this moment solute can be one of the follows:
     # * Solute spans several contiguous molecular types.
     #   In this case, these contiguous types should be treated as a single molecule.
-    # * Solute spans a single molecular types.
-    #   In this case, multiple solute molecules may exist and should consider the case.
+    # * Solute spans a single molecular type.
+    #   In this case, multiple solute molecules may exist
 
     # check contiguous or not
-    numstart = 0
+    end_solute = False
     for i in range(len(mollist) - 1):
         mol1 = mollist[i]
         mol2 = mollist[i + 1]
+        if (mol1 in solutes) and (mol2 not in solutes):
+                end_solute = True
+        if (mol2 in solutes) and end_solute:    
+            error("Solute is not contiguous")
         
-        if (mol1 not in solutes) and (mol2 in solutes):
-            numstart += 1
-    if numstart > 1:
-        error("Solute is not contiguous")
-
     return solutes
 
 solutes = get_topology_info()
@@ -515,22 +514,33 @@ if top.paircorrection != {}:
     carryover["ljformat"] = "table"
 
 def gen(mode):
+    import copy
+
     if not os.path.exists(mode):
         os.mkdir(mode)
 
-    npos = 1 # 1-origin
+    curmols = copy.deepcopy(mols)
     nmols = []
     sites = []
-    for (s, n, is_solute, atoms) in mols:
-        if mode == "refs" and is_solute:
-            n = n - 1
-        if n == 0:
-            continue
-        nmols.append(n)
-        sites.append(len(atoms))
-        if is_solute and (mode == "soln"):
-            carryover["sltpick"] = npos
-        npos += 1
+    # edit molecules for refs: for multiple solutes with n molecules,
+    # refs regards them as 1 solute + (n-1) solvents
+    if mode == "refs":
+        for i in range(len(mols)):
+            (s, n, is_solute, atoms) = mols[i]
+            if is_solute and n > 1:
+                curmols[i:i+1] = [(s, 1, True, atoms),
+                                  (s, n-1, False, atoms)]
+                break
+
+    nmols = [n for (_, n, is_solute, _) in curmols
+             if not (mode == "refs" and is_solute)]
+    sites = [len(atoms) for (_, _, is_solute, atoms) in curmols
+             if not (mode == "refs" and is_solute)]
+
+    if mode == "soln":
+        for i in range(len(mols)):
+            if curmols[i][2]:
+                carryover["sltpick"] = i + 1 # 1-origin
 
     # output MDinfo
     mdifh = file(mode + "/MDinfo", "wt")
@@ -546,9 +556,11 @@ def gen(mode):
     
     solvent_cnt = 1
     ofh = None
-    for (s, n, is_solute, atoms) in mols:
+    for (s, n, is_solute, atoms) in curmols:
         if is_solute:
             fn = "SltInfo"
+            if n > 1:
+                solvent_cnt += 1
         else:
             fn = "MolPrm%d" % solvent_cnt
             solvent_cnt += 1

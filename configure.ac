@@ -127,7 +127,7 @@ my_fc_real_double_cv_flag,
 [AC_LANG_PUSH(Fortran)
 save_FCFLAGS=$FCFLAGS
 # for default, gfortran, ifort, xlf, Fujitsu f90
-for flag in "" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-Ad"; do
+for flag in "" "-fdefault-real-8 -fdefault-double-8" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-CcdRR8" "-Ad"; do
 FCFLAGS="$save_FCFLAGS $flag"
 # This is very tricky indeed...
   AC_COMPILE_IFELSE(

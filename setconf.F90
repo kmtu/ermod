@@ -488,6 +488,7 @@ contains
           cur_solvent = cur_solvent + 1
           molfile = prmfile//trim(adjustl(itoa(cur_solvent)))
        else
+          if(ptcnt(pti).gt.1) cur_solvent = cur_solvent + 1
           molfile = sltfile            ! solute / test particle
        endif
        stmax = ptsite(pti)
