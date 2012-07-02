@@ -3,6 +3,7 @@
 
 import os.path
 import sys
+import pickle
 import re
 from optparse import OptionParser
 
@@ -48,9 +49,6 @@ parser = OptionParser()
 # topology
 parser.add_option("-p", "--pdb", dest = "pdb",
                   help="Solution PDB (.pdb) file name to give molecular structure")
-# FIXME TODO: read soln/.extraparam!!!
-parser.add_option("-s", "--sltpick", dest = "pick", action="store", type="int",
-                  help="picked solute # (1-origin)", default = 1)
 
 parser.add_option("-v", "--verbose", dest = "verbose", action="store_true",
                   help = "Be more verbose",
@@ -61,7 +59,15 @@ parser.add_option("-v", "--verbose", dest = "verbose", action="store_true",
 if options.pdb == None:
     error("Error: PDB file is not specified (try --help)")
 
-picked = options.pick - 1
+picked = 0
+try:
+    ifh = file("soln/.extraparam", "rt")
+    carryover = pickle.load(ifh)
+    ifh.close()
+    if "sltpick" in carryover:
+        picked = carryover["sltpick"] - 1
+except OSError:
+    pass
 
 permindex = []
 if os.path.exists("soln/PermIndex"):
@@ -228,11 +234,28 @@ QUIT         force quit without saving
                 solute = i
                 break
 
-        print "New solute position: ", solute + 1 # FIXME TODO: output extraparam
+        print "New solute position: ", solute + 1
 
         global ms, ns, begins, permindex, permindex_refs, molprm
 
         for state in ["soln", "refs"]:
+            # Update solute position
+            if state == "soln":
+                # for refs there are nothing like "solute" ...
+                try:
+                    ifh = file(state + "/.extraparam", "rt")
+                    carryover = pickle.load(ifh)
+                    ifh.close()
+                except OSError:
+                    # failed to read
+                    carryover = {}
+
+                carryover["sltpick"] = solute + 1
+                ofh = file(state + "/.extraparam", "wt")
+                pickle.dump(carryover, ofh)
+                safe_close(ofh)
+
+            # Update MDinfo
             fh = open(state + "/MDinfo", "wt")
             mstmp = [x for x in ms]
             nstmp = [x for x in ns]
