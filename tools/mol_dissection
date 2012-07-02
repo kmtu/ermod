@@ -63,9 +63,12 @@ if options.pdb == None:
 
 picked = options.pick - 1
 
-# FIXME TODO:
+permindex = []
 if os.path.exists("soln/PermIndex"):
-    error("In this version mol_dissection cannot be executed twice: recover directory from archive, then remove soln/PermIndex")
+    fh = open("soln/PermIndex", "r")
+    for l in fh:
+        ls = l.split()
+        permindex.append(int(ls[0]) - 1)
 
 # read topology from MDinfo
 
@@ -122,7 +125,9 @@ fh.close()
 
 assert len(atoms) == totalatoms, "PDB has %d atoms but MDinfo indicates %d atoms" % (len(atoms), totalatoms)
 
-permindex = list(range(totalatoms))
+if len(permindex) == 0: # there are no PermIndex file
+    permindex = list(range(totalatoms))
+
 # deep copy
 permindex_refs = [i for i in permindex]
 
