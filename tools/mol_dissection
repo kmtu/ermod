@@ -79,6 +79,9 @@ ns = [int(i) for i in ns]
 assert mols == len(ms), "number of molecules does not match to MDinfo's 1st line"
 assert mols == len(ns), "number of atoms does not match to MDinfo's 1st line"
 
+if ms[picked] != 1:
+    error("This script does not support multiple solute atoms case")
+
 begins = []
 t = 0
 for i in range(mols):
@@ -223,14 +226,13 @@ QUIT         force quit without saving
         print "New solute position: ", solute + 1 # FIXME TODO: output extraparam
 
         global ms, ns, begins, permindex, permindex_refs, molprm
-        ms[solute] -= 1
 
         for state in ["soln", "refs"]:
             fh = open(state + "/MDinfo", "wt")
             mstmp = [x for x in ms]
             nstmp = [x for x in ns]
-            if state == "soln":
-                mstmp[solute] += 1
+            if state == "refs":
+                mstmp[solute] -= 1
             if mstmp[solute] == 0:
                 del mstmp[solute]
                 del nstmp[solute]
@@ -267,7 +269,10 @@ QUIT         force quit without saving
             safe_close(perm)
                         
             for i in range(mols):
-                if (state == "soln" and i == solute) or ms[i] == 0:
+                # It's not output when solute has only one molecule
+                # For both cases with soln / refs it applies
+                # BTW: solute should have only one molecules because of assertions at the beginning
+                if (i == solute and mstmp[i] == 1):
                     continue
                         
                 fh = open(state + "/MolPrm%d" % molprmid, "wt")
