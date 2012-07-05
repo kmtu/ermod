@@ -163,7 +163,7 @@ contains
   subroutine iniparam
     use engmain, only: init_params,&
          iseed,&
-         skpcnf,corrcal,&
+         skpcnf,corrcal,selfcal,&
          slttype,sltpick,refpick,wgtslf,wgtins,wgtsln,&
          estype,boxshp,inscnd, insorigin, insposition, insorient, &
          inscfg,hostspec,ljformat,&
@@ -213,14 +213,15 @@ contains
     ! default settings
     skpcnf=1                    ! no skip for trajectory reading
     
-    if(slttype.eq.1) corrcal=0
-    if(slttype.ge.2) corrcal=1
+    if(slttype.eq.1) corrcal=0  ! no calculation of correlation matrix
+    if(slttype.ge.2) corrcal=1  ! calculation of correlation matrix
+    selfcal=0                   ! no construction of self-energy distribution
     wgtslf=0 ; wgtins=0 ; wgtsln=0
     if((slttype.ge.2).and.(cltype.ne.0)) wgtslf=1  ! Ewald and PME
     sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1
     maxins=1000 ; lwreg=0.0e0 ; upreg=5.0e0
     if(intprm.ne.0) then
-       cmbrule=0
+       cmbrule=0                ! arithmetic mean of LJ sigma
        ew2max=ew1max ; ew3max=ew1max
        ms2max=ms1max ; ms3max=ms1max
     endif

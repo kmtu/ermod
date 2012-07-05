@@ -32,6 +32,8 @@
 !   skpcnf : interval to skip the configuration examined
 !   corrcal : calculation of the correlation matrix
 !               0 : no calculation  1 : calculation performed
+!   selfcal : construction of the self-energy distribution
+!               0 (default) : no construction  1 : constructed
 !   slttype : type of solute treatment
 !               1 : physical
 !               2 : test particle (rigid)  3 : test particle (flexible)
@@ -77,8 +79,8 @@
 !
 !   inscnd : (deprecated) geometrical condition of the solute configuration
 !               0 : random    (insorigin = 0, insposition = 0) 
-!               1 : spherical (insorigin = 4, insposition = 1)
-!               2 : slab      (insorigin = 4, insposition = 2)
+!               1 : spherical (insorigin = 3, insposition = 1)
+!               2 : slab      (insorigin = 3, insposition = 2)
 !               3 : reference (insorigin = 1, insposition = 4)
 !   inscfg : (deprecated) position and orientation for the inserted solute
 !               0 : only the intramolecular configuration is from the file. (insposition = 0, insorient = 1)
@@ -202,7 +204,7 @@ module engmain
   real, parameter :: pi = 3.1415926535897932
   real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
 !
-  integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal
+  integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal,selfcal
   integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsln
   integer :: estype,boxshp
   integer :: insorigin, inscnd, insposition, insorient
@@ -267,7 +269,7 @@ module engmain
   character(len=*), parameter :: ene_confname = "parameters_er"
 
   namelist /ene_param/ iseed, &
-       skpcnf,corrcal, &
+       skpcnf,corrcal,selfcal, &
        slttype,sltpick,refpick,wgtslf, wgtins, wgtsln, &
        estype,boxshp, &
        insorigin, inscnd, insposition, insorient, inscfg, &

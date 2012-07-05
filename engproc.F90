@@ -33,7 +33,7 @@ contains
   !  procedure for constructing energy distribution functions
   !
   subroutine enginit
-    use engmain, only: numtype,nummol,engdiv,corrcal,slttype,&
+    use engmain, only: numtype,nummol,engdiv,corrcal,selfcal,slttype,&
          moltype,sluvid,&
          ermax,numslv,uvmax,uvsoft,esmax,uvspec,&
          uvcrd,edens,ecorr,escrd,eself,&
@@ -216,17 +216,6 @@ contains
     end do
     
     allocate( uvcrd(ermax),edens(ermax) )
-    if(corrcal.eq.1) then
-       if(ermax > 15000) then
-          call warning('emax')
-       endif
-       allocate( ecorr(ermax,ermax) )
-    endif
-    allocate( escrd(esmax),eself(esmax) )
-    if(slttype.eq.1) allocate( aveuv(engdiv,numslv),slnuv(numslv) )
-    allocate( avediv(engdiv,2) )
-    allocate( minuv(0:numslv),maxuv(0:numslv) )
-    !
     i=0
     do pti=1,numslv
        pemax=uvmax(pti)
@@ -235,11 +224,24 @@ contains
           uvcrd(i)=ercrd(iduv,pti)
        end do
     end do
-    do iduv=1,esmax
-       escrd(iduv)=ercrd(iduv,0)
-    end do
+
+    if(corrcal.eq.1) then
+       if(ermax > 15000) then
+          call warning('emax')
+       endif
+       allocate( ecorr(ermax,ermax) )
+    endif
+
+    if(selfcal.eq.1)  then
+      allocate( escrd(esmax),eself(esmax) )
+      escrd(1:esmax)=ercrd(1:esmax,0)
+    endif
     deallocate( ercrd )
 
+    if(slttype.eq.1) allocate( aveuv(engdiv,numslv),slnuv(numslv) )
+    allocate( avediv(engdiv,2) )
+    allocate( minuv(0:numslv),maxuv(0:numslv) )
+     
     do pti=0,numslv
        minuv(pti)=infty
        maxuv(pti)=-infty
@@ -263,17 +265,16 @@ contains
   end subroutine enginit
 
   subroutine engclear
-    use engmain, only: corrcal,slttype,ermax,numslv,esmax,&
+    use engmain, only: corrcal,selfcal,slttype,ermax,numslv,esmax,&
          edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl, &
          CAL_SOLN
     implicit none
-    integer iduv,iduvp,pti
     edens(1:ermax)=0.0e0
     if(corrcal.eq.1) then
        ecorr(1:ermax,1:ermax)=0.0e0
     endif
 
-    eself(1:esmax)=0.0e0
+    if(selfcal.eq.1) eself(1:esmax)=0.0e0
 
     if(slttype == CAL_SOLN) then
        slnuv(1:numslv)=0.0e0
@@ -296,13 +297,8 @@ contains
   !
   !
   subroutine engconst(stnum, nactiveproc)
-    use engmain, only: nummol,skpcnf,corrcal,slttype,wgtslf,&
-         estype,sluvid,temp,volume,plmode,&
-         maxins,ermax,numslv,esmax,uvspec,&
-         edens,ecorr,eself,&
-         slnuv,avslf,minuv,maxuv,numslt,sltlist,&
-         engnorm,engsmpl,voffset,&
-         boxshp, cltype, cell, &
+    use engmain, only: nummol,skpcnf,slttype,sluvid,&
+         maxins,numslv,numslt,cltype,cell,&
          io_flcuv, &
          SYS_NONPERIODIC, SYS_PERIODIC, &
          EL_COULOMB, EL_PME, &
@@ -316,7 +312,7 @@ contains
     use mpiproc                                                      ! MPI
     implicit none
     integer, intent(in) :: stnum, nactiveproc
-    integer i,pti,iduv,iduvp,k,q
+    integer i,pti,k
     integer :: irank
     real engnmfc,pairep,wgtslcf,factor
     integer, dimension(:), allocatable :: insdst,engdst,tplst
@@ -352,9 +348,7 @@ contains
     end do
     allocate( tagpt(slvmax) )
     allocate( uvengy(0:slvmax) )
-    do k=1,slvmax
-       tagpt(k)=tplst(k) ! and copied from tplst
-    end do
+    tagpt(1:slvmax)=tplst(1:slvmax)  ! and copied from tplst
     deallocate( tplst )
 
     allocate(flceng_stored(maxdst))
@@ -448,15 +442,16 @@ contains
   !
   subroutine engstore(stnum)
     !
-    use engmain, only: nummol,maxcnf, skpcnf, engdiv, corrcal,slttype,wgtslf,&
+    use engmain, only: maxcnf,skpcnf,engdiv,corrcal,selfcal,&
+         slttype,wgtslf,&
          plmode,ermax,numslv,esmax,temp,&
          edens,ecorr,eself,&
          aveuv,slnuv,avediv,avslf,minuv,maxuv,&
-         engnorm,engsmpl,voffset, voffset_initialized, &
+         engnorm,engsmpl,voffset,voffset_initialized, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use mpiproc                                                      ! MPI
     implicit none
-    integer stnum,i,pti,j,iduv,iduvp,k,q,cntdst, division
+    integer stnum,i,pti,j,iduv,k,cntdst,division
     character*10, parameter :: numbers='0123456789'
     character*9 engfile
     character*3 suffeng
@@ -487,7 +482,7 @@ contains
        end select
 
        engnorm = engnorm * voffset_scale
-       eself(:) = eself(:) * voffset_scale
+       if(selfcal == 1) eself(:) = eself(:) * voffset_scale
        if(slttype == CAL_SOLN) slnuv(:) = slnuv(:) * voffset_scale
        edens(:) = edens(:) * voffset_scale
        if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
@@ -506,67 +501,51 @@ contains
        call mpi_reduce(engsmpl,factor,1,&
             mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
        engsmpl=factor                                                 ! MPI
-       allocate( sve1(esmax) )                                        ! MPI
-       do iduv=1,esmax                                                ! MPI
-          sve1(iduv)=eself(iduv)                                      ! MPI
-       end do
-       call mpi_reduce(sve1,eself,esmax,&
-            mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
-       deallocate( sve1 )                                             ! MPI
+       if(selfcal == 1) then                                          ! MPI
+         allocate( sve1(esmax) )                                      ! MPI
+         sve1(1:esmax)=eself(1:esmax)                                 ! MPI
+         call mpi_reduce(sve1,eself,esmax,&
+              mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)   ! MPI
+         deallocate( sve1 )                                           ! MPI
+       endif                                                          ! MPI
        if(slttype == CAL_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
     endif                                                             ! MPI
     allocate( sve1(0:numslv),sve2(0:numslv) )                         ! MPI
     do pti=0,numslv                                                   ! MPI
        sve1(pti)=minuv(pti)                                           ! MPI
        sve2(pti)=maxuv(pti)                                           ! MPI
-    end do
+    end do                                                            ! MPI
     call mpi_reduce(sve1,minuv,numslv+1,&                             ! MPI
          mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)        ! MPI
     call mpi_reduce(sve2,maxuv,numslv+1,&                             ! MPI
          mpi_double_precision,mpi_max,0,mpi_comm_world,ierror)        ! MPI
     deallocate( sve1,sve2 )                                           ! MPI
     allocate( sve1(ermax) )                                           ! MPI
-    do iduv=1,ermax                                                   ! MPI
-       sve1(iduv)=edens(iduv)                                         ! MPI
-    end do
+    sve1(1:ermax)=edens(1:ermax)                                      ! MPI
     call mpi_reduce(sve1,edens,ermax,&                                ! MPI
          mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)        ! MPI
     deallocate( sve1 )                                                ! MPI
 #endif
-    do iduv=1,ermax
-       edens(iduv)=edens(iduv)/engnorm
-    end do
+    edens(1:ermax)=edens(1:ermax)/engnorm
     if(corrcal.eq.1) then
        do iduv=1,ermax
 #ifndef noMPI
-          allocate( sve1(ermax),sve2(ermax) )                          ! MPI
-          do iduvp=1,ermax                                        ! MPI
-             sve1(iduvp)=ecorr(iduvp,iduv)                              ! MPI
-          end do
-          call mpi_reduce(sve1,sve2,ermax,&                             ! MPI
-               mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)   ! MPI
-          do iduvp=1,ermax                                        ! MPI
-             ecorr(iduvp,iduv)=sve2(iduvp)                              ! MPI
-          end do
-          deallocate( sve1,sve2 )                                      ! MPI
+          allocate( sve1(ermax),sve2(ermax) )                         ! MPI
+          sve1(1:ermax)=ecorr(1:ermax,iduv)                           ! MPI
+          call mpi_reduce(sve1,sve2,ermax,&                           ! MPI
+               mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)  ! MPI
+          ecorr(1:ermax,iduv)=sve2(1:ermax)                           ! MPI
+          deallocate( sve1,sve2 )                                     ! MPI
 #endif
-          do iduvp=1,ermax
-             ecorr(iduvp,iduv)=ecorr(iduvp,iduv)/engnorm
-          end do
+          ecorr(1:ermax,iduv)=ecorr(1:ermax,iduv)/engnorm
        end do
     endif
-    do iduv=1,esmax
-       eself(iduv)=eself(iduv)/engnorm
-    end do
+    if(selfcal == 1) eself(1:esmax)=eself(1:esmax)/engnorm
     avslf=avslf/engnorm
     !
     if(myrank.ne.0) go to 7999                                       ! MPI
     division = stnum / (maxcnf / skpcnf / engdiv)
-    if(slttype.eq.1) then
-       do pti=1,numslv
-          aveuv(division,pti)=slnuv(pti)/engnorm
-       end do
-    endif
+    if(slttype.eq.1) aveuv(division,1:numslv)=slnuv(1:numslv)/engnorm
     avediv(division,1)=engnorm/engsmpl
     if(slttype.eq.1) avediv(division,2)=voffset-temp*log(avslf)
     if(slttype.ge.2) avediv(division,2)=voffset+temp*log(avslf)
@@ -624,7 +603,8 @@ contains
              formtype = "UNFORMATTED"
           endif
        endif
-       if(cntdst.eq.3) engfile='slfeng'//suffeng
+       if((cntdst.eq.3).and.(selfcal.ne.1)) goto 7199
+       if((cntdst.eq.3).and.(selfcal.eq.1)) engfile='slfeng'//suffeng
        open(unit=71,file=engfile, form=trim(formtype), action='write')
        if(cntdst.eq.1) then
           do iduv=1,ermax
@@ -652,13 +632,7 @@ contains
 
   ! Calculate interaction energy between solute and solvent
   subroutine get_uv_energy(stnum, weighting, uvengy, has_error)
-    use engmain, only: nummol,numatm,maxcnf,skpcnf,corrcal,slttype,wgtslf,&
-         estype,sluvid,temp,volume,plmode,&
-         maxins,ermax,numslv,esmax,uvspec,&
-         edens,ecorr,eself,&
-         slnuv,avslf,minuv,maxuv,numslt,sltlist,&
-         engnorm,engsmpl,voffset,&
-         boxshp, cltype, cell, &
+    use engmain, only: maxcnf,skpcnf,slttype,sltlist,cltype,&
          SYS_NONPERIODIC, SYS_PERIODIC, &
          EL_COULOMB, EL_PME, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
@@ -675,7 +649,7 @@ contains
     real, intent(inout) :: uvengy(0:slvmax), weighting
     logical, intent(out) :: has_error
 
-    integer :: i, k, q
+    integer :: i, k
     integer(8) :: current_solute_hash
     integer(8) :: solute_hash = 0
     real :: pairep, residual, factor
@@ -758,7 +732,8 @@ contains
   end subroutine get_uv_energy
 
   subroutine update_histogram(stnum, stat_weight_solute, uvengy)
-    use engmain, only: wgtslf, plmode, estype, slttype, corrcal, volume, temp, uvspec, &
+    use engmain, only: wgtslf, estype, slttype, corrcal, selfcal, &
+         volume, temp, uvspec, &
          ermax, numslv, &
          slnuv, avslf,&
          minuv, maxuv, &
@@ -812,8 +787,10 @@ contains
 
 
     ! self energy histogram
-    call getiduv(0, uvengy(0), iduv)
-    eself(iduv) = eself(iduv) + engnmfc
+    if(selfcal.eq.1) then
+      call getiduv(0, uvengy(0), iduv)
+      eself(iduv) = eself(iduv) + engnmfc
+    endif
     minuv(0) = min(minuv(0), uvengy(0))
     maxuv(0) = max(maxuv(0), uvengy(0))
 
