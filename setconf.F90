@@ -231,10 +231,10 @@ contains
        insorigin = 0
        insposition = 0
     case(1)
-       insorigin = 4
+       insorigin = 3
        insposition = 1
     case(2)
-       insorigin = 4
+       insorigin = 3
        insposition = 2
     case(3)
        insorigin = 1

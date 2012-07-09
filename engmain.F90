@@ -79,8 +79,8 @@
 !
 !   inscnd : (deprecated) geometrical condition of the solute configuration
 !               0 : random    (insorigin = 0, insposition = 0) 
-!               1 : spherical (insorigin = 4, insposition = 1)
-!               2 : slab      (insorigin = 4, insposition = 2)
+!               1 : spherical (insorigin = 3, insposition = 1)
+!               2 : slab      (insorigin = 3, insposition = 2)
 !               3 : reference (insorigin = 1, insposition = 4)
 !   inscfg : (deprecated) position and orientation for the inserted solute
 !               0 : only the intramolecular configuration is from the file. (insposition = 0, insorient = 1)
