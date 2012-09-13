@@ -40,12 +40,14 @@ module sysvars
   real :: mesherr=0.10e0                                      ! kcal/mol
   integer :: maxmesh=30000, large=500000, itrmax=100
   
-  character(len=1024) :: wgtslnfl='soln/weight_soln'
-  character(len=1024) :: wgtreffl='refs/weight_refs'
-  character(len=1024) :: slndnspf='soln/engsln.'
-  character(len=1024) :: slncorpf='soln/corsln.'
-  character(len=1024) :: refdnspf='refs/engref.'
-  character(len=1024) :: refcorpf='refs/corref.'
+  character(len=1024) :: solndirec='soln'
+  character(len=1024) :: refsdirec='refs'
+  character(len=1024) :: wgtslnfl='weight_soln'
+  character(len=1024) :: wgtreffl='weight_refs'
+  character(len=1024) :: slndnspf='engsln.'
+  character(len=1024) :: slncorpf='corsln.'
+  character(len=1024) :: refdnspf='engref.'
+  character(len=1024) :: refcorpf='corref.'
   character(*), parameter :: numbers='0123456789'
   
   integer prmmax,maxsln,maxref,numrun
@@ -69,7 +71,8 @@ module sysvars
        wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
        inptemp, pickgr, msemin, msemax, mesherr, &
        maxmesh, large, itrmax, error, tiny, &
-       wgtslnfl, wgtreffl, slndnspf, slncorpf, refdnspf, refcorpf
+       solndirec, refsdirec, wgtslnfl, wgtreffl, &
+       slndnspf, slncorpf, refdnspf, refcorpf
 
 contains
 
@@ -99,7 +102,8 @@ contains
 
   subroutine defcond
 
-    use sysvars, only: peread,infchk,readwgtfl,wgtslnfl,wgtreffl,&
+    use sysvars, only: peread,infchk,readwgtfl,&
+         solndirec,refsdirec,wgtslnfl,wgtreffl,slndnspf,&
          numprm,prmmax,numsln,numref,numdiv,&
          inptemp,temp,kT,&
          pecore,maxmesh,large,&
@@ -139,7 +143,7 @@ contains
     if(clcond.ne.'basic') prmmax=numprm
     !
     if(clcond.ne.'merge') opnfile=engfile(1)
-    if(clcond.eq.'merge') opnfile='soln/engsln.01'
+    if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(slndnspf)//'01'
     open(unit=71,file=opnfile,status='old')
     ermax=0 ; numslv=0 ; k=0
     do iduv=1,large
@@ -171,7 +175,7 @@ contains
 
        ! check consistency
        if(clcond.ne.'merge') opnfile=engfile(5)
-       if(clcond.eq.'merge') opnfile='soln/EcdInfo'
+       if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//'EcdInfo'
        open(unit=71, file=opnfile, status='old', err=7899)
 
        ! Something is wrong ... 
@@ -196,7 +200,7 @@ contains
        do pti=1,numslv
           rduvcore(pti)=pecore
           if(clcond.ne.'merge') opnfile=engfile(5)
-          if(clcond.eq.'merge') opnfile='soln/EcdInfo'
+          if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//'EcdInfo'
           open(unit=71,file=opnfile,status='old')
           read(71,*)        ! comment line
           read(71,*)        ! line for solute-self energy
@@ -272,7 +276,7 @@ contains
           read(5,*) (aveuv(pti), pti=1,numslv)
        endif
        if(clcond.eq.'merge') then
-          opnfile='soln/aveuv.tt'
+          opnfile=trim(solndirec)//'/'//'aveuv.tt'
           open(unit=82,file=opnfile,status='old')
           do k=1,maxsln
              read(82,*) m,(uvene(pti,k), pti=1,numslv)
@@ -289,8 +293,8 @@ contains
           if(cnt.eq.2) wgtref(i)=1.0e0
        end do
        if((clcond.eq.'merge').and.(readwgtfl.eq.'yes')) then
-          if(cnt.eq.1) opnfile=wgtslnfl
-          if(cnt.eq.2) opnfile=wgtreffl
+          if(cnt.eq.1) opnfile=trim(solndirec)//'/'//trim(wgtslnfl)
+          if(cnt.eq.2) opnfile=trim(refsdirec)//'/'//trim(wgtreffl)
           open(unit=81,file=opnfile,status='old')
           do i=1,j
              read(81,*) k,factor
@@ -321,7 +325,8 @@ contains
 882          format(' readwgtfl needs to be yes when slfslt is yes')
           endif
           slfeng=0.0e0
-          open(unit=81,file=wgtreffl,status='old')
+          opnfile=trim(refsdirec)//'/'//trim(wgtreffl)
+          open(unit=81,file=opnfile,status='old')
           do i=1,maxref
              read(81,*) k,factor,factor
              slfeng=slfeng+wgtref(i)*factor
@@ -335,7 +340,7 @@ contains
 
   subroutine datread(cntrun)
     use sysvars, only: refmerge,zero,tiny,&
-         slndnspf,slncorpf,refdnspf,refcorpf,numbers
+         solndirec,refsdirec,slndnspf,slncorpf,refdnspf,refcorpf,numbers
     integer cntrun,slnini,slnfin,refini,reffin,ecmin,ecmax
     integer iduv,iduvp,i,k,m,pti,cnt
     real factor,ampl
@@ -400,10 +405,10 @@ contains
           if(clcond.eq.'merge') then
              m=i/10 ; k=i-10*m
              suffnum=numbers(m+1:m+1)//numbers(k+1:k+1)
-             if(cnt.eq.1) opnfile=trim(slndnspf)//suffnum
-             if(cnt.eq.2) opnfile=trim(slncorpf)//suffnum
-             if(cnt.eq.3) opnfile=trim(refdnspf)//suffnum
-             if(cnt.eq.4) opnfile=trim(refcorpf)//suffnum
+             if(cnt.eq.1) opnfile=trim(solndirec)//'/'//trim(slndnspf)//suffnum
+             if(cnt.eq.2) opnfile=trim(solndirec)//'/'//trim(slncorpf)//suffnum
+             if(cnt.eq.3) opnfile=trim(refsdirec)//'/'//trim(refdnspf)//suffnum
+             if(cnt.eq.4) opnfile=trim(refsdirec)//'/'//trim(refcorpf)//suffnum
           endif
           if(cnt == 4) open(unit=71,file=opnfile,status='old', form="UNFORMATTED")
           if(cnt /= 4) open(unit=71,file=opnfile,status='old')
@@ -644,12 +649,23 @@ contains
     call getslncv
     call getinscv
     !
+    if((uvread.ne.'yes').and.(prmcnt.eq.1)) then
+      do pti=1,numslv
+        uvpot=0.0e0
+        do iduv=1,gemax
+          if(uvspec(iduv).eq.pti) uvpot=uvpot+uvcrd(iduv)*edist(iduv)
+        enddo
+        aveuv(pti)=uvpot
+      enddo
+    endif
+    !
+    ! if some correction such as LJ long-range is added, it should be here
+    !
     do pti=1,numslv
-       uvpot=0.0e0 ; slvfe=0.0e0
+       slvfe=0.0e0
        do iduv=1,gemax
           if(uvspec(iduv).eq.pti) then
              if((edist(iduv).le.zero).and.(edens(iduv).le.zero)) goto 5009
-             uvpot=uvpot+uvcrd(iduv)*edist(iduv)
              slvfe=slvfe-kT*(edist(iduv)-edens(iduv))
              factor=-(slncv(iduv)+zrsln(pti)+uvcrd(iduv))
              if((slncor.eq.'yes') .and. &
@@ -673,7 +689,6 @@ contains
 5009         continue
           endif
        end do
-       if((uvread.ne.'yes').and.(prmcnt.eq.1)) aveuv(pti)=uvpot
        chmpt(pti,prmcnt,cntrun)=slvfe+aveuv(pti)
     end do
     !
