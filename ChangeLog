@@ -1,3 +1,7 @@
+version 0.3.alpha5 (??/??/2012)
+* Misc:
+    * slvfe: New parameters: "solndirec" & "refsdirec" to specify the directries
+
 version 0.3.alpha4 (05/06/2012)
 * Misc:
     * trajectory-formats/modylas.F90: Added I/O for Modylas MD package
