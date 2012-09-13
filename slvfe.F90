@@ -44,10 +44,10 @@ module sysvars
   character(len=1024) :: refsdirec='refs'
   character(len=1024) :: wgtslnfl='weight_soln'
   character(len=1024) :: wgtreffl='weight_refs'
-  character(len=1024) :: slndnspf='engsln.'
-  character(len=1024) :: slncorpf='corsln.'
-  character(len=1024) :: refdnspf='engref.'
-  character(len=1024) :: refcorpf='corref.'
+  character(len=1024) :: slndnspf='engsln'
+  character(len=1024) :: slncorpf='corsln'
+  character(len=1024) :: refdnspf='engref'
+  character(len=1024) :: refcorpf='corref'
   character(*), parameter :: numbers='0123456789'
   
   integer prmmax,maxsln,maxref,numrun
@@ -143,7 +143,7 @@ contains
     if(clcond.ne.'basic') prmmax=numprm
     !
     if(clcond.ne.'merge') opnfile=engfile(1)
-    if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(slndnspf)//'01'
+    if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(slndnspf)//'.01'
     open(unit=71,file=opnfile,status='old')
     ermax=0 ; numslv=0 ; k=0
     do iduv=1,large
@@ -346,7 +346,7 @@ contains
     real factor,ampl
     real, allocatable :: corref_temp(:, :)
     character*85 opnfile
-    character*2 suffnum
+    character*3 suffnum
 
     if(clcond.ne.'merge') then
        slnini=1 ; slnfin=1 ; refini=1 ; reffin=1
@@ -404,7 +404,7 @@ contains
           if(clcond.ne.'merge') opnfile=engfile(cnt)
           if(clcond.eq.'merge') then
              m=i/10 ; k=i-10*m
-             suffnum=numbers(m+1:m+1)//numbers(k+1:k+1)
+             suffnum='.'//numbers(m+1:m+1)//numbers(k+1:k+1)
              if(cnt.eq.1) opnfile=trim(solndirec)//'/'//trim(slndnspf)//suffnum
              if(cnt.eq.2) opnfile=trim(solndirec)//'/'//trim(slncorpf)//suffnum
              if(cnt.eq.3) opnfile=trim(refsdirec)//'/'//trim(refdnspf)//suffnum
