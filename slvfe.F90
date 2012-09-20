@@ -288,10 +288,8 @@ contains
     do cnt=1,2
        if(cnt.eq.1) j=maxsln
        if(cnt.eq.2) j=maxref
-       do i=1,j
-          if(cnt.eq.1) wgtsln(i)=1.0e0
-          if(cnt.eq.2) wgtref(i)=1.0e0
-       end do
+       if(cnt.eq.1) wgtsln(1:j)=1.0e0
+       if(cnt.eq.2) wgtref(1:j)=1.0e0
        if((clcond.eq.'merge').and.(readwgtfl.eq.'yes')) then
           if(cnt.eq.1) opnfile=trim(solndirec)//'/'//trim(wgtslnfl)
           if(cnt.eq.2) opnfile=trim(refsdirec)//'/'//trim(wgtreffl)
@@ -302,15 +300,14 @@ contains
              if(cnt.eq.2) wgtref(i)=factor
           end do
           close(81)
-          factor=0.0e0
-          do i=1,j
-             if(cnt.eq.1) factor=factor+wgtsln(i)
-             if(cnt.eq.2) factor=factor+wgtref(i)
-          end do
-          do i=1,j
-             if(cnt.eq.1) wgtsln(i)=wgtsln(i)/factor
-             if(cnt.eq.2) wgtref(i)=wgtref(i)/factor
-          end do
+          if(cnt.eq.1) then
+            factor=sum(wgtsln(1:j))
+            wgtsln(1:j)=wgtsln(1:j)/factor
+          endif
+          if(cnt.eq.2) then
+            factor=sum(wgtref(1:j))
+            wgtref(1:j)=wgtref(1:j)/factor
+          endif
        endif
     end do
 
@@ -390,15 +387,14 @@ contains
        if(cnt.ge.3) ecmin=refini
        if(cnt.ge.3) ecmax=reffin
        
-       factor=0.0e0
-       do i=ecmin,ecmax
-          if(cnt.le.2) factor=factor+wgtsln(i)
-          if(cnt.ge.3) factor=factor+wgtref(i)
-       end do
-       do i=ecmin,ecmax
-          if(cnt.le.2) wgtsln(i)=wgtsln(i)/factor
-          if(cnt.ge.3) wgtref(i)=wgtref(i)/factor
-       end do
+       if(cnt.le.2) then
+         factor=sum(wgtsln(ecmin:ecmax))
+         wgtsln(ecmin:ecmax)=wgtsln(ecmin:ecmax)/factor
+       endif
+       if(cnt.ge.3) then
+         factor=sum(wgtref(ecmin:ecmax))
+         wgtref(ecmin:ecmax)=wgtref(ecmin:ecmax)/factor
+       endif
 
        do i=ecmin,ecmax
           if(clcond.ne.'merge') opnfile=engfile(cnt)
@@ -418,7 +414,7 @@ contains
           if(cnt == 4) then
              allocate(corref_temp(ermax, ermax))
              read(71) corref_temp
-             rdcor(:, :) = rdcor(:, :) + wgtref(i) * corref_temp
+             rdcor(:, :) = rdcor(:, :) + wgtref(i) * corref_temp(:, :)
              deallocate(corref_temp)
           else
              do iduv=1,ermax
@@ -475,19 +471,11 @@ contains
 !
     if((uvread.eq.'yes').and.(clcond.eq.'merge')) then
        do pti=1,numslv
-          factor=0.0e0
-          do i=slnini,slnfin
-             factor=factor+wgtsln(i)*uvene(pti,i)
-          end do
-          aveuv(pti)=factor
+         aveuv(pti)=sum(wgtsln(slnini:slnfin)*uvene(pti,slnini:slnfin))
        end do
-       factor=0.0e0
-       do pti=1,numslv
-          blkuv(pti,cntrun)=aveuv(pti)
-          factor=factor+aveuv(pti)
-       end do
-       if(slfslt.eq.'yes') factor=factor+slfeng
-       blkuv(0,cntrun)=factor
+       blkuv(1:numslv,cntrun)=aveuv(1:numslv)
+       blkuv(0,cntrun)=sum(blkuv(1:numslv,cntrun))
+       if(slfslt.eq.'yes') blkuv(0,cntrun)=blkuv(0,cntrun)+slfeng
     endif
 
     return
@@ -692,12 +680,8 @@ contains
        chmpt(pti,prmcnt,cntrun)=slvfe+aveuv(pti)
     end do
     !
-    slvfe=0.0e0
-    do pti=1,numslv
-       slvfe=slvfe+chmpt(pti,prmcnt,cntrun)
-    end do
-    if(slfslt.eq.'yes') slvfe=slvfe+slfeng
-    chmpt(0,prmcnt,cntrun)=slvfe
+    chmpt(0,prmcnt,cntrun)=sum(chmpt(1:numslv,prmcnt,cntrun))
+    if(slfslt.eq.'yes') chmpt(0,prmcnt,cntrun)=chmpt(0,prmcnt,cntrun)+slfeng
     !
     if(wrtzrsft.eq.'yes') then
        do cnt=1,3
@@ -1278,12 +1262,9 @@ contains
     if(clcond.ne.'merge') then
        write(6,*)
        if(numslv.gt.1) then
-          if(uvread.ne.'yes') write(6,331) (aveuv(pti), pti=1,numslv)
+          if(uvread.ne.'yes') write(6,331) aveuv(1:numslv)
        endif
-       factor=0.0e0
-       do pti=1,numslv
-          factor=factor+aveuv(pti)
-       end do
+       factor=sum(aveuv(1:numslv))
        if(slfslt.eq.'yes') factor=factor+slfeng
        write(6,332) factor
 331    format('  Solute-solvent energy       =   ', 9999f12.4)
@@ -1291,7 +1272,7 @@ contains
     endif
     !
     if(clcond.eq.'basic') then
-       if(numslv.gt.1) write(6,351) (chmpt(pti,1,1), pti=1,numslv)
+       if(numslv.gt.1) write(6,351) chmpt(1:numslv,1,1)
        write(6,352) chmpt(0,1,1)
 351    format('  Solvation free energy       =   ', 9999f12.4)
 352    format('  Total solvation free energy =   ',f12.4, '  kcal/mol')
@@ -1359,11 +1340,7 @@ contains
     !
     allocate( wrtdata(0:numslv,numrun) )
     if(uvread.eq.'yes') then
-       do pti=0,numslv
-          do cntrun=1,numrun
-             wrtdata(pti,cntrun)=blkuv(pti,cntrun)
-          end do
-       end do
+       wrtdata(0:numslv,1:numrun)=blkuv(0:numslv,1:numrun)
        write(6,*) ; write(6,*) ; write(6,773)
        call wrtcumu(wrtdata) ; write(6,*)
     endif
@@ -1371,11 +1348,7 @@ contains
     !
     do pti=0,numslv
        if((numslv.eq.1).and.(pti.ne.0)) cycle
-       avcp0=0.0e0
-       do cntrun=1,numrun
-          avcp0=avcp0+chmpt(pti,grref,cntrun)
-       end do
-       avcp0=avcp0/real(numrun)
+       avcp0=sum(chmpt(pti,grref,1:numrun))/real(numrun)
        do prmcnt=1,prmmax
           group=svgrp(prmcnt)
           inft=svinf(prmcnt)
@@ -1417,9 +1390,7 @@ contains
        do prmcnt=1,prmmax
           group=svgrp(prmcnt)
           inft=svinf(prmcnt)
-          do cntrun=1,numrun
-             shcp(cntrun)=chmpt(pti,prmcnt,cntrun)
-          end do
+          shcp(1:numrun)=chmpt(pti,prmcnt,1:numrun)
           if(prmcnt.eq.1) then
              if(numslv.eq.1) write(6,667)
              if(numslv.gt.1) then
@@ -1436,9 +1407,9 @@ contains
                   i2,'-th solvent contribution (kcal/mol)')
           endif
           k=(numrun-1)/5
-          if(k.eq.0) write(6,121) group,inft,(shcp(m), m=1,numrun)
+          if(k.eq.0) write(6,121) group,inft,shcp(1:numrun)
           if(k.ge.1) then
-             write(6,125) group,inft,(shcp(m), m=1,5)
+             write(6,125) group,inft,shcp(1:5)
              if(k.gt.1) then
                 do i=1,k-1
                    write(6,126) (shcp(5*i+m), m=1,5)
@@ -1454,11 +1425,7 @@ contains
        end do
     end do
     !
-    do pti=0,numslv
-       do cntrun=1,numrun
-          wrtdata(pti,cntrun)=chmpt(pti,grref,cntrun)
-       end do
-    end do
+    wrtdata(0:numslv,1:numrun)=chmpt(0:numslv,grref,1:numrun)
     write(6,*) ; write(6,*) ; write(6,770)
 770 format(' cumulative average & 95% error ',&
          'for solvation free energy')
