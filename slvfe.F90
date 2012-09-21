@@ -549,7 +549,7 @@ contains
     !
     integer prmcnt,cntrun,group,inft
     integer iduv,iduvp,pti,cnt,j,k,m
-    real factor,ampl,slvfe,uvpot,lcsln,lcref
+    real factor,ampl,slvfe,uvpot,lcent,lcsln,lcref
     integer, dimension(:), allocatable :: gpnum
     !
     group=svgrp(prmcnt) ; inft=svinf(prmcnt)
@@ -655,14 +655,14 @@ contains
           if(uvspec(iduv).eq.pti) then
              if((edist(iduv).le.zero).and.(edens(iduv).le.zero)) goto 5009
              slvfe=slvfe-kT*(edist(iduv)-edens(iduv))
-             factor=-(slncv(iduv)+zrsln(pti)+uvcrd(iduv))
+             lcent=-(slncv(iduv)+zrsln(pti)+uvcrd(iduv))  ! kT*log(edist/edens)
              if((slncor.eq.'yes') .and. &
                   (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
-                ampl=factor*edens(iduv)/edist(iduv)
-                factor=ampl-(zrsln(pti)+uvcrd(iduv))&
+                ampl=lcent*edens(iduv)/edist(iduv)
+                lcent=ampl-(zrsln(pti)+uvcrd(iduv))&
                      *(1.0e0-edens(iduv)/edist(iduv))
              endif
-             slvfe=slvfe+factor*edist(iduv)
+             slvfe=slvfe+lcent*edist(iduv)
              do cnt=1,2
                 if(cnt.eq.1) lcsln=pyhnc(slncv(iduv),cnt)
                 if(cnt.eq.2) lcref=pyhnc(inscv(iduv),cnt)
