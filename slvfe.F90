@@ -48,6 +48,8 @@ module sysvars
   character(len=1024) :: slncorpf='corsln'
   character(len=1024) :: refdnspf='engref'
   character(len=1024) :: refcorpf='corref'
+  character(len=1024) :: aveuvfile='aveuv.tt'
+  character(len=1024) :: ecdinfofl='EcdInfo'
   character(*), parameter :: numbers='0123456789'
   
   integer prmmax,maxsln,maxref,numrun
@@ -103,7 +105,7 @@ contains
   subroutine defcond
 
     use sysvars, only: peread,infchk,readwgtfl,&
-         solndirec,refsdirec,wgtslnfl,wgtreffl,slndnspf,&
+         solndirec,refsdirec,wgtslnfl,wgtreffl,slndnspf,aveuvfile,ecdinfofl,&
          numprm,prmmax,numsln,numref,numdiv,&
          inptemp,temp,kT,&
          pecore,maxmesh,large,&
@@ -175,7 +177,7 @@ contains
 
        ! check consistency
        if(clcond.ne.'merge') opnfile=engfile(5)
-       if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//'EcdInfo'
+       if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(ecdinfofl)
        open(unit=71, file=opnfile, status='old', err=7899)
 
        ! Something is wrong ... 
@@ -200,7 +202,7 @@ contains
        do pti=1,numslv
           rduvcore(pti)=pecore
           if(clcond.ne.'merge') opnfile=engfile(5)
-          if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//'EcdInfo'
+          if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(ecdinfofl)
           open(unit=71,file=opnfile,status='old')
           read(71,*)        ! comment line
           read(71,*)        ! line for solute-self energy
@@ -276,7 +278,7 @@ contains
           read(5,*) (aveuv(pti), pti=1,numslv)
        endif
        if(clcond.eq.'merge') then
-          opnfile=trim(solndirec)//'/'//'aveuv.tt'
+          opnfile=trim(solndirec)//'/'//trim(aveuvfile)
           open(unit=82,file=opnfile,status='old')
           do k=1,maxsln
              read(82,*) m,(uvene(pti,k), pti=1,numslv)
