@@ -1337,7 +1337,7 @@ contains
                write(6,662) group,valcp,factor
              endif
              if((pti.eq.0).and.(inft.eq.0) .and.&
-                  (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(factor)
+                (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(factor)
           end do
        end do
 661    format(i4,i7,f17.5,f18.5)
