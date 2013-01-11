@@ -1316,30 +1316,32 @@ contains
        if(numslv.gt.1) k=numslv
        do pti=0,k
           write(6,*)
-          if(infchk.eq.'not') then
+          if(infchk == 'yes') then
             if(pti.eq.0) write(6,591)
             if(pti.ne.0) write(6,592) pti
-          endif
-          if(infchk.eq.'yes') then
+          else
             if(pti.eq.0) write(6,593)
             if(pti.ne.0) write(6,594) pti
           endif
-591       format(' group    solvation free energy   difference')
-592       format('           ',i3,'-th component       difference')
-593       format(' group  inft  solvation free energy   difference')
-594       format('               ',i3,'-th component       difference')
+591       format(' group  inft  solvation free energy   difference')
+592       format('               ',i3,'-th component       difference')
+593       format(' group    solvation free energy   difference')
+594       format('           ',i3,'-th component       difference')
           do prmcnt=1,prmmax
              group=svgrp(prmcnt) ; inft=svinf(prmcnt)
              valcp=chmpt(pti,prmcnt,1)
              factor=valcp-chmpt(pti,grref,1)
-             if(infchk.eq.'not') write(6,661) group,valcp,factor
-             if(infchk.eq.'yes') write(6,662) group,inft,valcp,factor
+             if(infchk == 'yes') then
+               write(6,661) group,inft,valcp,factor
+             else
+               write(6,662) group,valcp,factor
+             endif
              if((pti.eq.0).and.(inft.eq.0) .and.&
                   (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(factor)
           end do
        end do
-661    format(i4,f20.5,f18.5)
-662    format(i4,i7,f17.5,f18.5)
+661    format(i4,i7,f17.5,f18.5)
+662    format(i4,f20.5,f18.5)
     endif
     !
     if(clcond.eq.'merge') call wrtmerge
@@ -1399,12 +1401,15 @@ contains
           if(prmcnt.eq.1) then
              write(6,*)
              if(pti.eq.0) then
-               if(infchk.eq.'not') write(6,671)
-               if(infchk.eq.'yes') write(6,672)
+               if(infchk == 'yes') then
+                 write(6,671)
+               else
+                 write(6,672)
+               endif
              endif
-671          format(' group    solvation free energy     error',&
+671          format(' group  inft  solvation free energy     error',&
                   '          difference')
-672          format(' group  inft  solvation free energy     error',&
+672          format(' group    solvation free energy     error',&
                   '          difference')
              if(numslv.gt.1) then
                 if(pti.eq.0) write(6,661)
@@ -1413,13 +1418,16 @@ contains
 662             format('  contribution from ',i2,'-th solvent component')
              endif
           endif
-          if(infchk.eq.'not') write(6,673) group,avecp,stdcp,avecp-avcp0
-          if(infchk.eq.'yes') write(6,674) group,inft,avecp,stdcp,avecp-avcp0
-673       format(i4,f20.5,2f18.5)
-674       format(i4,i7,f17.5,2f18.5)
+          if(infchk == 'yes') then
+            write(6,673) group,inft,avecp,stdcp,avecp-avcp0
+          else
+            write(6,674) group,avecp,stdcp,avecp-avcp0
+          endif
+673       format(i4,i7,f17.5,2f18.5)
+674       format(i4,f20.5,2f18.5)
 
           if((pti.eq.0).and.(inft.eq.0) .and. &
-               (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(avecp-avcp0)
+             (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(avecp-avcp0)
        end do
     end do
     !
@@ -1431,61 +1439,59 @@ contains
           inft=svinf(prmcnt)
           shcp(1:numrun)=chmpt(pti,prmcnt,1:numrun)
           if(prmcnt.eq.1) then
-            if(infchk.eq.'not') then
+            if(infchk == 'yes') then
               if(numslv.eq.1) write(6,681)
               if((numslv.gt.1).and.(pti.eq.0)) write(6,682)
               if((numslv.gt.1).and.(pti.ge.1)) then
                 write(6,*) ; write(6,683) pti
               endif
-681           format(' group   Estimated free energy (kcal/mol)')
-682           format(' group   Estimated free energy:',&
+681           format(' group  inft   Estimated free energy (kcal/mol)')
+682           format(' group  inft   Estimated free energy:',&
                      ' total (kcal/mol)')
-683           format(' group   Estimated free energy:',&
+683           format(' group  inft   Estimated free energy:',&
                      i2,'-th solvent contribution (kcal/mol)')
-            endif
-            if(infchk.eq.'yes') then
+            else
               if(numslv.eq.1) write(6,686)
               if((numslv.gt.1).and.(pti.eq.0)) write(6,687)
               if((numslv.gt.1).and.(pti.ge.1)) then
                 write(6,*) ; write(6,688) pti
               endif
-686           format(' group  inft   Estimated free energy (kcal/mol)')
-687           format(' group  inft   Estimated free energy:',&
+686           format(' group   Estimated free energy (kcal/mol)')
+687           format(' group   Estimated free energy:',&
                      ' total (kcal/mol)')
-688           format(' group  inft   Estimated free energy:',&
+688           format(' group   Estimated free energy:',&
                      i2,'-th solvent contribution (kcal/mol)')
             endif
           endif
           k=(numrun-1)/5
-          if(infchk.eq.'not') then
-            if(k.eq.0) write(6,121) group,shcp(1:numrun)
+          if(infchk == 'yes') then
+            if(k.eq.0) write(6,121) group,inft,shcp(1:numrun)
             if(k.ge.1) then
-              write(6,122) group,shcp(1:5)
+              write(6,122) group,inft,shcp(1:5)
               if(k.gt.1) then
                 do i=1,k-1 ; write(6,123) (shcp(5*i+m), m=1,5) ; enddo
               endif
             endif
             j=numrun-5*k
             if(j.gt.0) write(6,124) (shcp(m), m=5*k+1,numrun)
-121         format(i4,'  ',9999f13.4)
-122         format(i4,'  ',5f13.4)
-123         format('      ',5f13.4)
-124         format('      ',9999f13.4)
-          endif
-          if(infchk.eq.'yes') then
-            if(k.eq.0) write(6,126) group,inft,shcp(1:numrun)
+121         format(i4,i7,9999f13.4)
+122         format(i4,i7,5f13.4)
+123         format('           ',5f13.4)
+124         format('           ',9999f13.4)
+          else
+            if(k.eq.0) write(6,126) group,shcp(1:numrun)
             if(k.ge.1) then
-              write(6,127) group,inft,shcp(1:5)
+              write(6,127) group,shcp(1:5)
               if(k.gt.1) then
-                do i=1,k-1 ; write(6,128) (shcp(5*i+m), m=1,5) ;enddo
+                do i=1,k-1 ; write(6,128) (shcp(5*i+m), m=1,5) ; enddo
               endif
             endif
             j=numrun-5*k
             if(j.gt.0) write(6,129) (shcp(m), m=5*k+1,numrun)
-126         format(i4,i7,9999f13.4)
-127         format(i4,i7,5f13.4)
-128         format('           ',5f13.4)
-129         format('           ',9999f13.4)
+126         format(i4,'  ',9999f13.4)
+127         format(i4,'  ',5f13.4)
+128         format('      ',5f13.4)
+129         format('      ',9999f13.4)
           endif
        end do
     end do
