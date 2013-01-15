@@ -731,6 +731,7 @@ contains
     integer iduv,iduvp,pti,j,k,m
     real factor,ampl,lcsln,lcref,min_rddst,min_rddns
     real, dimension(:), allocatable :: work
+    integer, parameter :: ofdmp=10  ! factor to suppress the integer overflow
     integer, dimension(:), allocatable :: ext_target
 
     min_rddst=minval(rddst, mask=rddst.gt.zero)
@@ -738,9 +739,21 @@ contains
     allocate( ext_target(gemax) ) ; ext_target(:)=0
     !
     do iduv=1,gemax
-      j=nint(edist(iduv)/min_rddst)
-      k=nint(edens(iduv)/min_rddns)
-      if((j.lt.extthres_soln).or.(k.lt.extthres_refs)) ext_target(iduv)=1
+       factor=edist(iduv)/min_rddst
+       m=ofdmp*extthres_soln
+       if(factor.gt.real(m)) then
+          j=m
+       else
+          j=nint(factor)
+       endif
+       factor=edens(iduv)/min_rddns
+       m=ofdmp*extthres_refs
+       if(factor.gt.real(m)) then
+          k=m
+       else
+          k=nint(factor)
+       endif
+       if((j.lt.extthres_soln).or.(k.lt.extthres_refs)) ext_target(iduv)=1
     enddo
     !
     do iduv=1,gemax
