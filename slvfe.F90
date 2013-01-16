@@ -1484,9 +1484,8 @@ contains
               if(k.gt.1) then
                 do i=1,k-1 ; write(6,123) (shcp(5*i+m), m=1,5) ; enddo
               endif
+              if(5*k.lt.numrun) write(6,124) (shcp(m), m=5*k+1,numrun)
             endif
-            j=numrun-5*k
-            if(j.gt.0) write(6,124) (shcp(m), m=5*k+1,numrun)
 121         format(i4,i7,9999f13.4)
 122         format(i4,i7,5f13.4)
 123         format('           ',5f13.4)
@@ -1498,9 +1497,8 @@ contains
               if(k.gt.1) then
                 do i=1,k-1 ; write(6,128) (shcp(5*i+m), m=1,5) ; enddo
               endif
+              if(5*k.lt.numrun) write(6,129) (shcp(m), m=5*k+1,numrun)
             endif
-            j=numrun-5*k
-            if(j.gt.0) write(6,129) (shcp(m), m=5*k+1,numrun)
 126         format(i4,'  ',9999f13.4)
 127         format(i4,'  ',5f13.4)
 128         format('      ',5f13.4)
