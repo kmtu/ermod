@@ -126,8 +126,8 @@ AC_CACHE_CHECK([how to read real as real(8) as default],
 my_fc_real_double_cv_flag,
 [AC_LANG_PUSH(Fortran)
 save_FCFLAGS=$FCFLAGS
-# for default, gfortran, ifort, xlf, Fujitsu f90
-for flag in "" "-fdefault-real-8 -fdefault-double-8" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-CcdRR8" "-Ad"; do
+# for default, gfortran, ifort, xlf, Fujitsu f90, Fujitsu f90 (old), Portland, Cray
+for flag in "" "-fdefault-real-8 -fdefault-double-8" "-fdefault-real-8" "-autodouble" "-qrealsize=8" "-CcdRR8" "-Ad" "-Mr8" "-s default64"; do
 FCFLAGS="$save_FCFLAGS $flag"
 # This is very tricky indeed...
   AC_COMPILE_IFELSE(
