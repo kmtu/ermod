@@ -30,7 +30,7 @@ module sysvars
   character*4 :: zerosft='orig',wgtfnform='harm'
   character*3 :: refmerge='yes',extsln='lin'
   character*3 :: wgtf2smpl='yes',slncor='not'
-  character*3 :: normalize='yes',showdst='not'
+  character*3 :: normalize='yes',showdst='not',cumuint='not'
   character*3 :: wrtzrsft='not',readwgtfl='yes'
 
   real :: inptemp=300.0e0                                     ! Kelvin
@@ -39,13 +39,19 @@ module sysvars
   integer :: pickgr=3,msemin=1,msemax=5
   real :: mesherr=0.10e0                                      ! kcal/mol
   integer :: maxmesh=30000, large=500000, itrmax=100
+  integer :: extthres_soln=1, extthres_refs=1
   
-  character(len=1024) :: wgtslnfl='soln/weight_soln'
-  character(len=1024) :: wgtreffl='refs/weight_refs'
-  character(len=1024) :: slndnspf='soln/engsln.'
-  character(len=1024) :: slncorpf='soln/corsln.'
-  character(len=1024) :: refdnspf='refs/engref.'
-  character(len=1024) :: refcorpf='refs/corref.'
+  character(len=1024) :: solndirec='soln'
+  character(len=1024) :: refsdirec='refs'
+  character(len=1024) :: wgtslnfl='weight_soln'
+  character(len=1024) :: wgtreffl='weight_refs'
+  character(len=1024) :: slndnspf='engsln'
+  character(len=1024) :: slncorpf='corsln'
+  character(len=1024) :: refdnspf='engref'
+  character(len=1024) :: refcorpf='corref'
+  character(len=1024) :: aveuvfile='aveuv.tt'
+  character(len=1024) :: ecdinfofl='EcdInfo'
+  character(len=1024) :: cumuintfl='cumsfe'
   character(*), parameter :: numbers='0123456789'
   
   integer prmmax,maxsln,maxref,numrun
@@ -64,12 +70,14 @@ module sysvars
   real, dimension(:),     allocatable :: wgtsln,wgtref
   
   namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
-       peread, uvread, slfslt, infchk, &
-       zerosft, wgtfnform, refmerge, extsln, &
+       peread, uvread, slfslt, infchk, zerosft, wgtfnform, &
+       refmerge, extsln, extthres_soln, extthres_refs, &
        wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
        inptemp, pickgr, msemin, msemax, mesherr, &
        maxmesh, large, itrmax, error, tiny, &
-       wgtslnfl, wgtreffl, slndnspf, slncorpf, refdnspf, refcorpf
+       solndirec, refsdirec, wgtslnfl, wgtreffl, &
+       slndnspf, slncorpf, refdnspf, refcorpf, &
+       cumuint, cumuintfl
 
 contains
 
@@ -99,7 +107,8 @@ contains
 
   subroutine defcond
 
-    use sysvars, only: peread,infchk,readwgtfl,wgtslnfl,wgtreffl,&
+    use sysvars, only: peread,infchk,readwgtfl,&
+         solndirec,refsdirec,wgtslnfl,wgtreffl,slndnspf,aveuvfile,ecdinfofl,&
          numprm,prmmax,numsln,numref,numdiv,&
          inptemp,temp,kT,&
          pecore,maxmesh,large,&
@@ -111,9 +120,7 @@ contains
     character*85 opnfile
 
     if((clcond.ne.'basic').and.(clcond.ne.'range') .and. &
-         (clcond.ne.'merge')) then
-       write(6,*) ' The clcond parameter is incorrect ' ; stop
-    endif
+       (clcond.ne.'merge')) stop ' The clcond parameter is incorrect'
     !
     if(clcond.ne.'merge') then
        write(6,781) ; read(5,*) engfile(1)
@@ -139,7 +146,7 @@ contains
     if(clcond.ne.'basic') prmmax=numprm
     !
     if(clcond.ne.'merge') opnfile=engfile(1)
-    if(clcond.eq.'merge') opnfile='soln/engsln.01'
+    if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(slndnspf)//'.01'
     open(unit=71,file=opnfile,status='old')
     ermax=0 ; numslv=0 ; k=0
     do iduv=1,large
@@ -171,7 +178,7 @@ contains
 
        ! check consistency
        if(clcond.ne.'merge') opnfile=engfile(5)
-       if(clcond.eq.'merge') opnfile='soln/EcdInfo'
+       if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(ecdinfofl)
        open(unit=71, file=opnfile, status='old', err=7899)
 
        ! Something is wrong ... 
@@ -196,7 +203,7 @@ contains
        do pti=1,numslv
           rduvcore(pti)=pecore
           if(clcond.ne.'merge') opnfile=engfile(5)
-          if(clcond.eq.'merge') opnfile='soln/EcdInfo'
+          if(clcond.eq.'merge') opnfile=trim(solndirec)//'/'//trim(ecdinfofl)
           open(unit=71,file=opnfile,status='old')
           read(71,*)        ! comment line
           read(71,*)        ! line for solute-self energy
@@ -215,14 +222,10 @@ contains
        do pti=1,numslv
           k=k+rduvmax(pti)
        end do
-       if(k.ne.ermax) then
-          write(6,*) ' The file format is incorrect' ; stop
-       endif
+       if(k.ne.ermax) stop ' The file format is incorrect'
     endif
     !
-    if(ermax.gt.maxmesh) then
-       write(6,*) ' The number of meshes is too large' ; stop
-    endif
+    if(ermax.gt.maxmesh) stop ' The number of meshes is too large'
     !
     if(clcond.eq.'basic') then
        write(6,*) ' How many data are grouped into one?'
@@ -272,7 +275,7 @@ contains
           read(5,*) (aveuv(pti), pti=1,numslv)
        endif
        if(clcond.eq.'merge') then
-          opnfile='soln/aveuv.tt'
+          opnfile=trim(solndirec)//'/'//trim(aveuvfile)
           open(unit=82,file=opnfile,status='old')
           do k=1,maxsln
              read(82,*) m,(uvene(pti,k), pti=1,numslv)
@@ -284,13 +287,11 @@ contains
     do cnt=1,2
        if(cnt.eq.1) j=maxsln
        if(cnt.eq.2) j=maxref
-       do i=1,j
-          if(cnt.eq.1) wgtsln(i)=1.0e0
-          if(cnt.eq.2) wgtref(i)=1.0e0
-       end do
+       if(cnt.eq.1) wgtsln(1:j)=1.0e0
+       if(cnt.eq.2) wgtref(1:j)=1.0e0
        if((clcond.eq.'merge').and.(readwgtfl.eq.'yes')) then
-          if(cnt.eq.1) opnfile=wgtslnfl
-          if(cnt.eq.2) opnfile=wgtreffl
+          if(cnt.eq.1) opnfile=trim(solndirec)//'/'//trim(wgtslnfl)
+          if(cnt.eq.2) opnfile=trim(refsdirec)//'/'//trim(wgtreffl)
           open(unit=81,file=opnfile,status='old')
           do i=1,j
              read(81,*) k,factor
@@ -298,15 +299,14 @@ contains
              if(cnt.eq.2) wgtref(i)=factor
           end do
           close(81)
-          factor=0.0e0
-          do i=1,j
-             if(cnt.eq.1) factor=factor+wgtsln(i)
-             if(cnt.eq.2) factor=factor+wgtref(i)
-          end do
-          do i=1,j
-             if(cnt.eq.1) wgtsln(i)=wgtsln(i)/factor
-             if(cnt.eq.2) wgtref(i)=wgtref(i)/factor
-          end do
+          if(cnt.eq.1) then
+            factor=sum(wgtsln(1:j))
+            wgtsln(1:j)=wgtsln(1:j)/factor
+          endif
+          if(cnt.eq.2) then
+            factor=sum(wgtref(1:j))
+            wgtref(1:j)=wgtref(1:j)/factor
+          endif
        endif
     end do
 
@@ -321,7 +321,8 @@ contains
 882          format(' readwgtfl needs to be yes when slfslt is yes')
           endif
           slfeng=0.0e0
-          open(unit=81,file=wgtreffl,status='old')
+          opnfile=trim(refsdirec)//'/'//trim(wgtreffl)
+          open(unit=81,file=opnfile,status='old')
           do i=1,maxref
              read(81,*) k,factor,factor
              slfeng=slfeng+wgtref(i)*factor
@@ -335,13 +336,13 @@ contains
 
   subroutine datread(cntrun)
     use sysvars, only: refmerge,zero,tiny,&
-         slndnspf,slncorpf,refdnspf,refcorpf,numbers
+         solndirec,refsdirec,slndnspf,slncorpf,refdnspf,refcorpf,numbers
     integer cntrun,slnini,slnfin,refini,reffin,ecmin,ecmax
     integer iduv,iduvp,i,k,m,pti,cnt
     real factor,ampl
     real, allocatable :: corref_temp(:, :)
     character*85 opnfile
-    character*2 suffnum
+    character*3 suffnum
 
     if(clcond.ne.'merge') then
        slnini=1 ; slnfin=1 ; refini=1 ; reffin=1
@@ -385,25 +386,24 @@ contains
        if(cnt.ge.3) ecmin=refini
        if(cnt.ge.3) ecmax=reffin
        
-       factor=0.0e0
-       do i=ecmin,ecmax
-          if(cnt.le.2) factor=factor+wgtsln(i)
-          if(cnt.ge.3) factor=factor+wgtref(i)
-       end do
-       do i=ecmin,ecmax
-          if(cnt.le.2) wgtsln(i)=wgtsln(i)/factor
-          if(cnt.ge.3) wgtref(i)=wgtref(i)/factor
-       end do
+       if(cnt.le.2) then
+         factor=sum(wgtsln(ecmin:ecmax))
+         wgtsln(ecmin:ecmax)=wgtsln(ecmin:ecmax)/factor
+       endif
+       if(cnt.ge.3) then
+         factor=sum(wgtref(ecmin:ecmax))
+         wgtref(ecmin:ecmax)=wgtref(ecmin:ecmax)/factor
+       endif
 
        do i=ecmin,ecmax
           if(clcond.ne.'merge') opnfile=engfile(cnt)
           if(clcond.eq.'merge') then
              m=i/10 ; k=i-10*m
-             suffnum=numbers(m+1:m+1)//numbers(k+1:k+1)
-             if(cnt.eq.1) opnfile=trim(slndnspf)//suffnum
-             if(cnt.eq.2) opnfile=trim(slncorpf)//suffnum
-             if(cnt.eq.3) opnfile=trim(refdnspf)//suffnum
-             if(cnt.eq.4) opnfile=trim(refcorpf)//suffnum
+             suffnum='.'//numbers(m+1:m+1)//numbers(k+1:k+1)
+             if(cnt.eq.1) opnfile=trim(solndirec)//'/'//trim(slndnspf)//suffnum
+             if(cnt.eq.2) opnfile=trim(solndirec)//'/'//trim(slncorpf)//suffnum
+             if(cnt.eq.3) opnfile=trim(refsdirec)//'/'//trim(refdnspf)//suffnum
+             if(cnt.eq.4) opnfile=trim(refsdirec)//'/'//trim(refcorpf)//suffnum
           endif
           if(cnt == 4) open(unit=71,file=opnfile,status='old', form="UNFORMATTED")
           if(cnt /= 4) open(unit=71,file=opnfile,status='old')
@@ -413,7 +413,7 @@ contains
           if(cnt == 4) then
              allocate(corref_temp(ermax, ermax))
              read(71) corref_temp
-             rdcor(:, :) = rdcor(:, :) + wgtref(i) * corref_temp
+             rdcor(:, :) = rdcor(:, :) + wgtref(i) * corref_temp(:, :)
              deallocate(corref_temp)
           else
              do iduv=1,ermax
@@ -470,19 +470,11 @@ contains
 !
     if((uvread.eq.'yes').and.(clcond.eq.'merge')) then
        do pti=1,numslv
-          factor=0.0e0
-          do i=slnini,slnfin
-             factor=factor+wgtsln(i)*uvene(pti,i)
-          end do
-          aveuv(pti)=factor
+         aveuv(pti)=sum(wgtsln(slnini:slnfin)*uvene(pti,slnini:slnfin))
        end do
-       factor=0.0e0
-       do pti=1,numslv
-          blkuv(pti,cntrun)=aveuv(pti)
-          factor=factor+aveuv(pti)
-       end do
-       if(slfslt.eq.'yes') factor=factor+slfeng
-       blkuv(0,cntrun)=factor
+       blkuv(1:numslv,cntrun)=aveuv(1:numslv)
+       blkuv(0,cntrun)=sum(blkuv(1:numslv,cntrun))
+       if(slfslt.eq.'yes') blkuv(0,cntrun)=blkuv(0,cntrun)+slfeng
     endif
 
     return
@@ -490,8 +482,10 @@ contains
 end module
 
 module sfecalc
-  use sysvars, only: zerosft,wgtfnform,extsln,slncor,&
-       numslv,ermax,nummol,kT,itrmax,zero,error
+  use sysvars, only: zerosft,wgtfnform,slncor, &
+                     numslv,ermax,nummol,kT,itrmax,zero,error, &
+                     rduvmax,rduvcore, &
+                     rdcrd,rddst,rddns,rdslc,rdcor,rdspec
   integer, dimension(:), allocatable :: idrduv,uvmax
   real, dimension(:),    allocatable :: uvcrd,edist,edens
   real, dimension(:,:),  allocatable :: edscr,ecorr
@@ -548,16 +542,16 @@ contains
 
   subroutine chmpot(prmcnt,cntrun)
     !
-    use sysvars, only: uvread,slfslt, &
-         normalize,showdst,wrtzrsft,slfeng, &
-         rduvmax,rduvcore, &
-         rdcrd,rddst,rddns,rdslc,rdcor,rdspec, &
-         chmpt,aveuv,svgrp,svinf
+    use sysvars, only: uvread,slfslt,normalize,showdst,wrtzrsft, &
+                       slfeng,chmpt,aveuv,svgrp,svinf, &
+                       pickgr,cumuint,cumuintfl
     !
     integer prmcnt,cntrun,group,inft
     integer iduv,iduvp,pti,cnt,j,k,m
-    real factor,ampl,slvfe,uvpot,lcsln,lcref
+    real factor,ampl,slvfe,uvpot,lcent,lcsln,lcref
     integer, dimension(:), allocatable :: gpnum
+    real, dimension(:,:), allocatable :: cumsfe
+    integer, parameter :: cumu_io = 51
     !
     group=svgrp(prmcnt) ; inft=svinf(prmcnt)
     !
@@ -644,6 +638,24 @@ contains
     call getslncv
     call getinscv
     !
+    if((uvread.ne.'yes').and.(prmcnt.eq.1)) then
+      do pti=1,numslv
+        uvpot=0.0e0
+        do iduv=1,gemax
+          if(uvspec(iduv).eq.pti) uvpot=uvpot+uvcrd(iduv)*edist(iduv)
+        enddo
+        aveuv(pti)=uvpot
+      enddo
+    endif
+    !
+    ! if some correction such as LJ long-range is added, it should be here
+    !
+    if((cumuint.eq.'yes').and.(group.eq.pickgr).and.(inft.eq.0)) then
+      j=gemax/numslv
+      if(any(uvmax(1:numslv).ne.j)) stop ' Incorrect file format for storing the running integral'
+      allocate( cumsfe(numslv,j) )
+    endif
+    !
     do pti=1,numslv
        uvpot=0.0e0 ; slvfe=0.0e0
        do iduv=1,gemax
@@ -651,14 +663,14 @@ contains
              if((edist(iduv).le.zero).and.(edens(iduv).le.zero)) goto 5009
              uvpot=uvpot+uvcrd(iduv)*edist(iduv)
              slvfe=slvfe-kT*(edist(iduv)-edens(iduv))
-             factor=-(slncv(iduv)+zrsln(pti)+uvcrd(iduv))
+             lcent=-(slncv(iduv)+zrsln(pti)+uvcrd(iduv))  ! kT*log(edist/edens)
              if((slncor.eq.'yes') .and. &
                   (edist(iduv).gt.zero).and.(edens(iduv).le.zero)) then
-                ampl=factor*edens(iduv)/edist(iduv)
-                factor=ampl-(zrsln(pti)+uvcrd(iduv))&
+                ampl=lcent*edens(iduv)/edist(iduv)
+                lcent=ampl-(zrsln(pti)+uvcrd(iduv))&
                      *(1.0e0-edens(iduv)/edist(iduv))
              endif
-             slvfe=slvfe+factor*edist(iduv)
+             slvfe=slvfe+lcent*edist(iduv)
              do cnt=1,2
                 if(cnt.eq.1) lcsln=pyhnc(slncv(iduv),cnt)
                 if(cnt.eq.2) lcref=pyhnc(inscv(iduv),cnt)
@@ -671,18 +683,28 @@ contains
              factor=ampl*lcsln+(1.0e0-ampl)*lcref
              slvfe=slvfe+kT*factor*(edist(iduv)-edens(iduv))
 5009         continue
+             if((cumuint.eq.'yes').and.(group.eq.pickgr).and.(inft.eq.0)) then
+               m=mod(iduv-1,j)+1
+               cumsfe(pti,m)=uvpot+slvfe
+             endif
           endif
        end do
-       if((uvread.ne.'yes').and.(prmcnt.eq.1)) aveuv(pti)=uvpot
        chmpt(pti,prmcnt,cntrun)=slvfe+aveuv(pti)
     end do
     !
-    slvfe=0.0e0
-    do pti=1,numslv
-       slvfe=slvfe+chmpt(pti,prmcnt,cntrun)
-    end do
-    if(slfslt.eq.'yes') slvfe=slvfe+slfeng
-    chmpt(0,prmcnt,cntrun)=slvfe
+    if((cumuint.eq.'yes').and.(group.eq.pickgr).and.(inft.eq.0)) then
+      open(cumu_io,file=cumuintfl,status='replace')
+      do iduv=1,j
+        factor=sum(cumsfe(1:numslv,iduv))
+        if(numslv.eq.1) write(cumu_io,511) iduv,uvcrd(iduv),factor
+        if(numslv.gt.1) write(cumu_io,511) iduv,uvcrd(iduv),factor,cumsfe(1:numslv,iduv)
+      enddo
+511   format(i6,g15.5,9999f12.5)
+      endfile(cumu_io) ; close(cumu_io) ; deallocate( cumsfe )
+    endif
+    !
+    chmpt(0,prmcnt,cntrun)=sum(chmpt(1:numslv,prmcnt,cntrun))
+    if(slfslt.eq.'yes') chmpt(0,prmcnt,cntrun)=chmpt(0,prmcnt,cntrun)+slfeng
     !
     if(wrtzrsft.eq.'yes') then
        do cnt=1,3
@@ -705,20 +727,44 @@ contains
   end subroutine chmpot
 
   subroutine getslncv
-
+    use sysvars, only: extsln,extthres_soln,extthres_refs
     integer iduv,iduvp,pti,j,k,m
-    real factor,ampl,lcsln,lcref
+    real factor,ampl,lcsln,lcref,min_rddst,min_rddns
     real, dimension(:), allocatable :: work
+    integer, parameter :: ofdmp=10  ! factor to suppress the integer overflow
+    integer, dimension(:), allocatable :: ext_target
 
+    min_rddst=minval(rddst, mask=rddst.gt.zero)
+    min_rddns=minval(rddns, mask=rddns.gt.zero)
+    allocate( ext_target(gemax) ) ; ext_target(:)=0
+    !
     do iduv=1,gemax
-       if((edist(iduv).gt.zero).and.(edens(iduv).gt.zero)) then
+       factor=edist(iduv)/min_rddst
+       m=ofdmp*extthres_soln
+       if(factor.gt.real(m)) then
+          j=m
+       else
+          j=nint(factor)
+       endif
+       factor=edens(iduv)/min_rddns
+       m=ofdmp*extthres_refs
+       if(factor.gt.real(m)) then
+          k=m
+       else
+          k=nint(factor)
+       endif
+       if((j.lt.extthres_soln).or.(k.lt.extthres_refs)) ext_target(iduv)=1
+    enddo
+    !
+    do iduv=1,gemax
+       if(ext_target(iduv).eq.0) then
           factor=edist(iduv)/edens(iduv)
           slncv(iduv)=-kT*log(factor)-uvcrd(iduv)
        endif
     end do
-
+    !
     do iduv=1,gemax
-       if((edist(iduv).le.zero).or.(edens(iduv).le.zero)) then
+       if(ext_target(iduv).eq.1) then
           if(edist(iduv).le.zero) then
              slncv(iduv)=0.0e0
              cycle
@@ -727,15 +773,11 @@ contains
           m=1 ; k=gemax
           do iduvp=1,iduv-1
              if((uvspec(iduvp).eq.pti).and.(m.lt.iduvp).and.&
-                  (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
-                m=iduvp
-             endif
+                (ext_target(iduvp).eq.0)) m=iduvp
           end do
           do iduvp=gemax,iduv+1,-1
              if((uvspec(iduvp).eq.pti).and.(k.gt.iduvp).and.&
-                  (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
-                k=iduvp
-             endif
+                (ext_target(iduvp).eq.0)) k=iduvp
           end do
           !
           if(extsln.eq.'sim') then
@@ -748,11 +790,8 @@ contains
              j=k ; if(abs(m-iduv).lt.abs(k-iduv)) j=m
              allocate( work(gemax) ) ; work(:)=0.0e0
              do iduvp=1,gemax
-                if((uvspec(iduvp).eq.pti).and.&
-                     (edist(iduvp).gt.zero).and.(edens(iduvp).gt.zero)) then
-                   if(iduvp.eq.iduv) then
-                      write(6,*) ' A bug in program or data' ; stop
-                   endif
+                if((uvspec(iduvp).eq.pti).and.(ext_target(iduvp).eq.0)) then
+                   if(iduvp.eq.iduv) stop ' A bug in program or data'
                    factor=uvcrd(iduvp)-uvcrd(j)
                    if(iduvp.lt.iduv) then
                       factor=-factor-2.0e0*(uvcrd(j)-uvcrd(iduv))
@@ -761,10 +800,7 @@ contains
                    work(iduvp)=exp(-factor/kT)*ampl
                 endif
              end do
-             factor=0.0e0
-             do iduvp=1,gemax
-                if(work(iduvp) .gt. zero) factor=factor+work(iduvp)
-             end do
+             factor=sum(work, mask=work.gt.zero)
              do iduvp=1,gemax
                 work(iduvp)=work(iduvp)/factor
              end do
@@ -785,7 +821,9 @@ contains
           slncv(iduv)=factor
        endif
     end do
-
+    !
+    deallocate( ext_target )
+    !
     do pti=1,numslv
        select case(zerosft)
        case('orig')
@@ -800,7 +838,7 @@ contains
        case('cntr')
           factor=cvfcen(pti,1,'slncv',wgtfnform,'not')
        case default
-          write(6,*) ' zerosft not properly set ' ; stop
+          stop ' zerosft not properly set '
        end select
        do iduv=1,gemax
           if(uvspec(iduv).eq.pti) slncv(iduv)=slncv(iduv)-factor
@@ -907,7 +945,7 @@ contains
           case('cntr')
              factor=cvfcen(pti,cnt,'inscv',wgtfnform,'not')
           case default
-             write(6,*) ' zerosft not properly set ' ; stop
+             stop ' zerosft not properly set '
           end select
           do iduv=1,gemax
              if(uvspec(iduv).eq.pti) then
@@ -959,9 +997,7 @@ contains
           case default
              errtag=1
           end select
-          if(errtag.ne.0) then
-             write(6,*) ' Bug in the program' ; stop
-          endif
+          if(errtag.ne.0) stop ' Bug in the program'
           factor=factor+cvfnc*weight(iduv)
        endif
     end do
@@ -1066,9 +1102,7 @@ contains
           if(factor.gt.zero) wght=fsln*fref/factor
        end select
     endif
-    if(errtag.ne.0) then
-       write(6,*) ' Bug in the program' ; stop
-    endif
+    if(errtag.ne.0) stop ' Bug in the program'
     wgtdst=wght
     return
   end function wgtdst
@@ -1245,7 +1279,7 @@ end module sfecalc
 !
 !
 module opwrite
-  use sysvars, only: clcond,uvread,slfslt,prmmax,numrun,numslv,&
+  use sysvars, only: clcond,uvread,slfslt,infchk,prmmax,numrun,numslv,&
        pickgr,msemin,msemax,mesherr,&
        slfeng,chmpt,aveuv,blkuv,svgrp,svinf
   integer grref
@@ -1263,12 +1297,9 @@ contains
     if(clcond.ne.'merge') then
        write(6,*)
        if(numslv.gt.1) then
-          if(uvread.ne.'yes') write(6,331) (aveuv(pti), pti=1,numslv)
+          if(uvread.ne.'yes') write(6,331) aveuv(1:numslv)
        endif
-       factor=0.0e0
-       do pti=1,numslv
-          factor=factor+aveuv(pti)
-       end do
+       factor=sum(aveuv(1:numslv))
        if(slfslt.eq.'yes') factor=factor+slfeng
        write(6,332) factor
 331    format('  Solute-solvent energy       =   ', 9999f12.4)
@@ -1276,7 +1307,7 @@ contains
     endif
     !
     if(clcond.eq.'basic') then
-       if(numslv.gt.1) write(6,351) (chmpt(pti,1,1), pti=1,numslv)
+       if(numslv.gt.1) write(6,351) chmpt(1:numslv,1,1)
        write(6,352) chmpt(0,1,1)
 351    format('  Solvation free energy       =   ', 9999f12.4)
 352    format('  Total solvation free energy =   ',f12.4, '  kcal/mol')
@@ -1298,20 +1329,32 @@ contains
        if(numslv.gt.1) k=numslv
        do pti=0,k
           write(6,*)
-          if(pti.eq.0) write(6,591)
-          if(pti.ne.0) write(6,592) pti
-591       format('               chemical potential     difference')
+          if(infchk == 'yes') then
+            if(pti.eq.0) write(6,591)
+            if(pti.ne.0) write(6,592) pti
+          else
+            if(pti.eq.0) write(6,593)
+            if(pti.ne.0) write(6,594) pti
+          endif
+591       format(' group  inft  solvation free energy   difference')
 592       format('               ',i3,'-th component       difference')
+593       format(' group    solvation free energy   difference')
+594       format('           ',i3,'-th component       difference')
           do prmcnt=1,prmmax
              group=svgrp(prmcnt) ; inft=svinf(prmcnt)
              valcp=chmpt(pti,prmcnt,1)
              factor=valcp-chmpt(pti,grref,1)
-             write(6,661) group,inft,valcp,factor
+             if(infchk == 'yes') then
+               write(6,661) group,inft,valcp,factor
+             else
+               write(6,662) group,valcp,factor
+             endif
              if((pti.eq.0).and.(inft.eq.0) .and.&
-                  (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(factor)
+                (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(factor)
           end do
        end do
 661    format(i4,i7,f17.5,f18.5)
+662    format(i4,f20.5,f18.5)
     endif
     !
     if(clcond.eq.'merge') call wrtmerge
@@ -1344,11 +1387,7 @@ contains
     !
     allocate( wrtdata(0:numslv,numrun) )
     if(uvread.eq.'yes') then
-       do pti=0,numslv
-          do cntrun=1,numrun
-             wrtdata(pti,cntrun)=blkuv(pti,cntrun)
-          end do
-       end do
+       wrtdata(0:numslv,1:numrun)=blkuv(0:numslv,1:numrun)
        write(6,*) ; write(6,*) ; write(6,773)
        call wrtcumu(wrtdata) ; write(6,*)
     endif
@@ -1356,11 +1395,7 @@ contains
     !
     do pti=0,numslv
        if((numslv.eq.1).and.(pti.ne.0)) cycle
-       avcp0=0.0e0
-       do cntrun=1,numrun
-          avcp0=avcp0+chmpt(pti,grref,cntrun)
-       end do
-       avcp0=avcp0/real(numrun)
+       avcp0=sum(chmpt(pti,grref,1:numrun))/real(numrun)
        do prmcnt=1,prmmax
           group=svgrp(prmcnt)
           inft=svinf(prmcnt)
@@ -1378,8 +1413,16 @@ contains
           stdcp=2.0e0*stdcp/sqrt(factor)
           if(prmcnt.eq.1) then
              write(6,*)
-             if(pti.eq.0) write(6,670)
-670          format(' group  inft  solvation free energy     error',&
+             if(pti.eq.0) then
+               if(infchk == 'yes') then
+                 write(6,671)
+               else
+                 write(6,672)
+               endif
+             endif
+671          format(' group  inft  solvation free energy     error',&
+                  '          difference')
+672          format(' group    solvation free energy     error',&
                   '          difference')
              if(numslv.gt.1) then
                 if(pti.eq.0) write(6,661)
@@ -1388,11 +1431,16 @@ contains
 662             format('  contribution from ',i2,'-th solvent component')
              endif
           endif
-          write(6,671) group,inft,avecp,stdcp,avecp-avcp0
-671       format(i4,i7,f17.5,2f18.5)
+          if(infchk == 'yes') then
+            write(6,673) group,inft,avecp,stdcp,avecp-avcp0
+          else
+            write(6,674) group,avecp,stdcp,avecp-avcp0
+          endif
+673       format(i4,i7,f17.5,2f18.5)
+674       format(i4,f20.5,2f18.5)
 
           if((pti.eq.0).and.(inft.eq.0) .and. &
-               (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(avecp-avcp0)
+             (group >= msemin) .and. (group <= msemax)) mshdif(group)=abs(avecp-avcp0)
        end do
     end do
     !
@@ -1402,51 +1450,66 @@ contains
        do prmcnt=1,prmmax
           group=svgrp(prmcnt)
           inft=svinf(prmcnt)
-          do cntrun=1,numrun
-             shcp(cntrun)=chmpt(pti,prmcnt,cntrun)
-          end do
+          shcp(1:numrun)=chmpt(pti,prmcnt,1:numrun)
           if(prmcnt.eq.1) then
-             if(numslv.eq.1) write(6,667)
-             if(numslv.gt.1) then
-                if(pti.eq.0) write(6,681)
-                if(pti.ge.1) then
-                   write(6,*)
-                   write(6,682) pti
-                endif
-             endif
-667          format(' group  inft   Estimated free energy (kcal/mol)')
-681          format(' group  inft   Estimated free energy:',&
-                  ' total (kcal/mol)')
-682          format(' group  inft   Estimated free energy:',&
-                  i2,'-th solvent contribution (kcal/mol)')
+            if(infchk == 'yes') then
+              if(numslv.eq.1) write(6,681)
+              if((numslv.gt.1).and.(pti.eq.0)) write(6,682)
+              if((numslv.gt.1).and.(pti.ge.1)) then
+                write(6,*) ; write(6,683) pti
+              endif
+681           format(' group  inft   Estimated free energy (kcal/mol)')
+682           format(' group  inft   Estimated free energy:',&
+                     ' total (kcal/mol)')
+683           format(' group  inft   Estimated free energy:',&
+                     i2,'-th solvent contribution (kcal/mol)')
+            else
+              if(numslv.eq.1) write(6,686)
+              if((numslv.gt.1).and.(pti.eq.0)) write(6,687)
+              if((numslv.gt.1).and.(pti.ge.1)) then
+                write(6,*) ; write(6,688) pti
+              endif
+686           format(' group   Estimated free energy (kcal/mol)')
+687           format(' group   Estimated free energy:',&
+                     ' total (kcal/mol)')
+688           format(' group   Estimated free energy:',&
+                     i2,'-th solvent contribution (kcal/mol)')
+            endif
           endif
           k=(numrun-1)/5
-          if(k.eq.0) write(6,121) group,inft,(shcp(m), m=1,numrun)
-          if(k.ge.1) then
-             write(6,125) group,inft,(shcp(m), m=1,5)
-             if(k.gt.1) then
-                do i=1,k-1
-                   write(6,126) (shcp(5*i+m), m=1,5)
-                enddo
-             endif
-             j=numrun-5*k
-             if(j.gt.0) write(6,127) (shcp(m), m=5*k+1,numrun)
+          if(infchk == 'yes') then
+            if(k.eq.0) write(6,121) group,inft,shcp(1:numrun)
+            if(k.ge.1) then
+              write(6,122) group,inft,shcp(1:5)
+              if(k.gt.1) then
+                do i=1,k-1 ; write(6,123) (shcp(5*i+m), m=1,5) ; enddo
+              endif
+              if(5*k.lt.numrun) write(6,124) (shcp(m), m=5*k+1,numrun)
+            endif
+121         format(i4,i7,9999f13.4)
+122         format(i4,i7,5f13.4)
+123         format('           ',5f13.4)
+124         format('           ',9999f13.4)
+          else
+            if(k.eq.0) write(6,126) group,shcp(1:numrun)
+            if(k.ge.1) then
+              write(6,127) group,shcp(1:5)
+              if(k.gt.1) then
+                do i=1,k-1 ; write(6,128) (shcp(5*i+m), m=1,5) ; enddo
+              endif
+              if(5*k.lt.numrun) write(6,129) (shcp(m), m=5*k+1,numrun)
+            endif
+126         format(i4,'  ',9999f13.4)
+127         format(i4,'  ',5f13.4)
+128         format('      ',5f13.4)
+129         format('      ',9999f13.4)
           endif
-121       format(i4,i7,9999f13.4)
-125       format(i4,i7,5f13.4)
-126       format('           ',5f13.4)
-127       format('           ',9999f13.4)
        end do
     end do
     !
-    do pti=0,numslv
-       do cntrun=1,numrun
-          wrtdata(pti,cntrun)=chmpt(pti,grref,cntrun)
-       end do
-    end do
+    wrtdata(0:numslv,1:numrun)=chmpt(0:numslv,grref,1:numrun)
     write(6,*) ; write(6,*) ; write(6,770)
-770 format(' cumulative average & 95% error ',&
-         'for solvation free energy')
+770 format(' cumulative average & 95% error for solvation free energy')
     call wrtcumu(wrtdata)
     deallocate( wrtdata )
 
