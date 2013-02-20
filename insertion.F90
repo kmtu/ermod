@@ -18,23 +18,25 @@
 ! Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 module ptinsrt
-  implicit none
-  !
   !  test particle insertion of the solute
-  !
+  implicit none
   real, save :: unrn
-  !
   !  single-solute trajectrory file           used only when slttype = 3
   character(*), parameter :: slttrj='SltConf'    ! solute filename
-  integer, parameter :: slcnf=31                 ! solute file ID
   character(*), parameter :: sltwgt='SltWght'    ! solute weight filename
-  integer, parameter :: swinf=32                 ! solute weight ID
+  integer, parameter :: swinf=31                 ! solute weight ID
   !
-  !  insertion against reference structure    used only when inscnd = 3
+  !  insertion against reference structure
   !   refmlid : superposition reference among solvent species
   !             --- 0 : not reference
   !                 1 : reference solvent  2 : reference solute
   !             value set in subroutine setparam
+  !  file for reference structure
+  character(*), parameter :: reffile='RefInfo'  ! reference structure
+  integer, parameter :: refio=71                ! reference structure IO
+  !
+  !
+  ! parameters and variable used only in the legacy part  starting here
   !   refsatm_impl : specification of the reference site
   !             --- 0 : not reference
   !                 1 : reference solvent  2 : reference solute
@@ -44,59 +46,57 @@ module ptinsrt
   !   movmax : number of Monte Carlo moves
   !   trmax : maximum of translational Monte Carlo move
   !   agmax : maximum of orientational Monte Carlo move
+  !   inscnd and inscfg are deprecated and used only in the legacy parts
   integer, dimension(:),   allocatable :: refsatm_impl
   real, dimension(:,:),    allocatable :: refspos
   real, save :: sltcen(3),sltqrn(0:3)
   integer, parameter :: movmax=10
   real, parameter :: trmax=0.20e0
   real, parameter :: agmax=0.10e0
-  !   file for reference structure
-  character(*), parameter :: reffile='RefInfo'  ! reference structure
-  integer, parameter :: refio=71                ! reference structure IO
   !   specifier to treat the reference as the total or as the system part only
   integer, parameter :: reftot=99, refsys=98
+  ! parameters and variable used only in the legacy part  ending here
   !
   !
 contains
-  subroutine instslt(wgtslcf,caltype)
-    use engmain, only: nummol,slttype,insorigin,inscnd,inscfg,numslt,sltlist,iseed, &
-         numsite, mol_begin_index, sitepos, bfcoord
+  subroutine instslt(stat_weight_solute,caltype)
+    use engmain, only: nummol, slttype, numslt, sltlist, iseed
     implicit none
-    integer insml,m
-    real wgtslcf,pcom(3),qrtn(0:3)
+    real stat_weight_solute
     character*4 caltype
-    character*3 insyn
+    integer insml
+    logical reject
     
-    call instwgt(wgtslcf,caltype)
+    call instwgt(stat_weight_solute,caltype)
 
     if(caltype.eq.'init') call urand_init(iseed)
     if((caltype.eq.'init').or.(caltype.eq.'last')) then
-       if(slttype.eq.3) call getsolute(0,caltype)       ! flexible solute
+       if(slttype.eq.3) call getsolute(0,caltype)      ! flexible solute
        return
     endif
 
-    m=0
-    if(numslt.ne.1) m=9
-    if((numslt.eq.1).and.(sltlist(1).ne.nummol)) m=9
-    if(m.ne.0) call insrt_stop('set')    ! incorrect solute specification
+    reject = .false.
+    if(numslt.ne.1) reject = .true.
+    if((numslt.eq.1).and.(sltlist(1).ne.nummol)) reject = .true.
+    if(reject) call insrt_stop('set')          ! incorrect solute specification
 
     insml=nummol                                       ! inserted solute
     if(slttype.eq.3) call getsolute(insml,'conf')      ! flexible solute
 
-    insyn='not'
-    do while(insyn.eq.'not')
+    reject = .true.
+    do while(reject)
        call set_solute_origin(insml)
-       call set_shift_com(insml, wgtslcf)
+       call set_shift_com(insml, stat_weight_solute)
        call apply_orientation(insml)
-       call insscheme(insml,insyn)       ! user-defined scheme to apply change / reject configuration
+       ! user-defined scheme to apply change / reject the solute configuration
+       call insscheme(insml,reject)
     end do
     
     return
   end subroutine instslt
 
   subroutine set_solute_origin(insml)
-    use engmain, only: insorigin, &
-         numsite, mol_begin_index, bfcoord, sitepos
+    use engmain, only: insorigin, numsite, mol_begin_index, bfcoord, sitepos
     implicit none
     integer, intent(in) :: insml
     integer :: molb, mole, nsite
@@ -105,32 +105,27 @@ contains
     nsite = numsite(insml)
     molb = mol_begin_index(insml)
     mole = mol_begin_index(insml + 1) - 1
-
     sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
 
-
-    
     select case(insorigin)
     case(0)
-       ! do nothing
-    case(1)
-       call reffit(insml)
-    case(2)
        syscen(:) = (/ 0., 0., 0. /)
-       call set_solute_com(insml, syscen)
+       call set_solute_com(insml, syscen)     ! set solute COM to (0,0,0)
+    case(1)
+       call get_system_com(syscen)            ! get aggregate center (syscen)
+       call set_solute_com(insml, syscen)     ! set solute COM to syscen
+    case(2)
+       call reffit(insml)
     case(3)
-       call get_system_com(syscen)
-       call set_solute_com(insml, syscen)
+       ! do nothing
+    case default
+       stop "Unknown insorigin"
     end select
   end subroutine set_solute_origin
 
   subroutine set_shift_com(insml, weight)
-    use engmain, only: insposition, inscnd, &
-         numsite, mol_begin_index, &
-         lwreg, upreg, &
-         sitepos, cell, invcl, celllen, &
-         boxshp, SYS_NONPERIODIC, &
-         pi
+    use engmain, only: insposition, lwreg, upreg, &
+                       cell, celllen, boxshp, SYS_NONPERIODIC
     implicit none
     integer, intent(in) :: insml
     real, intent(inout) :: weight
@@ -146,7 +141,6 @@ contains
           call urand(r(i))
        end do
        com(:) = matmul(cell(:, :), r(:))
-
        call set_solute_com(insml, com)
        return
     case(1) ! spherical random position
@@ -185,11 +179,26 @@ contains
        ! 50% mixture of uniform distribution and weighted distribution
        call uniform_gauss_mixture(com, weight)
        call shift_solute_com(insml, com)
+       return
     case default
        stop "Unknown insposition"
     end select
 
   contains
+    subroutine shift_solute_com(insml, com)
+      use engmain, only: numsite, mol_begin_index, mol_end_index, sitepos
+      implicit none
+      integer, intent(in) :: insml
+      real, intent(in) :: com(3)
+      integer :: insb, inse, i, n
+      n = numsite(insml)
+      insb = mol_begin_index(insml)
+      inse = mol_end_index(insml)
+      do i = 1, 3
+         sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
+      end do
+    end subroutine shift_solute_com
+
     ! FIXME: this routine does not work for skewed periodic box
     subroutine uniform_gauss_mixture(com, weight)
       use mpiproc, only: myrank
@@ -241,31 +250,11 @@ contains
       weight = 1.0 / (uniform_ratio * 1 / z0 + (1 - uniform_ratio) * exp(-sqsum) / z1)
       com(:) = matmul(cell(:, :) , scaled_coord(:) / (l_of_sigma(:) * 2))
     end subroutine uniform_gauss_mixture
-
-    subroutine shift_solute_com(insml, com)
-      use engmain, only: numsite, &
-           mol_begin_index, mol_end_index, &
-           sitepos, sitemass
-      implicit none
-      integer, intent(in) :: insml
-      real, intent(in) :: com(3)
-      integer :: insb, inse, i, n
-      
-      n = numsite(insml)
-      insb = mol_begin_index(insml)
-      inse = mol_end_index(insml)
-      
-      do i = 1, 3
-         sitepos(i, insb:inse) = sitepos(i, insb:inse) + com(i)
-      end do
-    end subroutine shift_solute_com
-
   end subroutine set_shift_com
 
   subroutine set_solute_com(insml, com)
-    use engmain, only: numsite, &
-         mol_begin_index, mol_end_index, &
-         sitepos, sitemass
+    use engmain, only: numsite, mol_begin_index, mol_end_index, &
+                       sitepos, sitemass
     use bestfit, only: com_shift, com_unshift
     implicit none
     integer, intent(in) :: insml
@@ -283,13 +272,10 @@ contains
     end do
   end subroutine set_solute_com
 
-
-
   subroutine apply_orientation(insml)
     use engmain, only: insorient, &
-         numsite, &
-         mol_begin_index, mol_end_index, &
-         sitepos, sitemass
+                       numsite, mol_begin_index, mol_end_index, &
+                       sitepos, sitemass
     use quaternion, only: rotate_inplace
     use bestfit, only: com_shift, com_unshift
     implicit none
@@ -303,9 +289,6 @@ contains
 
     select case(insorient)
     case(0)
-       ! no orientational change
-       return
-    case(1)
        ! random orientation
        call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
 
@@ -326,9 +309,335 @@ contains
 
        call com_unshift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
        return
+    case(1)
+       ! no orientational change
+       return
+    case default
+       stop "Unknown insorient"
     end select
   end subroutine apply_orientation
+  !
+  subroutine get_molecule_com(target_mol, com)
+    use engmain, only: numatm, specatm, numsite
+    implicit none
+    integer, intent(in) :: target_mol
+    real, intent(out) :: com(3)
+    integer :: centag(1:numatm), ati, sid, stmax
+    centag(:)=0
+    stmax=numsite(target_mol)
+    do sid=1,stmax
+       ati=specatm(sid,target_mol)
+       centag(ati)=1
+    end do
+    call getcen(centag,com)
+  end subroutine get_molecule_com
+  !
+  subroutine get_system_com(com)
+    use engmain, only: nummol, numatm, specatm, numsite, hostspec, moltype
+    implicit none
+    real, intent(out) :: com(3)
+    integer :: centag(1:numatm), ati, sid, stmax, i, m, pti
+    do i=1,nummol
+       pti=moltype(i)
+       if(pti.eq.hostspec) m=1
+       if(pti.ne.hostspec) m=0
+       stmax=numsite(i)
+       do sid=1,stmax
+          ati=specatm(sid,i)
+          centag(ati)=m
+       end do
+    end do
+    call getcen(centag, com)
+  end subroutine get_system_com
+  !
+  subroutine getcen(centag,cen)             ! getting the center of mass
+    use engmain, only: numatm,sitemass,sitepos
+    implicit none
+    integer, intent(in) :: centag(numatm)
+    real, intent(out) :: cen(3)
+    integer ati,m
+    real wgt,sitm
+    wgt=0.0e0
+    cen(:)=0.0e0
+    do ati=1,numatm
+       if(centag(ati).eq.1) then
+          sitm=sitemass(ati)
+          wgt=wgt+sitm
+          cen(:)=cen(:)+sitm*sitepos(:,ati)
+       endif
+    end do
+    cen(:)=cen(:)/wgt
+  end subroutine getcen
+  !
+  !
+  ! user-defined scheme to specify inserted molecule
+  ! user may reject snapshot by specifying out_of_range to .true.
+  ! or set coordinate in specatm
+  subroutine insscheme(insml, out_of_range)
+    use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    integer insml,stmax,sid,ati
+    logical, intent(out) :: out_of_range
+    out_of_range = .false.
+    stmax=numsite(insml)
+    return
+  end subroutine insscheme
 
+
+  ! FIXME: move to mpiproc
+  subroutine insrt_stop(type)
+    use engmain, only: stdout
+    use mpiproc                                                      ! MPI
+    character(len=3), intent(in) :: type
+    if(type.eq.'set') write(stdout,791)
+    if(type.eq.'geo') write(stdout,792)
+    if(type.eq.'bug') write(stdout,793)
+791 format(' The solute specification is incorrectly set')
+792 format(' The system geometry is incorrectly set')
+793 format(' There is a bug in the insertion program')
+    call mpi_setup('stop')                                           ! MPI
+    stop
+  end subroutine insrt_stop
+!
+!
+  subroutine getsolute(insml,caltype)
+    use trajectory, only: open_trajectory, close_trajectory
+    use engmain, only: numsite, bfcoord
+    use OUTname, only: OUTconfig, solute_trajectory
+    use mpiproc
+    character*4 caltype
+    integer insml,stmax
+    real xst(3),dumcl(3,3)
+    real, dimension(:,:), allocatable :: psite
+!
+    if(caltype.eq.'init') then
+       if(myrank /= 0) return
+       call open_trajectory(solute_trajectory, slttrj)
+       return
+    endif
+    if(caltype.eq.'last') then
+       if(myrank /= 0) return
+       call close_trajectory(solute_trajectory)
+       return
+    endif
+!
+    stmax=numsite(insml)
+    allocate( psite(3,stmax) )
+    if(myrank == 0) call OUTconfig(psite,dumcl,stmax,0,'solute','trjfl_read')
+#ifndef noMPI
+    ! distribute to non rank-0 nodes
+    call mpi_bcast(psite, 3 * stmax, mpi_double_precision, &
+                   0, mpi_comm_activeprocs, ierror)
+#endif
+    bfcoord(1:3,1:stmax)=psite(1:3,1:stmax)
+    deallocate( psite )
+  end subroutine getsolute
+
+  subroutine instwgt(stat_weight_solute,caltype)
+    use engmain, only: slttype,wgtins
+    integer m
+    real stat_weight_solute
+    character*4 caltype
+    if((slttype.ne.3).or.(wgtins.ne.1)) then
+       stat_weight_solute=1.0e0
+       return
+    endif
+    if(caltype.eq.'init') open(unit=swinf,file=sltwgt,status='old')
+    if(caltype.eq.'last') close(swinf)
+    if(caltype.eq.'proc') then
+       read(swinf,*) m,stat_weight_solute
+       read(swinf,*,END=2199) m
+       backspace(swinf)
+       goto 2195
+2199   rewind(swinf)
+2195   continue
+    endif
+    return
+  end subroutine instwgt
+
+
+  ! returns random value from [0,1)
+  ! Any sane compiler implements random_number
+  ! (which is included in fortran 95 standards)
+  subroutine urand(rndm)          ! uniform random number generator
+    implicit none
+    real, intent(out) :: rndm
+    call random_number(rndm)
+  end subroutine urand
+
+  ! Normal random variable N(0,1)
+  ! uses Box-Muller method
+  real function nrand()
+    use engmain, only: pi
+    implicit none
+    real :: r1, r2
+    call urand(r1)
+    call urand(r2)
+    ! get (0,1] instead of [0, 1)
+    r1 = 1 - r1
+    nrand = sqrt(-2.0 * log(r1)) * cos(2 * pi * r2)
+  end function nrand
+
+  subroutine urand_init(seed)
+    use mpiproc, only: myrank
+    implicit none
+    integer, intent(in) :: seed
+    integer :: seedsize
+    integer, allocatable :: seedarray(:)
+
+    call random_seed(size = seedsize)
+    allocate(seedarray(seedsize))
+    seedarray(:) = 1
+
+    seedarray(1) = myrank + seed
+    if(seed == 0) call system_clock(count = seedarray(1))
+
+    call random_seed(put = seedarray)
+    deallocate(seedarray)
+  end subroutine urand_init
+!
+! fit to reference structure
+  subroutine reffit(ligmol)
+    use engmain, only: refmlid, numsite, nummol, &
+         mol_begin_index, mol_end_index, &
+         sitepos, sitemass, bfcoord
+    use quaternion, only: rotate
+    use bestfit, only: fit_a_rotate_b, fit
+    implicit none
+    integer, intent(in) :: ligmol
+
+    real, allocatable, save :: ref_solv_pos(:, :)  ! solvent structure in reference
+    real, allocatable, save :: ref_lig_pos(:, :)   ! ligand structure in reference
+    real, allocatable, save :: works(:, :), workl(:, :)
+    real, allocatable, save :: solv_mass(:) ! masked mass vector;
+    real, allocatable, save :: lig_mass(:)  ! atoms not used for fitting is zeroed
+
+    real :: crd(3)
+    integer :: natom_solv, natom_lig
+    integer :: solvmol
+    integer :: solv_begin, solv_end
+    integer :: lig_begin, lig_end
+    real :: com_solv(3), com_lig(3)
+    integer :: i
+    
+    solvmol = -1
+    do i = 1, nummol
+       if(refmlid(i) == 1) solvmol = i
+       if(refmlid(i) == 2 .and. i /= ligmol) stop "insmol / refmlid is inconsistent"
+    end do
+    if(solvmol == -1) stop "reffit: failed to find reference solvent"
+
+    natom_solv = numsite(solvmol)
+    natom_lig = numsite(ligmol)
+    
+    solv_begin = mol_begin_index(solvmol)
+    solv_end = mol_end_index(solvmol)
+
+    lig_begin = mol_begin_index(ligmol)
+    lig_end = mol_end_index(ligmol)
+
+    if(.not. allocated(ref_solv_pos)) then
+       ! first time call
+       allocate(ref_solv_pos(3, natom_solv), solv_mass(natom_solv))
+       allocate(ref_lig_pos(3, natom_lig), lig_mass(natom_lig))
+       allocate(works(3, natom_solv), workl(3, natom_lig))
+       
+       ! initialize mass first
+       solv_mass(:) = sitemass(solv_begin:solv_end)
+       lig_mass(:) = sitemass(lig_begin:lig_end)
+
+       open(unit=refio, file=reffile, status='old')
+       call load_structure(natom_solv, ref_solv_pos, solv_mass)
+       call load_structure(natom_lig, ref_lig_pos, lig_mass)
+       close(refio)
+    endif
+    
+    ! first fit reference solvent to current solvent, to get "reference ligand position"
+    call fit_a_rotate_b(natom_solv, &
+         sitepos(1:3, solv_begin:solv_end), ref_solv_pos, solv_mass, &
+         natom_lig, &
+         ref_lig_pos, workl)
+    ! then fit ligand structure read from file
+    call fit(natom_lig, workl, bfcoord, lig_mass, sitepos(1:3, lig_begin:lig_end))
+  contains
+    subroutine load_structure(n, position, mass)
+      integer, intent(in) :: n
+      real, intent(out) :: position(3, n)
+      real, intent(inout) :: mass(n)
+      real :: crd(3)
+      character(len=6) :: header
+      integer :: i, ix
+
+      do ix = 1, n
+         do
+            ! skip until ATOM/HETATM lines
+            read(refio, '(A6)', advance='no') header
+            if(header == 'ATOM  ' .or. header == 'HETATM') exit
+            read(refio, *)
+         end do
+         read(refio, '(24X, 3F8.3)') (crd(i), i = 1, 3)
+         position(1:3, ix) = crd(1:3)
+      end do
+
+      ! set mass = 0 to mask fitting
+      ! user can implement his own special selection rule
+      ! (e.g. by using B-factor, etc.)
+      ! default: hydrogen is masked
+      do i = 1, n
+         if(mass(i) < 1.1) mass(i) = 0.0
+      end do
+    end subroutine load_structure
+  end subroutine reffit
+
+
+
+
+
+! legacy part follows
+! coordinate: make the solute coordinate through translation and orientation
+  subroutine coordinate(i,pcom,qrtn)
+    use engmain, only: nummol,maxsite,numatm,inscfg,&
+         numsite,bfcoord,specatm,sitepos
+    implicit none
+    integer stmax,sid,ati,m,k,i
+    real pcom(3),qrtn(0:3),rotmat(3,3),rst
+    stmax=numsite(i)
+    if(inscfg.eq.0) call getrot(qrtn,rotmat)        ! rotation matrix
+    do  sid=1,stmax
+       ati=specatm(sid,i)
+       do  m=1,3
+          if(inscfg.eq.0) then                        ! translation + rotation
+             rst=dot_product(rotmat(:, m), bfcoord(:, sid))
+             rst=rst+pcom(m)
+          endif
+          if(inscfg.eq.1) rst=pcom(m)+bfcoord(m,sid)  ! translation only
+          if(inscfg.eq.2) rst=bfcoord(m,sid)          ! no change
+          sitepos(m,ati)=rst
+       end do
+    end do
+    return
+  end subroutine coordinate
+! getrot: convert quaternion to rotation matrix,
+!         used only in coordinate, refmc, sltmove, and refsdev
+  subroutine getrot(qrtn,rotmat)
+    implicit none
+    real, intent(in) :: qrtn(0:3)
+    real, intent(out) :: rotmat(3,3)
+    rotmat(1,1)=qrtn(0)*qrtn(0)+qrtn(1)*qrtn(1)&
+         -qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
+    rotmat(2,2)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)&
+         +qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
+    rotmat(3,3)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)&
+         -qrtn(2)*qrtn(2)+qrtn(3)*qrtn(3)
+    rotmat(1,2)=2.0e0*(qrtn(1)*qrtn(2)+qrtn(0)*qrtn(3))
+    rotmat(2,1)=2.0e0*(qrtn(1)*qrtn(2)-qrtn(0)*qrtn(3))
+    rotmat(1,3)=2.0e0*(qrtn(1)*qrtn(3)-qrtn(0)*qrtn(2))
+    rotmat(3,1)=2.0e0*(qrtn(1)*qrtn(3)+qrtn(0)*qrtn(2))
+    rotmat(2,3)=2.0e0*(qrtn(2)*qrtn(3)+qrtn(0)*qrtn(1))
+    rotmat(3,2)=2.0e0*(qrtn(2)*qrtn(3)-qrtn(0)*qrtn(1))
+  end subroutine getrot
+!
+!
+! sltpstn: identifying the solute position according to the inscnd value
   ! FIXME: cleanup
   subroutine sltpstn(sltstat,pcom,type,tagslt)
     use engmain, only: nummol,maxsite,numatm,&
@@ -429,66 +738,8 @@ contains
     !
     return
   end subroutine sltpstn
-  !
-  subroutine get_molecule_com(target_mol, com)
-    use engmain, only: numatm, specatm, numsite
-
-    implicit none
-    integer, intent(in) :: target_mol
-    real, intent(out) :: com(3)
-    integer :: centag(1:numatm), ati, sid, stmax
-
-    centag(:)=0
-    stmax=numsite(target_mol)
-    do sid=1,stmax
-       ati=specatm(sid,target_mol)
-       centag(ati)=1
-    end do
-    call getcen(centag,com)
-  end subroutine get_molecule_com
-
-  subroutine get_system_com(com)
-    use engmain, only: nummol, numatm, specatm, numsite, hostspec, moltype
-    implicit none
-    real, intent(out) :: com(3)
-    integer :: centag(1:numatm), ati, sid, stmax, i, m, pti
-
-    do i=1,nummol
-       pti=moltype(i)
-       if(pti.eq.hostspec) m=1
-       if(pti.ne.hostspec) m=0
-       stmax=numsite(i)
-       do sid=1,stmax
-          ati=specatm(sid,i)
-          centag(ati)=m
-       end do
-    end do
-    call getcen(centag, com)
-  end subroutine get_system_com
-
-  subroutine getcen(centag,cen)             ! getting the center of mass
-    use engmain, only: numatm,sitemass,sitepos
-    implicit none
-    integer, intent(in) :: centag(numatm)
-    real, intent(out) :: cen(3)
-    integer ati,m
-    real wgt,sitm
-
-    wgt=0.0e0
-    cen(:)=0.0e0
-
-    do ati=1,numatm
-       if(centag(ati).eq.1) then
-          sitm=sitemass(ati)
-          wgt=wgt+sitm
-
-          cen(:)=cen(:)+sitm*sitepos(:,ati)
-       endif
-    end do
-    cen(:)=cen(:)/wgt
-
-  end subroutine getcen
-  !
+!
+! rndmvec: generator of random vector on sphere, used only in sltpstn
   subroutine rndmvec(vectp,qrtn,lwbnd)
     implicit none
     character vectp
@@ -511,187 +762,9 @@ contains
        end do
     endif
   end subroutine rndmvec
-  !
-  !
-  subroutine coordinate(i,pcom,qrtn)
-    use engmain, only: nummol,maxsite,numatm,inscfg,&
-         numsite,bfcoord,specatm,sitepos
-    implicit none
-    integer stmax,sid,ati,m,k,i
-    real pcom(3),qrtn(0:3),rotmat(3,3),rst
-    stmax=numsite(i)
-    if(inscfg.eq.0) call getrot(qrtn,rotmat)        ! rotation matrix
-    do  sid=1,stmax
-       ati=specatm(sid,i)
-       do  m=1,3
-          if(inscfg.eq.0) then                        ! translation + rotation
-             rst=dot_product(rotmat(:, m), bfcoord(:, sid))
-             rst=rst+pcom(m)
-          endif
-          if(inscfg.eq.1) rst=pcom(m)+bfcoord(m,sid)  ! translation only
-          if(inscfg.eq.2) rst=bfcoord(m,sid)          ! no change
-          sitepos(m,ati)=rst
-       end do
-    end do
-    return
-  end subroutine coordinate
-!
-
-! convert quaternion to rotation matrix
-  subroutine getrot(qrtn,rotmat)
-    implicit none
-    real, intent(in) :: qrtn(0:3)
-    real, intent(out) :: rotmat(3,3)
-    rotmat(1,1)=qrtn(0)*qrtn(0)+qrtn(1)*qrtn(1)&
-         -qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
-    rotmat(2,2)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)&
-         +qrtn(2)*qrtn(2)-qrtn(3)*qrtn(3)
-    rotmat(3,3)=qrtn(0)*qrtn(0)-qrtn(1)*qrtn(1)&
-         -qrtn(2)*qrtn(2)+qrtn(3)*qrtn(3)
-    rotmat(1,2)=2.0e0*(qrtn(1)*qrtn(2)+qrtn(0)*qrtn(3))
-    rotmat(2,1)=2.0e0*(qrtn(1)*qrtn(2)-qrtn(0)*qrtn(3))
-    rotmat(1,3)=2.0e0*(qrtn(1)*qrtn(3)-qrtn(0)*qrtn(2))
-    rotmat(3,1)=2.0e0*(qrtn(1)*qrtn(3)+qrtn(0)*qrtn(2))
-    rotmat(2,3)=2.0e0*(qrtn(2)*qrtn(3)+qrtn(0)*qrtn(1))
-    rotmat(3,2)=2.0e0*(qrtn(2)*qrtn(3)-qrtn(0)*qrtn(1))
-  end subroutine getrot
-  ! user-defined scheme to specify inserted molecule
-  ! user may reject snapshot by specifying insyn to 'not', or
-  ! set coordinate in specatm
-  subroutine insscheme(insml,insyn)                
-    use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
-    integer insml,stmax,sid,ati
-    character*3 insyn
-    insyn='yes'
-    stmax=numsite(insml)
-    return
-  end subroutine insscheme
-
-  ! FIXME: move to mpiproc
-  subroutine insrt_stop(type)
-    use engmain, only: io6
-    use mpiproc                                                      ! MPI
-    character(len=3), intent(in) :: type
-    if(type.eq.'set') write(io6,791)
-    if(type.eq.'geo') write(io6,792)
-    if(type.eq.'bug') write(io6,793)
-791 format(' The solute specification is incorrectly set')
-792 format(' The system geometry is incorrectly set')
-793 format(' There is a bug in the insertion program')
-    call mpi_setup('stop')                                           ! MPI
-    stop
-  end subroutine insrt_stop
 !
 !
-  subroutine getsolute(i,caltype)
-    use trajectory, only: open_trajectory, close_trajectory, read_trajectory
-    use engmain, only: nummol,maxsite,insposition,numsite,bfcoord
-    use setconf, only: molcen
-    use OUTname, only: iofmt,bxiso,toptp, OUTconfig, solute_trajectory
-    use mpiproc
-    character*4 caltype
-    integer i,sid,stmax,m
-    real xst(3),dumcl(3,3),factor
-    real*4 sglfct
-    character rddum
-    real, dimension(:,:), allocatable :: psite
-!
-    if(caltype.eq.'init') then
-       if(myrank /= 0) return
-       call open_trajectory(solute_trajectory, slttrj)
-       return
-    endif
-    if(caltype.eq.'last') then
-       if(myrank /= 0) return
-       call close_trajectory(solute_trajectory)
-       return
-    endif
-!
-    stmax=numsite(i)
-    allocate( psite(3,stmax) )
-    if(bxiso.eq.'not') sid=0
-    if(bxiso.eq.'yes') sid=1
-    if(myrank == 0) then
-       call OUTconfig(psite,dumcl,stmax,sid,slcnf,'trj')
-    endif
-#ifndef noMPI
-    ! distribute to non rank-0 nodes
-    call mpi_bcast(psite, 3 * stmax, mpi_double_precision, &
-         0, mpi_comm_activeprocs, ierror)
-#endif
-
-    if(insposition /= 4) call molcen(i,psite,xst,'com')
-    do sid=1,stmax
-       do m=1,3
-          if(insposition /= 4) bfcoord(m,sid)=psite(m,sid)-xst(m)
-          if(insposition == 4) bfcoord(m,sid)=psite(m,sid)
-       end do
-    end do
-    deallocate( psite )
-  end subroutine getsolute
-
-  subroutine instwgt(wgtslcf,caltype)
-    use engmain, only: slttype,wgtins
-    integer m
-    real wgtslcf
-    character*4 caltype
-    if((slttype.ne.3).or.(wgtins.ne.1)) then
-       wgtslcf=1.0e0
-       return
-    endif
-    if(caltype.eq.'init') open(unit=swinf,file=sltwgt,status='old')
-    if(caltype.eq.'last') close(swinf)
-    if(caltype.eq.'proc') then
-       read(swinf,*) m,wgtslcf
-       read(swinf,*,END=2199) m
-       backspace(swinf)
-       goto 2195
-2199   rewind(swinf)
-2195   continue
-    endif
-    return
-  end subroutine instwgt
-
-  ! returns random value from [0,1)
-  ! Any sane compiler implements random_number
-  ! (which is included in fortran 95 standards)
-  subroutine urand(rndm)          ! uniform random number generator
-    implicit none
-    real, intent(out) :: rndm
-    call random_number(rndm)
-  end subroutine urand
-
-  ! Normal random variable N(0,1)
-  ! uses Box-Muller method
-  real function nrand()
-    use engmain, only: pi
-    implicit none
-    real :: r1, r2
-    call urand(r1)
-    call urand(r2)
-    ! get (0,1] instead of [0, 1)
-    r1 = 1 - r1
-    nrand = sqrt(-2.0 * log(r1)) * cos(2 * pi * r2)
-  end function nrand
-
-  subroutine urand_init(seed)
-    use mpiproc, only: myrank
-    implicit none
-    integer, intent(in) :: seed
-    integer :: seedsize
-    integer, allocatable :: seedarray(:)
-
-    call random_seed(size = seedsize)
-    allocate(seedarray(seedsize))
-    seedarray(:) = 1
-
-    seedarray(1) = myrank + seed
-    if(seed == 0) call system_clock(count = seedarray(1))
-
-    call random_seed(put = seedarray)
-    deallocate(seedarray)
-  end subroutine urand_init
-
+! refmc: subroutine to generate an insertion configuration at inscnd = 3
   subroutine refmc
     use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,&
          lwreg,upreg,bfcoord,specatm,sitepos
@@ -702,7 +775,6 @@ contains
     character*4 caltype
     character*8 atmtype,dump
     character eletype
-    
 
     if(caltype.eq.'init') then
        allocate( refsatm_impl(numatm),refspos(3,numatm) )
@@ -784,7 +856,6 @@ contains
        if(k.eq.movmax) then                    ! when all MC are rejected
           do sid=1,stmax
              ati=specatm(sid,nummol)
-
              sitepos(:,ati)=sltsite(:,sid)
           end do
        endif
@@ -793,14 +864,13 @@ contains
     return
   end subroutine refmc
 !
-!
+! refcen: center of reference, used only in refmc and dispref
   subroutine refcen(cen,posatm,refmol)
     use engmain, only: nummol,maxsite,numatm,numsite,specatm
     implicit none
     integer refmol,rfyn,i,m,ati,rfi,sid,stmax
     real cen(3),posatm(3,numatm),totwgt
     totwgt=0.0e0
-
     cen(:)=0.0e0
     do i=1,nummol
        call getrfyn(i,rfi,rfyn,refmol)
@@ -810,18 +880,24 @@ contains
              if(refsatm(sid,i).eq.rfi) then
                 ati=specatm(sid,i)
                 totwgt=totwgt+1.0e0
-
                 cen(:) = cen(:) + posatm(:,ati)
              endif
           end do
        endif
     end do
-
     cen(:) = cen(:) / totwgt
     return
   end subroutine refcen
 !
 !
+  integer function refsatm(site, mol)
+    use engmain, only: specatm
+    implicit none
+    integer, intent(in) :: site, mol
+    refsatm = refsatm_impl(specatm(site, mol))
+  end function refsatm
+!
+! sltmove: moving the solute at inscnd = 3, used only in refmc
   subroutine sltmove(pcen,qrtn,rtmbf,mvtype)
     use engmain, only: nummol,maxsite,numatm,&
          numsite,bfcoord,specatm,sitepos
@@ -900,6 +976,7 @@ contains
     return
   end subroutine sltmove
 !
+! dispref: best fit to the reference structure, used only in refmc and refsdev
   subroutine dispref(centg,cenrf,qrtn,refmol)
     use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
     implicit none
@@ -966,7 +1043,7 @@ contains
     return
   end subroutine dispref
 !
-!
+! refsdev: RMSD calculation, used only in refmc and sltpstn
   subroutine refsdev(strchr,refmol,caltype)
     use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
     implicit none
@@ -1012,7 +1089,8 @@ contains
     return
   end subroutine refsdev
 !
-!
+! getrfyn: judging whether the molecules is employed for reference calculation,
+!          used only in refmc, dispref, and refsdev
   subroutine getrfyn(i,rfi,rfyn,refmol)
     use engmain, only: nummol,sluvid,refmlid
     implicit none
@@ -1031,107 +1109,5 @@ contains
     end select
     return
   end subroutine getrfyn
-
-  ! fit to reference structure
-  subroutine reffit(ligmol)
-    use engmain, only: refmlid, numsite, nummol, &
-         mol_begin_index, mol_end_index, &
-         sitepos, sitemass, bfcoord
-    use quaternion, only: rotate
-    use bestfit, only: fit_a_rotate_b, fit
-    implicit none
-    integer, intent(in) :: ligmol
-
-    real, allocatable, save :: ref_solv_pos(:, :)  ! solvent structure in reference
-    real, allocatable, save :: ref_lig_pos(:, :)   ! ligand structure in reference
-    real, allocatable, save :: works(:, :), workl(:, :)
-    real, allocatable, save :: solv_mass(:) ! masked mass vector;
-    real, allocatable, save :: lig_mass(:)  ! atoms not used for fitting is zeroed
-
-    real :: crd(3)
-    integer :: natom_solv, natom_lig
-    integer :: solvmol
-    integer :: solv_begin, solv_end
-    integer :: lig_begin, lig_end
-    real :: com_solv(3), com_lig(3)
-    integer :: i
-    
-    solvmol = -1
-    do i = 1, nummol
-       if(refmlid(i) == 1) solvmol = i
-       if(refmlid(i) == 2 .and. i /= ligmol) stop "insmol / refmlid is inconsistent"
-    end do
-    if(solvmol == -1) stop "reffit: failed to find reference solvent"
-
-    natom_solv = numsite(solvmol)
-    natom_lig = numsite(ligmol)
-    
-    solv_begin = mol_begin_index(solvmol)
-    solv_end = mol_end_index(solvmol)
-
-    lig_begin = mol_begin_index(ligmol)
-    lig_end = mol_end_index(ligmol)
-
-    if(.not. allocated(ref_solv_pos)) then
-       ! first time call
-       allocate(ref_solv_pos(3, natom_solv), solv_mass(natom_solv))
-       allocate(ref_lig_pos(3, natom_lig), lig_mass(natom_lig))
-       allocate(works(3, natom_solv), workl(3, natom_lig))
-       
-       ! initialize mass first
-       solv_mass(:) = sitemass(solv_begin:solv_end)
-       lig_mass(:) = sitemass(lig_begin:lig_end)
-
-       open(unit=refio, file=reffile, status='old')
-       call load_structure(natom_solv, ref_solv_pos, solv_mass)
-       call load_structure(natom_lig, ref_lig_pos, lig_mass)
-       close(refio)
-    endif
-    
-    ! first fit reference solvent to current solvent, to get "reference ligand position"
-    call fit_a_rotate_b(natom_solv, &
-         sitepos(1:3, solv_begin:solv_end), ref_solv_pos, solv_mass, &
-         natom_lig, &
-         ref_lig_pos, workl)
-    ! then fit ligand structure read from file
-    call fit(natom_lig, workl, bfcoord, lig_mass, sitepos(1:3, lig_begin:lig_end))
-  contains
-    subroutine load_structure(n, position, mass)
-      integer, intent(in) :: n
-      real, intent(out) :: position(3, n)
-      real, intent(inout) :: mass(n)
-      real :: crd(3)
-      character(len=6) :: header
-      integer :: i, ix
-
-      do ix = 1, n
-         do
-            ! skip until ATOM/HETATM lines
-            read(refio, '(A6)', advance='no') header
-            if(header == 'ATOM  ' .or. header == 'HETATM') exit
-            read(refio, *)
-         end do
-         read(refio, '(24X, 3F8.3)') (crd(i), i = 1, 3)
-         position(1:3, ix) = crd(1:3)
-      end do
-
-      ! set mass = 0 to mask fitting
-      ! user can implement his own special selection rule
-      ! (e.g. by using B-factor, etc.)
-      ! default: hydrogen is masked
-      do i = 1, n
-         if(mass(i) < 1.1) mass(i) = 0.0
-      end do
-    end subroutine load_structure
-  end subroutine reffit
-
-  integer function refsatm(site, mol)
-    use engmain, only: specatm
-    implicit none
-    integer, intent(in) :: site, mol
-    
-    refsatm = refsatm_impl(specatm(site, mol))
-    
-  end function refsatm
-
+!
 end module

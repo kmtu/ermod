@@ -266,19 +266,13 @@ contains
 
   subroutine engclear
     use engmain, only: corrcal,selfcal,slttype,ermax,numslv,esmax,&
-         edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl, &
-         CAL_SOLN
+                       edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl, &
+                       CAL_SOLN
     implicit none
     edens(1:ermax)=0.0e0
-    if(corrcal.eq.1) then
-       ecorr(1:ermax,1:ermax)=0.0e0
-    endif
-
+    if(corrcal.eq.1) ecorr(1:ermax,1:ermax)=0.0e0
     if(selfcal.eq.1) eself(1:esmax)=0.0e0
-
-    if(slttype == CAL_SOLN) then
-       slnuv(1:numslv)=0.0e0
-    endif
+    if(slttype == CAL_SOLN) slnuv(1:numslv)=0.0e0
     avslf=0.0e0
     engnorm=0.0e0
     engsmpl=0.0e0
@@ -304,8 +298,6 @@ contains
          EL_COULOMB, EL_PME, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
          ES_NVT, ES_NPT
-    use ptinsrt, only: instslt
-    use realcal, only: realcal_proc
     use reciprocal, only: recpcal_init, &
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
@@ -314,7 +306,7 @@ contains
     integer, intent(in) :: stnum, nactiveproc
     integer i,pti,k
     integer :: irank
-    real engnmfc,pairep,wgtslcf,factor
+    real engnmfc,pairep,stat_weight_solute,factor
     integer, dimension(:), allocatable :: insdst,engdst,tplst
     real, dimension(:),    allocatable :: uvengy,svfl
     logical, allocatable :: flceng_stored_g(:,:)
@@ -360,15 +352,13 @@ contains
        ! Initialize reciprocal space - grid and charges
        call get_inverted_cell
        if(cltype == EL_PME) then
-          if(.not. pme_initialized) then
-             call recpcal_init(slvmax,tagpt)
-          endif
+          if(.not. pme_initialized) call recpcal_init(slvmax,tagpt)
           
           ! check whether cell size changes
           ! recpcal is called only when cell size differ
           call perf_time("kgrn")
           if((.not. pme_initialized) .or. &
-               (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
+             (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
           call perf_time()
           prevcl(:, :) = cell(:, :)
           
@@ -383,13 +373,13 @@ contains
           call perf_time()
        endif
 
-       ! cntdst is the loop to select solute MOLECULE from multiple solutes (soln)
+       ! cntdst is the pick-up no. of solute MOLECULE from plural solutes (soln)
        ! cntdst is the iteration no. of insertion (refs)
        do cntdst=1,maxdst
-          call get_uv_energy(stnum, wgtslcf, uvengy(0:slvmax), skipcond)
+          call get_uv_energy(stnum, stat_weight_solute, uvengy(0:slvmax), skipcond)
           if(skipcond) cycle
           
-          call update_histogram(stnum, wgtslcf, uvengy(0:slvmax))
+          call update_histogram(stnum, stat_weight_solute, uvengy(0:slvmax))
        end do
 
        if(slttype == CAL_SOLN) then
@@ -511,10 +501,8 @@ contains
        if(slttype == CAL_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
     endif                                                             ! MPI
     allocate( sve1(0:numslv),sve2(0:numslv) )                         ! MPI
-    do pti=0,numslv                                                   ! MPI
-       sve1(pti)=minuv(pti)                                           ! MPI
-       sve2(pti)=maxuv(pti)                                           ! MPI
-    end do                                                            ! MPI
+    sve1(0:numslv)=minuv(0:numslv)                                    ! MPI
+    sve2(0:numslv)=maxuv(0:numslv)                                    ! MPI
     call mpi_reduce(sve1,minuv,numslv+1,&                             ! MPI
          mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)        ! MPI
     call mpi_reduce(sve2,maxuv,numslv+1,&                             ! MPI
@@ -631,7 +619,7 @@ contains
   end subroutine engstore
 
   ! Calculate interaction energy between solute and solvent
-  subroutine get_uv_energy(stnum, weighting, uvengy, has_error)
+  subroutine get_uv_energy(stnum, stat_weight_solute, uvengy, out_of_range)
     use engmain, only: maxcnf,skpcnf,slttype,sltlist,cltype,&
          SYS_NONPERIODIC, SYS_PERIODIC, &
          EL_COULOMB, EL_PME, &
@@ -646,8 +634,8 @@ contains
 
     implicit none
     integer, intent(in) :: stnum
-    real, intent(inout) :: uvengy(0:slvmax), weighting
-    logical, intent(out) :: has_error
+    real, intent(inout) :: uvengy(0:slvmax), stat_weight_solute
+    logical, intent(out) :: out_of_range
 
     integer :: i, k
     integer(8) :: current_solute_hash
@@ -656,21 +644,21 @@ contains
     real, save :: usreal
     logical, save :: initialized = .false.
 
-    has_error = .false.
+    out_of_range = .false.
     ! determine / pick solute structure
     select case(slttype) 
     case(CAL_SOLN)
        tagslt=sltlist(cntdst)
-       !call check_mol_configuration(has_error)
-       if(has_error) return
+       call check_mol_configuration(out_of_range)
+       if(out_of_range) return
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        tagslt=sltlist(1)
        if(.not. initialized) then
-          call instslt(weighting,'init')
+          call instslt(stat_weight_solute,'init')
        endif
-       call instslt(weighting,'proc')
+       call instslt(stat_weight_solute,'proc')
        if((stnum == maxcnf / skpcnf).and.(cntdst.eq.maxdst)) then
-          call instslt(weighting,'last')
+          call instslt(stat_weight_solute,'last')
        endif
        initialized = .true.
     end select
@@ -738,8 +726,7 @@ contains
          slnuv, avslf,&
          minuv, maxuv, &
          edens, ecorr, eself, &
-         stat_weight_solution, &
-         engnorm, engsmpl, voffset, voffset_initialized, &
+         stat_weight_system, engnorm, engsmpl, voffset, voffset_initialized, &
          io_flcuv, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX,&
          ES_NVT, ES_NPT
@@ -771,7 +758,7 @@ contains
           engnmfc=exp(-factor/temp)
        end select
     endif
-    engnmfc = engnmfc * stat_weight_solution
+    engnmfc = engnmfc * stat_weight_system
     if(estype == ES_NPT) call volcorrect(engnmfc)
     if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc = engnmfc * stat_weight_solute
     !
@@ -894,11 +881,10 @@ contains
   subroutine get_inverted_cell
     use engmain, only:  cell,invcl,volume
     implicit none
-    integer m,k
     volume=cell(1,1)*cell(2,2)*cell(3,3)&
-         +cell(1,2)*cell(2,3)*cell(3,1)+cell(1,3)*cell(2,1)*cell(3,2)&
-         -cell(1,3)*cell(2,2)*cell(3,1)&
-         -cell(1,2)*cell(2,1)*cell(3,3)-cell(1,1)*cell(2,3)*cell(3,2)
+          +cell(1,2)*cell(2,3)*cell(3,1)+cell(1,3)*cell(2,1)*cell(3,2)&
+          -cell(1,3)*cell(2,2)*cell(3,1)&
+          -cell(1,2)*cell(2,1)*cell(3,3)-cell(1,1)*cell(2,3)*cell(3,2)
     invcl(1,1)=cell(2,2)*cell(3,3)-cell(2,3)*cell(3,2)
     invcl(1,2)=cell(1,3)*cell(3,2)-cell(1,2)*cell(3,3)
     invcl(1,3)=cell(1,2)*cell(2,3)-cell(1,3)*cell(2,2)
@@ -908,12 +894,8 @@ contains
     invcl(3,1)=cell(2,1)*cell(3,2)-cell(2,2)*cell(3,1)
     invcl(3,2)=cell(1,2)*cell(3,1)-cell(1,1)*cell(3,2)
     invcl(3,3)=cell(1,1)*cell(2,2)-cell(1,2)*cell(2,1)
-    
-    do m=1,3
-       do k=1,3
-          invcl(k,m)=invcl(k,m)/volume
-       end do
-    end do
+
+    invcl(1:3,1:3)=invcl(1:3,1:3)/volume
     call update_cell_info
   end subroutine get_inverted_cell
 
@@ -1028,48 +1010,49 @@ contains
     if(all(sluvid(:) == 0)) call halt_with_error('par')
   end subroutine sanity_check_sluvid
 
-  ! Check whether molecule is within specified region (of sltcnd)
-  subroutine check_mol_configuration(is_invalid)
-    use ptinsrt, only: sltpstn, get_molecule_com
-    implicit none
-    logical, intent(out) :: is_invalid
-    integer :: sltstat
-    real :: com(3)
-    is_invalid = .false.
-    
-    call get_molecule_com(tagslt, com)
-    call check_mol_configuration_impl(com, is_invalid)
-  end subroutine check_mol_configuration
-
-  subroutine check_mol_configuration_impl(com, is_invalid)
-    use engmain, only: inscnd, lwreg, upreg, boxshp, SYS_NONPERIODIC, invcl, celllen
-    use ptinsrt, only: get_system_com
+  ! Check whether molecule is within specified region
+  subroutine check_mol_configuration(out_of_range)
+    use engmain, only: insposition, lwreg, upreg, &
+                       boxshp, SYS_NONPERIODIC, invcl, celllen
+    use ptinsrt, only: insscheme
     use mpiproc, only: halt_with_error
     implicit none
-    real, intent(in) :: com(3)
-    logical, intent(out) :: is_invalid
-    real :: system_com(3), dx(3)
-    real :: distance
-
-    is_invalid = .false.
-
-    select case(inscnd)
+    real :: dx(3), distance
+    logical, intent(out) :: out_of_range
+    out_of_range = .false.
+    select case(insposition)
     case(0)
        return
     case(1) ! sphere geometry
-       call get_system_com(system_com)
-       dx(:) = com(:) - system_com(:)
+       call relative_com(tagslt,dx)
        distance = sqrt(dot_product(dx, dx))
     case(2) ! slab (only z-axis is constrained) configuration
        if(boxshp == SYS_NONPERIODIC) call halt_with_error('slb')
-       call get_system_com(system_com)
-       dx(:) = com(:) - system_com(:)
+       call relative_com(tagslt,dx)
        distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
+    case(3) ! fixed configuration
+       return
+    case(4) ! comparison to reference
+       ! Under construction...  What is to be written?
+       return
+    case default
+       stop "Unknown insposition"
     end select
-    
-    if(distance > lwreg .and. distance < upreg) return
-    is_invalid = .true.
-  end subroutine check_mol_configuration_impl
+    call insscheme(tagslt, out_of_range)
+    if((lwreg > distance) .or. (distance > upreg)) out_of_range = .true.
+    return
+  contains
+    subroutine relative_com(tagslt,dx)
+      use ptinsrt, only: get_molecule_com, get_system_com
+      implicit none
+      integer, intent(in) :: tagslt
+      real, intent(out) :: dx(3)
+      real :: solute_com(3), system_com(3)
+      call get_molecule_com(tagslt, solute_com)     ! get the solute COM
+      call get_system_com(system_com)               ! get the aggregate COM
+      dx(:) = solute_com(:) - system_com(:)
+    end subroutine relative_com
+  end subroutine check_mol_configuration
 
   ! get the hashed function of solute coordinate
   integer(8) function get_solute_hash()

@@ -37,6 +37,8 @@
 !   slttype : type of solute treatment
 !               1 : physical
 !               2 : test particle (rigid)  3 : test particle (flexible)
+!            The file for the solute configuration
+!            is SltInfo when slttype = 2 and is SltConf when slttype = 3
 !   sltpick : specifying the solute species
 !               1 <= sltpick <= numtype (default = 1) if slttype = 1
 !               sltpick = numtype if slttype >= 2
@@ -46,7 +48,7 @@
 !   wgtslf : weighting by the self-energy  --- 0 : no  1 : yes
 !   wgtins : weight of the solute intramolecular configuration
 !               0 : no  1 : yes (can be = 1 only when slttype = 3)
-!   wgtsln : weight of the solution / solvent configuration
+!   wgtsys : weight of the solution / solvent configuration
 !               0 : no  1 : yes
 !   estype : type of system
 !               1 : constant volume  2 : constant pressure
@@ -54,59 +56,69 @@
 !               0 : non-periodic  1 : periodic and parallelepiped
 !
 !   insorigin : the origin of the insertion position
-!               0 : (default) use reference solute coordinate
-!                   The file for the solute configuration
-!                   is SltInfo when slttype = 2 and is SltConf when slttype = 3
-!               1 : fit to reference structure.
-!                   reference structure should be given as RefInfo in PDB format.
-!                   RefInfo should conatin structure specified in refpick, and the solute structure, in order.
-!               2 : mass weighted center is moved to (0, 0, 0)
-!               3 : mass weighted center is moved to system center (defined by hostspec)
+!               0 : (default) mass weighted center is moved to (0, 0, 0)
+!               1 : mass weighted center is moved to aggregate center
+!                   (species forming the aggregate is defined by hostspec)
+!               2 : fit to reference structure.
+!                   reference structure needs be given as RefInfo in PDB format.
+!                   RefInfo should conatin the structure specified in refpick
+!                   and the solute structure, in order.
+!               3 : no COM change from the value in the file to be read
+!                   (error unless insposition = 3)
 !   insposition : position for the inserted solute
 !               0 : (default) fully random position (within perodic bondary)
-!               1 : spherically random position, with radius specified from lwreg to upreg.
+!               1 : spherically random position,
+!                   with radius specified from lwreg to upreg.
 !               2 : slab random position
-!                   slab geometry inserts solute at z = com(system) + dz and
-!                   (-upreg < dz < -lwreg AND lwreg < dz < upreg) for straight box periodic condition.
-!                   Position is much more complex for parallelpiped structure. (see insertion.F90)
-!               3 : fixed position
-!               4 : (experimental) Gaussian random position. Position is given by displacing 
-!                   reference coordinate, or coordinate fit to reference (insorigin = 1), with upreg.
+!                   slab geometry specified as z = com(aggregate) + dz with
+!                   (-upreg < dz < -lwreg AND lwreg < dz < upreg)
+!                   for rectangular box periodic condition.
+!                   Position is much more complex for parallelpiped structure.
+!                   (see insertion.F90)
+!               3 : no position change from the value in the file to be read
+!                   (error unless insorigin = 3)
+!               4 : (experimental) Gaussian random position.
+!                   Position is given by displacing the reference coordinate,
+!                   or coordinate fit to reference (insorigin = 1), with upreg.
 !                   Solute weight is automatically adjusted
 !   insorient : orientation for the inserted solute
-!               0 : fixed orientation
-!               1 : (default) random orientation
+!               0 : (default) random orientation
+!               1 : no orientation change from the value in the file to be read
 !
 !   inscnd : (deprecated) geometrical condition of the solute configuration
 !               0 : random    (insorigin = 0, insposition = 0) 
-!               1 : spherical (insorigin = 3, insposition = 1)
-!               2 : slab      (insorigin = 3, insposition = 2)
-!               3 : reference (insorigin = 1, insposition = 4)
+!               1 : spherical (insorigin = 1, insposition = 1)
+!               2 : slab      (insorigin = 1, insposition = 2)
+!               3 : reference (insorigin = 2, insposition = 4)
 !   inscfg : (deprecated) position and orientation for the inserted solute
-!               0 : only the intramolecular configuration is from the file. (insposition = 0, insorient = 1)
-!               1 : orientation is fixed from the file with random position (insposition = 0, insorient = 0)
-!               2 : position and orientation are also fixed from the file   (insposition = 3, insorient = 0)
-!            The file for the solute configuration
-!            is SltInfo when slttype = 2 and is SltConf when slttype = 3
+!               0 : only the intramolecular configuration is from the file.
+!                   (insorient = 0)
+!               1 : orientation is fixed from the file with random position
+!                   (insorient = 1)
+!               2 : position and orientation are also fixed from the file
+!                   (insorient = 1, insposition = 3)
 !              default = 0
 !   hostspec : type of molecule forming host (micelle, membrane, or protein)
-!              active only when inscnd is not equal to 0
+!              active only when insorigin = 1
 !               1 <= hostspec <= numtype    when slttype = 1
 !               1 <= hostspec <= numtype-1  when slttype >= 2
+!
 !   ljformat : input-file format for the LJ energy and length parameters
 !               0 : epsilon (kcal/mol) and sigma (A)
 !               1 : epsilon (kcal/mol) and Rmin/2 (A)
 !               2 : epsilon (kJ/mol) and sigma (nm)
 !               3 : A (kcal/mol A^12) and C (kcal/mol A^6)
 !               4 : C12 (kJ/mol nm^12) and C6 (kJ/mol nm^6)
-!               5 : Read from table, LJTable file (sigma as AA and epsilon as kcal/mol)
+!               5 : Read from table, LJTable file
+!                   (epsilon as kcal/mol and sigma as A)
 !              default = 1
 !   iseed : seed parameter for uniform random number
 !   inptemp : temperature of the system in Kelvin
 !   temp  : temperature of the system in kcal/mol
-!   force_calculation: if set to .true., the program continues to run even if there is a warning
-!
-!   io6   : standard output
+!   block_threshold : box size for cell-link list based method in realcal.F90
+!   force_calculation: if set to .true.,
+!                      the program continues to run even if there is a warning
+!   stdout : standard output
 !   
 !
 !  names of constants and variables for trajectory generation
@@ -149,7 +161,7 @@
 !   plmode : parallelization mode for calculation of solute-solvent interaction
 !        2 : each trajectory snapshot is assigned to each processor and calculated in parallel
 !        default = 2
-!   specatm : specification of the site
+!   specatm : specification of the site, defined as an integer function
 !   sitepos : coordiantes of interaction site
 !   cell : unit cell vector
 !   invcl : inversion of the cell matrix
@@ -205,16 +217,16 @@ module engmain
   real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
 !
   integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal,selfcal
-  integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsln
+  integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsys
   integer :: estype,boxshp
-  integer :: insorigin, inscnd, insposition, insorient
-  integer :: inscfg,hostspec,ljformat,iseed
-  real :: block_threshold
+  integer :: insorigin, insposition, insorient, inscnd, inscfg, hostspec
+  integer :: ljformat, iseed
   real :: inptemp,temp
+  real :: block_threshold
   logical :: force_calculation
 
   ! IO units
-  integer, parameter :: stdout = 6, io6 = 6             ! standard output
+  integer, parameter :: stdout = 6                      ! standard output
   integer, parameter :: io_flcuv = 91                   ! IO unit for flcuv
 
   integer, dimension(:),   allocatable :: moltype,numsite
@@ -250,12 +262,10 @@ module engmain
   real, allocatable :: minuv(:), maxuv(:)
   integer :: numslt
   integer, allocatable :: sltlist(:)
-  real :: stat_weight_solution
+  real :: stat_weight_system
   real :: engnorm,engsmpl,voffset
   logical :: voffset_initialized = .false.
-
   real :: lwreg,upreg
-
 
 
   ! numeric constants reference
@@ -270,18 +280,17 @@ module engmain
 
   namelist /ene_param/ iseed, &
        skpcnf,corrcal,selfcal, &
-       slttype,sltpick,refpick,wgtslf, wgtins, wgtsln, &
+       slttype,sltpick,refpick,wgtslf,wgtins,wgtsys, &
        estype,boxshp, &
-       insorigin, inscnd, insposition, insorient, inscfg, &
-       hostspec, ljformat, &
+       insorigin, insposition, insorient, inscnd, inscfg, &
+       hostspec, lwreg, upreg, &
+       ljformat, &
        inptemp,temp, &
        engdiv,maxins, &
-       lwreg,upreg, &
        intprm,elecut,lwljcut,upljcut, &
        cmbrule,cltype,screen,ewtoler,splodr,plmode, &
        ew1max,ew2max,ew3max,ms1max,ms2max,ms3max, &
-       force_calculation, &
-       block_threshold
+       block_threshold, force_calculation
 
 contains 
   subroutine init_params()
