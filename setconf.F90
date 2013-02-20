@@ -447,7 +447,7 @@ contains
        refmlid(i)=rftype
     end do
 
-    ! check if all the solute molecules are have the same number of atoms
+    ! check if all the solute molecules have the same number of atoms
     stmax = -1
     do i = 1, nummol
        pti = moltype(i)
