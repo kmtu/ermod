@@ -331,7 +331,7 @@ contains
 
   ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
   subroutine setparam
-    use engmain, only: numtype,nummol,maxsite,numatm,maxcnf,&
+    use engmain, only: numtype,nummol,numatm,maxcnf,&
          slttype,sltpick,refpick,ljformat,&
          moltype,numsite,sluvid,refmlid,&
          bfcoord, sitemass, charge, &
@@ -350,7 +350,7 @@ contains
     real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
     real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
     real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
-    integer pti,stmax,uvtype,rftype,cmin,cmax,sid,i,ati,m
+    integer pti,stmax,maxsite,uvtype,rftype,cmin,cmax,sid,i,ati,m
     integer :: solute_index, cur_solvent, prev_solvent_type, cur_atom
     real factor,xst(3)
     real, allocatable :: ljlen_temp(:), ljene_temp(:), sitemass_temp(:), charge_temp(:)
@@ -417,7 +417,6 @@ contains
     ! count up number of mols, 
     ! set max and total no. of atoms 
     nummol = sum(ptcnt(1:numtype))
-    maxsite = maxval(ptsite(1:numtype))
     numatm = sum(ptcnt(1:numtype) * ptsite(1:numtype))
 
     allocate( moltype(nummol),numsite(nummol) )
@@ -439,18 +438,31 @@ contains
        numsite(i) = ptsite(pti)
        sluvid(i) = pttype(pti)
 
-       if(pti.ne.solute_index) then                  ! solvent
+       if(pti.ne.solute_index) then        ! solvent
           rftype=0                             ! default
           if(pti.eq.refpick) rftype=1          ! superposition reference
-       else                                          ! solute
+       else                                ! solute
           rftype=2
        endif
        refmlid(i)=rftype
     end do
 
+    ! check if all the solute molecules are have the same number of atoms
+    stmax = -1
+    do i = 1, nummol
+       pti = moltype(i)
+       if(pti.eq.solute_index) then        ! solute
+          if(stmax == -1) then                 ! initialize
+             stmax = numsite(i)
+          else
+             if(stmax /= numsite(i)) call set_stop('slt')
+          endif
+       endif
+    end do
+
     if(numatm /= sum(numsite(1:nummol))) stop "something is wrong in setconf::setparam, numatm"
 
-    allocate(bfcoord(3,maxsite), sitemass(numatm))
+    allocate(bfcoord(3,stmax), sitemass(numatm))
     allocate(charge(numatm), ljtype(numatm))
     allocate(sitepos(3, numatm))
     allocate(mol_begin_index(nummol + 1))
@@ -458,9 +470,9 @@ contains
     allocate(belong_to(numatm))
 
     ! initial setting to zero
-    bfcoord(1:3,1:maxsite) = 0.0e0
-    sitemass(1:numatm) = 0.0e0
-    charge(1:numatm) = 0.0e0
+    bfcoord(:,:) = 0.0e0
+    sitemass(:) = 0.0e0
+    charge(:) = 0.0e0
 
     ! initialize mol_begin_index
     ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
@@ -480,6 +492,7 @@ contains
              ljene_temp_table(1:sum(ptsite(:))))
 
     ! temporary set of LJ & coordinates
+    maxsite = maxval(ptsite(1:numtype))
     allocate(psite(3,maxsite), &
          ljlen_temp(maxsite), ljene_temp(maxsite), ljtype_temp(maxsite), &
          sitemass_temp(maxsite), &

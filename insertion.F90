@@ -374,7 +374,7 @@ contains
   ! user may reject snapshot by specifying out_of_range to .true.
   ! or set coordinate in specatm
   subroutine insscheme(insml, out_of_range)
-    use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    use engmain, only: nummol,numatm,numsite,specatm,sitepos,cell
     integer insml,stmax,sid,ati
     logical, intent(out) :: out_of_range
     out_of_range = .false.
@@ -595,8 +595,7 @@ contains
 ! legacy part follows
 ! coordinate: make the solute coordinate through translation and orientation
   subroutine coordinate(i,pcom,qrtn)
-    use engmain, only: nummol,maxsite,numatm,inscfg,&
-         numsite,bfcoord,specatm,sitepos
+    use engmain, only: nummol,numatm,inscfg,numsite,bfcoord,specatm,sitepos
     implicit none
     integer stmax,sid,ati,m,k,i
     real pcom(3),qrtn(0:3),rotmat(3,3),rst
@@ -640,10 +639,8 @@ contains
 ! sltpstn: identifying the solute position according to the inscnd value
   ! FIXME: cleanup
   subroutine sltpstn(sltstat,pcom,type,tagslt)
-    use engmain, only: nummol,maxsite,numatm,&
-         boxshp,inscnd,inscfg,hostspec,&
-         moltype,numsite,specatm,sitepos,cell,invcl,&
-         lwreg,upreg
+    use engmain, only: nummol,numatm,boxshp,inscnd,inscfg,hostspec,&
+         moltype,numsite,specatm,sitepos,cell,invcl,lwreg,upreg
     implicit none
     integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
     real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen
@@ -766,12 +763,13 @@ contains
 !
 ! refmc: subroutine to generate an insertion configuration at inscnd = 3
   subroutine refmc
-    use engmain, only: nummol,maxsite,numatm,slttype,numsite,refmlid,&
+    use engmain, only: nummol,numatm,slttype,numsite,refmlid,&
          lwreg,upreg,bfcoord,specatm,sitepos
     use bestfit
     integer i,k,m,q,ati,rfi,sid,stmax
     real xst(3),centg(3),cenrf(3)
-    real factor,bfqrn(0:3),rtmbf(3,3),sltsite(3,maxsite)
+    real factor,bfqrn(0:3),rtmbf(3,3)
+    real, dimension(:,:), allocatable :: sltsite
     character*4 caltype
     character*8 atmtype,dump
     character eletype
@@ -826,6 +824,7 @@ contains
     !
     if(caltype.eq.'inst') then                ! inserted solute molecule
        stmax=numsite(nummol)
+       allocate( sltsite(3,stmax) )
        do sid=1,stmax
           ati=specatm(sid,nummol)
           do m=1,3
@@ -859,6 +858,7 @@ contains
              sitepos(:,ati)=sltsite(:,sid)
           end do
        endif
+       deallocate( sltsite )
     endif
     !
     return
@@ -866,7 +866,7 @@ contains
 !
 ! refcen: center of reference, used only in refmc and dispref
   subroutine refcen(cen,posatm,refmol)
-    use engmain, only: nummol,maxsite,numatm,numsite,specatm
+    use engmain, only: nummol,numatm,numsite,specatm
     implicit none
     integer refmol,rfyn,i,m,ati,rfi,sid,stmax
     real cen(3),posatm(3,numatm),totwgt
@@ -899,8 +899,7 @@ contains
 !
 ! sltmove: moving the solute at inscnd = 3, used only in refmc
   subroutine sltmove(pcen,qrtn,rtmbf,mvtype)
-    use engmain, only: nummol,maxsite,numatm,&
-         numsite,bfcoord,specatm,sitepos
+    use engmain, only: nummol,numatm,numsite,bfcoord,specatm,sitepos
     implicit none
     integer m,k,q,ati,sid,stmax,ax1,ax2
     real pcen(3),qrtn(0:3),rtmbf(3,3)
@@ -978,7 +977,7 @@ contains
 !
 ! dispref: best fit to the reference structure, used only in refmc and refsdev
   subroutine dispref(centg,cenrf,qrtn,refmol)
-    use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    use engmain, only: nummol,numatm,numsite,specatm,sitepos
     implicit none
     integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
     real centg(3),cenrf(3),qrtn(0:3),qrtmat(4,4),xsm(3),xrf(3)
@@ -1045,7 +1044,7 @@ contains
 !
 ! refsdev: RMSD calculation, used only in refmc and sltpstn
   subroutine refsdev(strchr,refmol,caltype)
-    use engmain, only: nummol,maxsite,numatm,numsite,specatm,sitepos
+    use engmain, only: nummol,numatm,numsite,specatm,sitepos
     implicit none
     integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
     character*6 caltype

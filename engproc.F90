@@ -845,8 +845,8 @@ contains
   end subroutine residual_ene
   !
   subroutine volcorrect(engnmfc)
-    use engmain, only:  nummol,maxsite,numatm,temp,numsite,sluvid,&
-         cltype,screen,charge,specatm,volume
+    use engmain, only:  nummol,temp,numsite,sluvid,&
+                        cltype,screen,charge,specatm,volume
     implicit none
     integer i,ati,sid,stmax
     real pi,factor,engnmfc

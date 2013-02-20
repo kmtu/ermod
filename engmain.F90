@@ -25,7 +25,6 @@
 !  names of parameters
 !   numtype : number of molcular types
 !   nummol : total number of molecules
-!   maxsite : maximum number of interaction sites in molecule
 !   numatm : total number of atomic sites
 !   maxcnf : maximum number of configurations in MD
 !   engdiv : number of divisions of the total simulation length
@@ -216,7 +215,7 @@ module engmain
   real, parameter :: pi = 3.1415926535897932
   real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
 !
-  integer :: numtype,nummol,maxsite,numatm,maxcnf,engdiv,skpcnf,corrcal,selfcal
+  integer :: numtype,nummol,numatm,maxcnf,engdiv,skpcnf,corrcal,selfcal
   integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsys
   integer :: estype,boxshp
   integer :: insorigin, insposition, insorient, inscnd, inscfg, hostspec

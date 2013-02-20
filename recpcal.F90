@@ -38,7 +38,7 @@ module reciprocal
 
 contains
   subroutine recpcal_init(slvmax, tagpt)
-    use engmain, only:  nummol,maxsite,numatm,numsite,sluvid,&
+    use engmain, only:  nummol,numatm,numsite,sluvid,&
          cltype,screen,splodr,charge,&
          ms1max,ms2max,ms3max,&
          sitepos,invcl,volume,&

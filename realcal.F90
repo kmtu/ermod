@@ -151,7 +151,7 @@ contains
   ! Calculate i-j interaction energy.
   ! This routine is called as a dispatcher to realcal_self or bare coulomb interaction
   subroutine realcal_bare(i,j,pairep)
-    use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
+    use engmain, only:  nummol,numatm,boxshp,numsite,&
          elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
          charge,specatm,sitepos,&
          cell,invcl,volume,pi,&
@@ -226,7 +226,7 @@ contains
   end subroutine realcal_bare
 
   subroutine realcal_self(i, pairep)
-    use engmain, only:  nummol,maxsite,numatm,boxshp,numsite,&
+    use engmain, only:  nummol,numatm,boxshp,numsite,&
          screen,cltype,&
          charge,specatm,sitepos,&
          cell,invcl,EL_COULOMB, pi
