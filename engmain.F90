@@ -78,7 +78,7 @@
 !                   (error unless insorigin = 3)
 !               4 : (experimental) Gaussian random position.
 !                   Position is given by displacing the reference coordinate,
-!                   or coordinate fit to reference (insorigin = 1), with upreg.
+!                   or coordinate fit to reference (insorigin = 2), with upreg.
 !                   Solute weight is automatically adjusted
 !   insorient : orientation for the inserted solute
 !               0 : (default) random orientation
