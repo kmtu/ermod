@@ -45,13 +45,14 @@ endif
 extra_flags = 
 
 # module dependencies
-ermod-trajectory.$(OBJEXT): trajectory.F90 ermod-utility.$(OBJEXT)
 ermod-realcal.$(OBJEXT): realcal.F90 ermod-utility.$(OBJEXT)
 ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-utility.$(OBJEXT)
 ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) 
 ermod-recpcal.$(OBJEXT): recpcal.F90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT)
 ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT) ermod-bestfit.$(OBJEXT)
 ermod-setconf.$(OBJEXT): setconf.F90 ermod-utility.$(OBJEXT) ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-trajectory.$(OBJEXT)
+ermod-bestfit.$(OBJEXT): bestfit.F90 ermod-engmain.$(OBJEXT)
+ermod-trajectory.$(OBJEXT): trajectory.F90 ermod-utility.$(OBJEXT)
 ermod-utility.$(OBJEXT): utility.F90 ermod-engmain.$(OBJEXT)
 
 slvfe_SOURCES = slvfe.F90

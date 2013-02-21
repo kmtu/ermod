@@ -150,7 +150,7 @@ contains
   subroutine iniparam
     use engmain, only: init_params,&
          iseed,&
-         skpcnf,corrcal,selfcal,&
+         numtype,skpcnf,corrcal,selfcal,&
          slttype,sltpick,refpick,wgtslf,wgtins,wgtsys,&
          estype,boxshp,hostspec,ljformat,&
          insorigin, insposition, insorient, inscnd,inscfg,&
@@ -292,6 +292,15 @@ contains
     ! insorigin and insorient is effective only for insertion
     if(slttype == CAL_SOLN) then
        insorigin = 0 ; insorient = 0
+    endif
+    ! when restrained relative to aggregate
+    if(insorigin == 1) then
+       if(slttype == CAL_SOLN) then
+          if((hostspec < 1).or.(hostspec > numtype)) call set_stop('ins')
+       endif
+       if((slttype == CAL_REFS_RIGID).or.(slttype == CAL_REFS_FLEX)) then
+          if((hostspec < 1).or.(hostspec > numtype - 1)) call set_stop('ins')
+       endif
     endif
 
     if((insorigin < 0).or.(insorigin > 3)) call set_stop('ins')

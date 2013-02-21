@@ -96,7 +96,9 @@ contains
   end subroutine instslt
 
   subroutine set_solute_origin(insml)
-    use engmain, only: insorigin, numsite, mol_begin_index, bfcoord, sitepos
+    use engmain, only: insorigin, numsite, mol_begin_index, mol_end_index, &
+                       bfcoord, sitepos
+    use bestfit, only: com_aggregate
     implicit none
     integer, intent(in) :: insml
     integer :: molb, mole, nsite
@@ -104,7 +106,7 @@ contains
 
     nsite = numsite(insml)
     molb = mol_begin_index(insml)
-    mole = mol_begin_index(insml + 1) - 1
+    mole = mol_end_index(insml) 
     sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
 
     select case(insorigin)
@@ -112,7 +114,7 @@ contains
        syscen(:) = (/ 0., 0., 0. /)
        call set_solute_com(insml, syscen)     ! set solute COM to (0,0,0)
     case(1)
-       call get_system_com(syscen)            ! get aggregate center (syscen)
+       call com_aggregate(syscen)             ! get aggregate center (syscen)
        call set_solute_com(insml, syscen)     ! set solute COM to syscen
     case(2)
        call reffit(insml)
@@ -317,59 +319,6 @@ contains
     end select
   end subroutine apply_orientation
   !
-  subroutine get_molecule_com(target_mol, com)
-    use engmain, only: numatm, specatm, numsite
-    implicit none
-    integer, intent(in) :: target_mol
-    real, intent(out) :: com(3)
-    integer :: centag(1:numatm), ati, sid, stmax
-    centag(:)=0
-    stmax=numsite(target_mol)
-    do sid=1,stmax
-       ati=specatm(sid,target_mol)
-       centag(ati)=1
-    end do
-    call getcen(centag,com)
-  end subroutine get_molecule_com
-  !
-  subroutine get_system_com(com)
-    use engmain, only: nummol, numatm, specatm, numsite, hostspec, moltype
-    implicit none
-    real, intent(out) :: com(3)
-    integer :: centag(1:numatm), ati, sid, stmax, i, m, pti
-    do i=1,nummol
-       pti=moltype(i)
-       if(pti.eq.hostspec) m=1
-       if(pti.ne.hostspec) m=0
-       stmax=numsite(i)
-       do sid=1,stmax
-          ati=specatm(sid,i)
-          centag(ati)=m
-       end do
-    end do
-    call getcen(centag, com)
-  end subroutine get_system_com
-  !
-  subroutine getcen(centag,cen)             ! getting the center of mass
-    use engmain, only: numatm,sitemass,sitepos
-    implicit none
-    integer, intent(in) :: centag(numatm)
-    real, intent(out) :: cen(3)
-    integer ati,m
-    real wgt,sitm
-    wgt=0.0e0
-    cen(:)=0.0e0
-    do ati=1,numatm
-       if(centag(ati).eq.1) then
-          sitm=sitemass(ati)
-          wgt=wgt+sitm
-          cen(:)=cen(:)+sitm*sitepos(:,ati)
-       endif
-    end do
-    cen(:)=cen(:)/wgt
-  end subroutine getcen
-  !
-  !
   ! user-defined scheme to specify inserted molecule
   ! user may reject snapshot by specifying out_of_range to .true.
   ! or set coordinate in specatm
@@ -494,6 +443,7 @@ contains
     call random_seed(put = seedarray)
     deallocate(seedarray)
   end subroutine urand_init
+!
 !
 ! fit to reference structure
   subroutine reffit(ligmol)
@@ -641,6 +591,7 @@ contains
   subroutine sltpstn(sltstat,pcom,type,tagslt)
     use engmain, only: nummol,numatm,boxshp,inscnd,inscfg,hostspec,&
          moltype,numsite,specatm,sitepos,cell,invcl,lwreg,upreg
+    use bestfit, only: com_aggregate
     implicit none
     integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
     real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen
@@ -665,7 +616,7 @@ contains
     endif
     !
     if((inscnd.eq.1).or.(inscnd.eq.2)) then     ! system center
-       call get_system_com(syscen)
+       call com_aggregate(syscen)
     endif
     !
     if(inscnd.eq.1) then   ! solute in spherical object or isolated droplet

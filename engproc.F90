@@ -845,25 +845,15 @@ contains
   end subroutine residual_ene
   !
   subroutine volcorrect(engnmfc)
-    use engmain, only:  nummol,temp,numsite,sluvid,&
-                        cltype,screen,charge,specatm,volume
+    use engmain, only:  pi, sluvid, cltype, screen, &
+                        mol_charge, volume, temp, EL_COULOMB
     implicit none
-    integer i,ati,sid,stmax
-    real pi,factor,engnmfc
+    real total_charge,factor,engnmfc
     engnmfc=volume*engnmfc
-    if(cltype.ne.0) then                                 ! Ewald and PME
-       pi=real(4)*atan(real(1))
-       factor=0.0e0
-       do i=1,nummol
-          if(sluvid(i).le.1) then                          ! physical particle
-             stmax=numsite(i)
-             do sid=1,stmax
-                ati=specatm(sid,i)
-                factor=factor+charge(ati)
-             end do
-          endif
-       end do
-       factor=pi*factor*factor/screen/screen/volume/2.0e0
+    if(cltype.ne.EL_COULOMB) then  ! Ewald and PME
+       ! sum of charges over physical particles
+       total_charge = sum( mol_charge, mask = (sluvid <= 1) )
+       factor=pi*total_charge*total_charge/screen/screen/volume/2.0e0
        engnmfc=engnmfc*exp(factor/temp)
     endif
     return
@@ -1042,15 +1032,27 @@ contains
     if((lwreg > distance) .or. (distance > upreg)) out_of_range = .true.
     return
   contains
-    subroutine relative_com(tagslt,dx)
-      use ptinsrt, only: get_molecule_com, get_system_com
+    subroutine relative_com(tagpt,dx)
+      use engmain, only: numsite, mol_begin_index, mol_end_index, &
+                         sitemass, sitepos
+      use bestfit, only: center_of_mass,com_aggregate
       implicit none
-      integer, intent(in) :: tagslt
+      integer, intent(in) :: tagpt
       real, intent(out) :: dx(3)
-      real :: solute_com(3), system_com(3)
-      call get_molecule_com(tagslt, solute_com)     ! get the solute COM
-      call get_system_com(system_com)               ! get the aggregate COM
-      dx(:) = solute_com(:) - system_com(:)
+      integer ptb,pte,sid,stmax
+      real :: solute_com(3), aggregate_com(3)
+      real, dimension(:), allocatable   :: ptmass
+      real, dimension(:,:), allocatable :: ptsite
+      stmax = numsite(tagpt)
+      ptb = mol_begin_index(tagpt)
+      pte = mol_end_index(tagpt)
+      allocate( ptmass(stmax), ptsite(3,stmax) )
+      ptmass(1:stmax) = sitemass(ptb:pte)
+      ptsite(1:3,1:stmax) = sitepos(1:3,ptb:pte)
+      call center_of_mass(stmax,ptsite,ptmass,solute_com)  ! solute COM
+      call com_aggregate(aggregate_com)                    ! aggregate COM
+      dx(1:3) = solute_com(1:3) - aggregate_com(1:3)
+      deallocate( ptmass, ptsite )
     end subroutine relative_com
   end subroutine check_mol_configuration
 

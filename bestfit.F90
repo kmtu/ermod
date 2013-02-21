@@ -182,6 +182,31 @@ contains
     end do
   end subroutine com_unshift
 
+  subroutine com_aggregate(aggregate_center)
+    use engmain, only: nummol, numsite, hostspec, moltype, &
+                       mol_begin_index, mol_end_index, sitemass, sitepos
+    implicit none
+    real, intent(out) :: aggregate_center(3)
+    real, dimension(:), allocatable   :: agg_mass
+    real, dimension(:,:), allocatable :: agg_site
+    integer :: num_aggsite, molb, mole, nsite, cnt, i
+    num_aggsite = sum( numsite, mask = (moltype == hostspec) )
+    allocate( agg_mass(num_aggsite), agg_site(3,num_aggsite) )
+    cnt = 0
+    do i = 1, nummol
+       if(moltype(i) == hostspec) then
+          nsite = numsite(i)
+          molb = mol_begin_index(i)
+          mole = mol_end_index(i)
+          agg_mass(cnt+1:cnt+nsite)=sitemass(molb:mole)
+          agg_site(1:3,cnt+1:cnt+nsite)=sitepos(1:3,molb:mole)
+          cnt = cnt + nsite
+       endif
+    enddo
+    call center_of_mass(num_aggsite, agg_site, agg_mass, aggregate_center)
+    deallocate( agg_mass, agg_site )
+  end subroutine com_aggregate
+
   ! standard fit-to-structure procedure
   subroutine fit(n, refcoord, coord, masses, outcoord)
     use quaternion
