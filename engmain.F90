@@ -104,13 +104,17 @@
 !
 !   ljformat : input-file format for the LJ energy and length parameters
 !               0 : epsilon (kcal/mol) and sigma (A)
-!               1 : epsilon (kcal/mol) and Rmin/2 (A)
+!               1 (default) : epsilon (kcal/mol) and Rmin/2 (A)
 !               2 : epsilon (kJ/mol) and sigma (nm)
 !               3 : A (kcal/mol A^12) and C (kcal/mol A^6)
 !               4 : C12 (kJ/mol nm^12) and C6 (kJ/mol nm^6)
 !               5 : Read from table, LJTable file
 !                   (epsilon as kcal/mol and sigma as A)
-!              default = 1
+!   ljswitch : switching function for smooth LJ truncation
+!               0 (default) : energy switch in CHARMM form
+!               1 : energy switch in GROMACS form
+!               2 : force switch
+!               tapering function is defined by lwljcut and upljcut variables
 !   iseed : seed parameter for uniform random number
 !   inptemp : temperature of the system in Kelvin
 !   temp  : temperature of the system in kcal/mol
@@ -212,14 +216,14 @@ module engmain
   implicit none
   ! Note for optimization: any major compilers shall inline expand "parameter"s
   ! mathematical & physical constants
-  real, parameter :: pi = 3.1415926535897932
+  real, parameter :: PI = 3.1415926535897932
   real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
 !
   integer :: numtype,nummol,numatm,maxcnf,engdiv,skpcnf,corrcal,selfcal
   integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsys
   integer :: estype,boxshp
   integer :: insorigin, insposition, insorient, inscnd, inscfg, hostspec
-  integer :: ljformat, iseed
+  integer :: ljformat, ljswitch, iseed
   real :: inptemp,temp
   real :: block_threshold
   logical :: force_calculation
@@ -283,7 +287,7 @@ module engmain
        estype,boxshp, &
        insorigin, insposition, insorient, inscnd, inscfg, &
        hostspec, lwreg, upreg, &
-       ljformat, &
+       ljformat, ljswitch, &
        inptemp,temp, &
        engdiv,maxins, &
        intprm,elecut,lwljcut,upljcut, &
@@ -293,6 +297,7 @@ module engmain
 
 contains 
   subroutine init_params()
+    implicit none
     integer, parameter :: unit = 191
     integer :: err
     

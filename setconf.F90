@@ -309,10 +309,9 @@ contains
     if((insorigin == 3).and.(insposition /= 3)) call set_stop('ins')
     if((insorigin /= 3).and.(insposition == 3)) call set_stop('ins')
 
-    ! insertion with the coordinate as is read from the file
-    ! does not make sense if maxins > 1
+    ! maxins > 1 in insertion makes no sense if coordinate is used as is read
     if((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. &
-        insposition == 3 .and. insorient == 1 .and. maxins /= 1) then
+       insposition == 3 .and. insorient == 1 .and. maxins /= 1) then
        call warning('insu')
     endif
          
@@ -322,6 +321,7 @@ contains
   end subroutine iniparam
 
   real function getscrn(ewtoler,elecut,scrtype)
+    implicit none
     character*3 scrtype
     real ewtoler,elecut,ewasml,ewalrg,scrfac,factor
     real, parameter :: error=1.0e-20
@@ -787,6 +787,7 @@ contains
   end subroutine set_stop
 
   subroutine getmass(stmass,atmtype)
+    implicit none
     real, parameter :: massH=1.00794e0          ! mass number (hydrogen)
     real, parameter :: massC=12.0107e0          ! mass number (carbon)
     real, parameter :: massO=15.9994e0          ! mass number (oxygen)

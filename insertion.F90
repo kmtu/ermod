@@ -204,7 +204,7 @@ contains
     ! FIXME: this routine does not work for skewed periodic box
     subroutine uniform_gauss_mixture(com, weight)
       use mpiproc, only: myrank
-      use engmain, only: pi, celllen, upreg
+      use engmain, only: PI, celllen, upreg
       implicit none
       real, intent(out) :: com(3), weight
 
@@ -222,7 +222,7 @@ contains
          l_of_sigma(:) = (celllen(:) / 2) / upreg
          if(myrank == 0) print *, "Lx/2 / sigma = ", l_of_sigma(:)
          z0 = 8 * l_of_sigma(1) * l_of_sigma(2) * l_of_sigma(3)
-         z1 = (sqrt(pi) ** 3) * erf(l_of_sigma(1)) * erf(l_of_sigma(2)) * erf(l_of_sigma(3))
+         z1 = (sqrt(PI) ** 3) * erf(l_of_sigma(1)) * erf(l_of_sigma(2)) * erf(l_of_sigma(3))
          first_time = .false.
       endif
 
@@ -324,6 +324,7 @@ contains
   ! or set coordinate in specatm
   subroutine insscheme(insml, out_of_range)
     use engmain, only: nummol,numatm,numsite,specatm,sitepos,cell
+    implicit none
     integer insml,stmax,sid,ati
     logical, intent(out) :: out_of_range
     out_of_range = .false.
@@ -353,6 +354,7 @@ contains
     use engmain, only: numsite, bfcoord
     use OUTname, only: OUTconfig, solute_trajectory
     use mpiproc
+    implicit none
     character*4 caltype
     integer insml,stmax
     real xst(3),dumcl(3,3)
@@ -383,6 +385,7 @@ contains
 
   subroutine instwgt(stat_weight_solute,caltype)
     use engmain, only: slttype,wgtins
+    implicit none
     integer m
     real stat_weight_solute
     character*4 caltype
@@ -416,14 +419,14 @@ contains
   ! Normal random variable N(0,1)
   ! uses Box-Muller method
   real function nrand()
-    use engmain, only: pi
+    use engmain, only: PI
     implicit none
     real :: r1, r2
     call urand(r1)
     call urand(r2)
     ! get (0,1] instead of [0, 1)
     r1 = 1 - r1
-    nrand = sqrt(-2.0 * log(r1)) * cos(2 * pi * r2)
+    nrand = sqrt(-2.0 * log(r1)) * cos(2 * PI * r2)
   end function nrand
 
   subroutine urand_init(seed)
@@ -510,6 +513,7 @@ contains
     call fit(natom_lig, workl, bfcoord, lig_mass, sitepos(1:3, lig_begin:lig_end))
   contains
     subroutine load_structure(n, position, mass)
+      implicit none
       integer, intent(in) :: n
       real, intent(out) :: position(3, n)
       real, intent(inout) :: mass(n)

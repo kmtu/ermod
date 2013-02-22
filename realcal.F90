@@ -55,6 +55,7 @@ contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
     use engmain, only: numsite
     !$ use omp_lib, only: omp_get_num_procs
+    implicit none
     integer, intent(in) :: target_solu, tagpt(:), slvmax
     real, intent(out) :: uvengy(0:slvmax)
     real, allocatable :: eng(:, :)
@@ -143,33 +144,24 @@ contains
 
   subroutine realcal_cleanup
     implicit none
-
     deallocate(sitepos_normal)
   end subroutine realcal_cleanup
 
 
-  ! Calculate i-j interaction energy.
-  ! This routine is called as a dispatcher to realcal_self or bare coulomb interaction
+  ! Calculate i-j interaction energy in the bare 1/r form
   subroutine realcal_bare(i,j,pairep)
-    use engmain, only:  nummol,numatm,boxshp,numsite,&
-         elecut,lwljcut,upljcut,cmbrule,cltype,screen,&
-         charge,specatm,sitepos,&
-         cell,invcl,volume,pi,&
-         ljtype, ljtype_max, ljene_mat, ljlensq_mat,&
+    use engmain, only:  boxshp,numsite,&
+         elecut,lwljcut,upljcut,cltype,screen,charge,specatm,&
+         ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat,&
          SYS_NONPERIODIC, SYS_PERIODIC
     implicit none
     integer i,j,is,js,ismax,jsmax,ati,atj,m,k
-    real reelcut,pairep,ljeps,ljsgm,chr2,rst,dis2,rtp1,rtp2
-    real :: eplj,epcl,xst(3),clm(3),swth, half_cell(3)
+    real reelcut,pairep,ljeps,ljsgm,rst,dis2,rtp1,rtp2
+    real :: eplj,epcl,xst(3),swth,half_cell(3)
     integer :: ljtype_i, ljtype_j
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
-    if(i.eq.j) then
-       stop
-       call realcal_self(i, pairep)
-       return
-    endif
-
+    if(i.eq.j) stop "cannot happen: two particle arguments should not be the same"
     if(cltype /= 0) stop "cannot happen: realcal() is called only when cltype is 'bare coulomb'."
 
     if(boxshp == SYS_NONPERIODIC) reelcut=infty
@@ -212,30 +204,26 @@ contains
              endif
           endif
           if(rst >= reelcut) then
-             epcl=0.0e0
+             epcl = 0.0e0
           else
-             chr2=charge(ati)*charge(atj)
-
-             epcl=chr2 / rst
+             epcl = charge(ati) * charge(atj) / rst
           endif
-          pairep = pairep + (eplj + epcl)
+          pairep = pairep + eplj + epcl
        end do
     end do
     !
     return
   end subroutine realcal_bare
 
+  ! self-energy part, no LJ calculation performed
   subroutine realcal_self(i, pairep)
-    use engmain, only:  nummol,numatm,boxshp,numsite,&
-         screen,cltype,&
-         charge,specatm,sitepos,&
-         cell,invcl,EL_COULOMB, pi
+    use engmain, only: numsite, screen, cltype, charge, specatm, &
+                       EL_COULOMB, PI
     implicit none
     integer, intent(in) :: i
     real, intent(inout) :: pairep
-    integer :: is,js,ismax,ati,atj,m,k
-    real :: reelcut,chr2,rst,dis2,rtp1
-    real :: epcl,xst(3),clm(3),swth, half_cell(3)
+    integer :: is,js,ismax,ati,atj
+    real :: rst,dis2,epcl,xst(3),half_cell(3)
 
     pairep=0.0e0
     if(cltype == EL_COULOMB) return
@@ -244,14 +232,13 @@ contains
 
     ismax=numsite(i)
 
-    !$omp parallel do private(is,js,ati,atj,chr2,epcl,rst,dis2,xst) reduction(+:pairep)
+    !$omp parallel do private(is,js,ati,atj,epcl,rst,dis2,xst) reduction(+:pairep)
     do is=1,ismax
        ati=specatm(is,i)
 
        ! Atom residual
-       chr2=charge(ati)*charge(ati)
-       epcl=-chr2*screen/sqrt(pi)
-
+       ! self (the same ati arguments for two charge variables below)
+       epcl = - charge(ati) * charge(ati) * screen / sqrt(PI)
        pairep = pairep + epcl
 
        do js=is+1,ismax
@@ -263,10 +250,9 @@ contains
           dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
 
           rst=sqrt(dis2)
-          chr2=charge(ati)*charge(atj)
-          epcl=-chr2*derf(screen*rst)/rst
-
-          pairep=pairep+epcl
+          ! distinct (different ati and atj arguments for two charge variables)
+          epcl = - charge(ati) * charge(atj) * derf(screen*rst) / rst
+          pairep = pairep + epcl
        enddo
     enddo
 
@@ -275,8 +261,9 @@ contains
 
   integer function count_solv(solu, tagpt, slvmax)
     use engmain, only: numsite
+    implicit none
     integer, intent(in) :: solu, tagpt(:), slvmax
-     integer :: i, j, cnt
+    integer :: i, j, cnt
     cnt = 0
     do i = 1, slvmax
        j = tagpt(i)
@@ -288,6 +275,7 @@ contains
 
   subroutine set_solu_atoms(solu)
     use engmain, only: numsite, mol_begin_index
+    implicit none
     integer, intent(in) :: solu
     integer :: i
     do i = 1, numsite(solu)
@@ -298,6 +286,7 @@ contains
 
   subroutine set_solv_atoms(solu, tagpt, slvmax)
     use engmain, only: numsite, mol_begin_index
+    implicit none
     integer, intent(in) :: solu, tagpt(:), slvmax
     integer :: i, j, k, cnt
     cnt = 1
@@ -314,6 +303,7 @@ contains
 
   subroutine set_block_info()
     use engmain, only: block_threshold, upljcut, elecut
+    implicit none
     real :: unit_axes(3), cut2, l
     integer :: i, j, k, bmax, ix, xlen
     real, allocatable :: grid_dist(:, :)
@@ -378,6 +368,7 @@ contains
   end subroutine set_block_info
 
   subroutine blockify(natom, atomlist, blk)
+    implicit none
     integer, intent(in) :: natom, atomlist(:)
     integer, intent(out) :: blk(:, :)
     integer :: i, j, a, blktmp(3)
@@ -396,6 +387,7 @@ contains
   end subroutine blockify
 
   subroutine sort_block(blk, nmol, belong, atomno, counts, psum)
+    implicit none
     integer, intent(inout) :: blk(:, :)
     integer, intent(in) :: nmol
     integer, intent(inout) :: belong(:)
@@ -466,6 +458,7 @@ contains
   subroutine get_pair_energy(energy_vec)
     ! calculate for each subcell
     ! cut-off by subcell distance
+    implicit none
     real, intent(out) :: energy_vec(:, :)
     integer :: u1, u2, u3
     integer :: vbs(3)
@@ -521,8 +514,9 @@ contains
 
   ! Computational kernel to calculate distance between particles
   subroutine get_pair_energy_block(upos, vpos_b, vpos_e, energy_vec)
-    use engmain, only: cltype, boxshp, upljcut, lwljcut, elecut, screen, charge,&
-         ljtype, ljtype_max, ljene_mat, ljlensq_mat
+    use engmain, only: cltype, boxshp, &
+         upljcut, lwljcut, elecut, screen, charge,&
+         ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat
     !$ use omp_lib, only: omp_get_thread_num
     implicit none
     integer, intent(in) :: upos, vpos_b, vpos_e
@@ -530,7 +524,7 @@ contains
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
     real :: crdu(3), crdv(3), d(3), dist, r, dist_next
-    real :: elj, eel, rtp1, rtp2, chr2, swth, ljeps, ljsgm2
+    real :: rtp1, rtp2, ljeps, ljsgm2
     real :: upljcut2, lwljcut2, elecut2, half_cell(3), e_eps
     integer :: n_lowlj, n_switch, n_el
     integer :: i, curp

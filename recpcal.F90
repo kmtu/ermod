@@ -38,24 +38,16 @@ module reciprocal
 
 contains
   subroutine recpcal_init(slvmax, tagpt)
-    use engmain, only:  nummol,numatm,numsite,sluvid,&
-         cltype,screen,splodr,charge,&
-         ms1max,ms2max,ms3max,&
-         sitepos,invcl,volume,&
-         pi
+    use engmain, only:  nummol,numsite,splodr,ms1max,ms2max,ms3max
     use spline, only: spline_init
-    use fft_iface, only: fft_init_ctr, fft_init_rtc, &
-         fft_set_size
+    use fft_iface, only: fft_init_ctr, fft_init_rtc, fft_set_size
     implicit none
     integer, intent(in) :: slvmax, tagpt(slvmax)
-    integer :: m, k, rci, rcimax, spi
-    complex :: rcpi
+    integer :: m, k
     integer :: gridsize(3), ptrnk
 
     allocate( slvtag(nummol) )
-    do m=1,nummol
-       slvtag(m)=-1
-    enddo
+    slvtag(1:nummol) = -1
     ptrnk=0
     do k=1,slvmax
        m=tagpt(k)
@@ -89,7 +81,7 @@ contains
   end subroutine recpcal_init
 
   subroutine init_spline_axis(imin, imax, splfc)
-    use engmain, only: splodr, pi
+    use engmain, only: splodr, PI
     use spline, only: spline_value
     implicit none
     integer, intent(in) :: imin, imax
@@ -102,7 +94,7 @@ contains
        rcpi=(0.0e0,0.0e0)
        do spi=0,splodr-2
           chr=spline_value(real(spi+1))
-          rtp2=2.0e0*pi*real(spi*rci)/real(imax+1)
+          rtp2=2.0e0*PI*real(spi*rci)/real(imax+1)
           cosk=chr*cos(rtp2)
           sink=chr*sin(rtp2)
           rcpi=rcpi+cmplx(cosk,sink)
@@ -113,7 +105,7 @@ contains
   end subroutine init_spline_axis
 
   subroutine recpcal_spline_greenfunc()
-    use engmain, only: invcl, ms1max, ms2max, ms3max, splodr, volume, screen, pi
+    use engmain, only: invcl, ms1max, ms2max, ms3max, splodr, volume, screen, PI
     implicit none
     integer :: rc1, rc2, rc3, rci, m, rcimax
     real :: factor, rtp2, chr
@@ -141,8 +133,8 @@ contains
                 xst(m)=dot_product(invcl(:, m), inm(:))
              end do
              rtp2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
-             chr=pi*pi*rtp2/screen/screen
-             factor=exp(-chr)/rtp2/pi/volume
+             chr=PI*PI*rtp2/screen/screen
+             factor=exp(-chr)/rtp2/PI/volume
              rtp2=splfc1(rc1)*splfc2(rc2)*splfc3(rc3)
              factor=factor/rtp2
 3219         continue
@@ -174,11 +166,8 @@ contains
     use mpiproc, only: perf_time
     implicit none
     integer, intent(in) :: tagslt
-    real :: xst(3), inm(3)
-    integer :: rc1, rc2, rc3, rci, sid, m, k, ati, cg1, cg2, cg3, &
-         stmax, ptrnk, rcimax, svi, uvi, spi, ccenodup
-    real :: factor, rtp2, chr
-    complex :: rcpi, rcptemp
+    integer :: rc1, rc2, rc3, sid, ati, cg1, cg2, cg3, stmax
+    real :: factor, chr
     real, allocatable :: splval(:,:,:)
     integer, allocatable :: grdval(:,:)
 
@@ -197,7 +186,7 @@ contains
                 rc2=modulo(grdval(2,sid)-cg2,ms2max)
                 rc3=modulo(grdval(3,sid)-cg3,ms3max)
                 factor=chr*splval(cg1,1,sid)*splval(cg2,2,sid)&
-                     *splval(cg3,3,sid)
+                          *splval(cg3,3,sid)
                 cnvslt(rc1, rc2, rc3) = cnvslt(rc1, rc2, rc3) + factor
              end do
           end do

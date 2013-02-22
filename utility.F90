@@ -95,16 +95,16 @@ contains
 
   ! convert cell-length & (alpha, beta, gamma) to cell vectors
   subroutine angles_to_cell_vector(cell_len, angles, out_cell_vectors)
-    use engmain, only: pi
+    use engmain, only: PI
     implicit none
     real, intent(in) :: cell_len(3)
     real, intent(in) :: angles(3)
     real, intent(out) :: out_cell_vectors(3, 3)
     real :: alpha, beta, gamma, x, y, u, v, w
 
-    alpha = angles(1) * pi / 180.0 ! for b-c axes
-    beta  = angles(2) * pi / 180.0 ! for a-c axes
-    gamma = angles(3) * pi / 180.0 ! for a-b axes
+    alpha = angles(1) * PI / 180.0 ! for b-c axes
+    beta  = angles(2) * PI / 180.0 ! for a-c axes
+    gamma = angles(3) * PI / 180.0 ! for a-b axes
 
     ! ~a = (1, 0, 0)
     ! ~b = (x, y, 0)

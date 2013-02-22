@@ -631,7 +631,6 @@ contains
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
     use mpiproc                                                      ! MPI
-
     implicit none
     integer, intent(in) :: stnum
     real, intent(inout) :: uvengy(0:slvmax), stat_weight_solute
@@ -683,7 +682,7 @@ contains
     residual = 0.0
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
     if(current_solute_hash == solute_hash .or. &
-         (slttype == CAL_REFS_RIGID .and. solute_hash /= 0)) then 
+       (slttype == CAL_REFS_RIGID .and. solute_hash /= 0)) then 
        ! For refs part, the structure of solute may change because of rotation & translation upon insertion, 
        ! though the self energy will not change.
        pairep = usreal ! reuse
@@ -828,32 +827,27 @@ contains
 
   !
   subroutine residual_ene(i, j, pairep)
-    use engmain, only: screen, volume, numsite, mol_charge, cltype
+    use engmain, only: screen, volume, mol_charge, cltype, EL_COULOMB, PI
     implicit none
     integer, intent(in) :: i, j
     real, intent(inout) :: pairep
-    real :: rtp1, rtp2, epcl
-    integer :: is, js, ismax, jsmax, ati, atj
-    real, parameter :: pi = 3.141592653589793283462
-    if(cltype == 0) return
-
-    rtp1 = mol_charge(i)
-    rtp2 = mol_charge(j)
-    epcl=pi*rtp1*rtp2/screen/screen/volume
-    if(i.eq.j) epcl=epcl/2.0e0 ! self-interaction
-    pairep=pairep-epcl
+    real :: epcl
+    if(cltype == EL_COULOMB) return
+    epcl = PI * mol_charge(i) * mol_charge(j) / screen / screen / volume
+    if(i == j) epcl = epcl / 2.0e0 ! self-interaction
+    pairep = pairep - epcl
   end subroutine residual_ene
   !
   subroutine volcorrect(engnmfc)
-    use engmain, only:  pi, sluvid, cltype, screen, &
-                        mol_charge, volume, temp, EL_COULOMB
+    use engmain, only:  sluvid, cltype, screen, &
+                        mol_charge, volume, temp, EL_COULOMB, PI
     implicit none
     real total_charge,factor,engnmfc
     engnmfc=volume*engnmfc
-    if(cltype.ne.EL_COULOMB) then  ! Ewald and PME
+    if(cltype /= EL_COULOMB) then  ! Ewald and PME
        ! sum of charges over physical particles
        total_charge = sum( mol_charge, mask = (sluvid <= 1) )
-       factor=pi*total_charge*total_charge/screen/screen/volume/2.0e0
+       factor=PI*total_charge*total_charge/screen/screen/volume/2.0e0
        engnmfc=engnmfc*exp(factor/temp)
     endif
     return
