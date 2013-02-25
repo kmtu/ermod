@@ -152,7 +152,7 @@ contains
          iseed,&
          numtype,skpcnf,corrcal,selfcal,&
          slttype,sltpick,refpick,wgtslf,wgtins,wgtsys,&
-         estype,boxshp,hostspec,ljformat,&
+         estype,boxshp,hostspec,ljformat,ljswitch,&
          insorigin, insposition, insorient, inscnd,inscfg,&
          inptemp,temp,&
          engdiv,maxins,&
@@ -213,14 +213,14 @@ contains
     ! default settings
     skpcnf=1                    ! no skip for trajectory reading
     
-    if(slttype.eq.1) corrcal=0  ! no calculation of correlation matrix
-    if(slttype.ge.2) corrcal=1  ! calculation of correlation matrix
+    if(slttype == 1) corrcal=0  ! no calculation of correlation matrix
+    if(slttype >= 2) corrcal=1  ! calculation of correlation matrix
     selfcal=0                   ! no construction of self-energy distribution
     wgtslf=0 ; wgtins=0 ; wgtsys=0
-    if((slttype.ge.2).and.(cltype.ne.0)) wgtslf=1  ! Ewald and PME
-    sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1
+    if((slttype >= 2).and.(cltype /= 0)) wgtslf=1  ! Ewald and PME
+    sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1 ; ljswitch=0
     maxins=1000 ; lwreg=0.0e0 ; upreg=5.0e0
-    if(intprm.ne.0) then
+    if(intprm /= 0) then
       cmbrule=0                 ! arithmetic mean of LJ sigma
       ew2max=ew1max ; ew3max=ew1max
       ms2max=ms1max ; ms3max=ms1max
@@ -265,29 +265,31 @@ contains
     ! temperature converted into the unit of kcal/mol
     temp=inptemp*8.314510e-3/4.184e0
     ! get the screening parameter in Ewald and PME
-    if((screen.le.tiny).and.(cltype.ne.0)) then
-       if(ewtoler.le.tiny) call set_stop('ewa')
+    if((screen <= tiny).and.(cltype /= 0)) then
+       if(ewtoler <= tiny) call set_stop('ewa')
        screen=getscrn(ewtoler,elecut,scrtype)
     endif
     ! check Ewald parameters, not effective in the current version
-    if(cltype.eq.1) then
-       if(ew1max*ew2max*ew3max.eq.0) call set_stop('ewa')
+    if(cltype == 1) then
+       if(ew1max*ew2max*ew3max == 0) call set_stop('ewa')
     endif
     ! check PME parameters
-    if(cltype.eq.EL_PME) then
-       if(ms1max*ms2max*ms3max.eq.0) call set_stop('ewa')
+    if(cltype == EL_PME) then
+       if(ms1max*ms2max*ms3max == 0) call set_stop('ewa')
     endif
+    ! ljswitch parameter
+    if((ljswitch < 0).or.(ljswitch > 2)) call set_stop('prs')
     ! check slttype parameter
-    if((slttype.lt.CAL_SOLN).or.(slttype.gt.CAL_REFS_FLEX)) then
+    if((slttype < CAL_SOLN).or.(slttype > CAL_REFS_FLEX)) then
        call set_stop('slt')
     endif
     ! check the consistency in parameters for non-periodic system
-    if(boxshp.eq.SYS_NONPERIODIC) then
-       if((estype.eq.2).or.(cltype.ne.0)) call set_stop('prs')
+    if(boxshp == SYS_NONPERIODIC) then
+       if((estype == 2).or.(cltype /= 0)) call set_stop('prs')
     endif
     ! check the consistency of insertion with structure-dependent weight
-    if(wgtins.eq.1) then
-       if(slttype.ne.3) call set_stop('ins')
+    if(wgtins == 1) then
+       if(slttype /= 3) call set_stop('ins')
     endif
     ! insorigin and insorient is effective only for insertion
     if(slttype == CAL_SOLN) then
@@ -635,10 +637,8 @@ contains
 ! Reads up to maxread coordinates serially and distributes frames
 ! returns number of frames read (EXCLUDING skipped frames)
   subroutine getconf_parallel(maxread, actual_read)
-    use engmain, only: nummol,numatm,boxshp,&
-         numsite,sluvid,sitepos,cell,skpcnf,&
-         stdout,&
-         stat_weight_system
+    use engmain, only: skpcnf, boxshp, numsite, sluvid, stdout, &
+                       sitepos, cell, stat_weight_system
     use OUTname, only: OUTconfig                     ! from outside
     use mpiproc
     implicit none
@@ -648,16 +648,14 @@ contains
     real, dimension(:,:), allocatable :: OUTpos, OUTcell, readpos
     real :: readcell(3, 3)
     real :: weight, readweight
-    integer i,m,k,OUTatm, iproc, nread
+    integer i, k, OUTatm, iproc, nread
 
     logical, save :: first_time = .true.
     integer, allocatable, save :: permutation(:)
     integer :: stat
 
-    OUTatm=0
-    do i=1,nummol
-       if(sluvid(i).le.1) OUTatm=OUTatm+numsite(i) ! only solvent & solute; no test particles
-    end do
+    ! sum over solvent & solute in trajectory file (HISTORY); no test particle
+    OUTatm = sum( numsite, mask = (sluvid <= 1) )
     if(myrank == 0) allocate(readpos(3, OUTatm))
     allocate( OUTpos(3,OUTatm), OUTcell(3,3) )
 

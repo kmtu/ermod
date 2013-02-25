@@ -153,16 +153,17 @@ contains
     use engmain, only:  boxshp,numsite,&
          elecut,lwljcut,upljcut,cltype,screen,charge,specatm,&
          ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat,&
-         SYS_NONPERIODIC, SYS_PERIODIC
+         SYS_NONPERIODIC, SYS_PERIODIC, EL_COULOMB
     implicit none
     integer i,j,is,js,ismax,jsmax,ati,atj,m,k
-    real reelcut,pairep,ljeps,ljsgm,rst,dis2,rtp1,rtp2
+    real reelcut,pairep,ljeps,ljsgm2,rst,dis2,invr2,invr6
     real :: eplj,epcl,xst(3),swth,half_cell(3)
+    real :: upljcut2, lwljcut2
     integer :: ljtype_i, ljtype_j
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
     if(i.eq.j) stop "cannot happen: two particle arguments should not be the same"
-    if(cltype /= 0) stop "cannot happen: realcal() is called only when cltype is 'bare coulomb'."
+    if(cltype /= EL_COULOMB) stop "cannot happen: realcal_bare is called only when cltype is 'bare coulomb'."
 
     if(boxshp == SYS_NONPERIODIC) reelcut=infty
     if(boxshp == SYS_PERIODIC) then
@@ -181,7 +182,7 @@ contains
           ljtype_i = ljtype(ati)
           ljtype_j = ljtype(atj)
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
-          if(boxshp == SYS_PERIODIC) then              ! when the system is periodic
+          if(boxshp == SYS_PERIODIC) then   ! when the system is periodic
              xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
           endif
           dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
@@ -190,16 +191,16 @@ contains
              eplj=0.0e0
           else
              ljeps=ljene_mat(ljtype_i, ljtype_j)
-             ljsgm=ljlensq_mat(ljtype_i, ljtype_j)
+             ljsgm2=ljlensq_mat(ljtype_i, ljtype_j)
 
-             rtp1=ljsgm/dis2
-             rtp2=rtp1*rtp1*rtp1
-             eplj=4.0e0*ljeps*rtp2*(rtp2-1.0e0)
-             if(rst > lwljcut) then    ! CHARMM form of switching function
-                rtp1=lwljcut*lwljcut
-                rtp2=upljcut*upljcut
-                swth=(2.0e0*dis2+rtp2-3.0e0*rtp1)*(dis2-rtp2)*(dis2-rtp2)&
-                     /(rtp2-rtp1)/(rtp2-rtp1)/(rtp2-rtp1)
+             invr2=ljsgm2/dis2
+             invr6=invr2*invr2*invr2
+             eplj=4.0e0*ljeps*invr6*(invr6-1.0e0)
+             if(rst > lwljcut) then    ! potential-based switch
+                lwljcut2 = lwljcut**2
+                upljcut2 = upljcut**2
+                swth=(2.0e0*dis2+upljcut2-3.0e0*lwljcut2) &
+                    *((dis2-upljcut2)**2)/((upljcut2-lwljcut2)**3)
                 eplj=swth*eplj
              endif
           endif
@@ -523,8 +524,7 @@ contains
     real, intent(out) :: energy_vec(:, :)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
-    real :: crdu(3), crdv(3), d(3), dist, r, dist_next
-    real :: rtp1, rtp2, ljeps, ljsgm2
+    real :: crdu(3), crdv(3), d(3), dist, r, dist_next, invr2, invr6
     real :: upljcut2, lwljcut2, elecut2, half_cell(3), e_eps
     integer :: n_lowlj, n_switch, n_el
     integer :: i, curp
@@ -612,9 +612,9 @@ contains
 
     ! LJ inside low cutoff
     do i = 1, n_lowlj
-       rtp1 = ljsgm2_lowlj(i, curp) / dist_lowlj(i, curp)
-       rtp2 = rtp1 * rtp1 * rtp1
-       e_t(i, curp) = 4.0e0 * ljeps_lowlj(i, curp) * rtp2 * (rtp2 - 1.0e0)
+       invr2 = ljsgm2_lowlj(i, curp) / dist_lowlj(i, curp)
+       invr6 = invr2 * invr2 * invr2
+       e_t(i, curp) = 4.0e0 * ljeps_lowlj(i, curp) * invr6 * (invr6 - 1.0e0)
     end do
     do i = 1, n_lowlj
        energy_vec(belong_lowlj(i, curp), curp) = energy_vec(belong_lowlj(i, curp), curp) + e_t(i, curp)
@@ -622,11 +622,12 @@ contains
 
     ! LJ switching region
     do i = 1, n_switch
-       rtp1 = ljsgm2_switch(i, curp) / dist_switch(i, curp)
-       rtp2 = rtp1 * rtp1 * rtp1
-       e_t(i, curp) = 4.0e0 * ljeps_switch(i, curp) * rtp2 * (rtp2 - 1.0e0) * &
-            (2.0e0 * dist_switch(i, curp) + upljcut2 - 3.0e0 * lwljcut2) * &
-            ((dist_switch(i, curp) - upljcut2) ** 2) * (1.0 / (upljcut2 - lwljcut2) ** 3)
+       invr2 = ljsgm2_switch(i, curp) / dist_switch(i, curp)
+       invr6 = invr2 * invr2 * invr2
+       e_t(i, curp) = 4.0e0 * ljeps_switch(i, curp) * invr6 * (invr6 - 1.0e0) &
+          * (2.0e0 * dist_switch(i, curp) + upljcut2 - 3.0e0 * lwljcut2)      &
+          * ((dist_switch(i, curp) - upljcut2) ** 2)                          &
+          * (1.0 / (upljcut2 - lwljcut2) ** 3)
     end do
     do i = 1, n_switch
        energy_vec(belong_switch(i, curp), curp) = energy_vec(belong_switch(i, curp), curp) + e_t(i, curp)
