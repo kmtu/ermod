@@ -65,6 +65,9 @@ try:
         'table': 5
         }[carryover["ljformat"]]
 
+    # gromacs-type switching function
+    params["ljswitch"] = 1
+
     params["cmbrule"] = {
         'geometric': 1,
         'arithmetic': 0
