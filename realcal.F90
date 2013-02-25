@@ -155,10 +155,11 @@ contains
          ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat,&
          SYS_NONPERIODIC, SYS_PERIODIC, EL_COULOMB
     implicit none
-    integer i,j,is,js,ismax,jsmax,ati,atj,m,k
-    real reelcut,pairep,ljeps,ljsgm2,rst,dis2,invr2,invr6
-    real :: eplj,epcl,xst(3),swth,half_cell(3)
-    real :: upljcut2, lwljcut2
+    integer i,j,is,js,ismax,jsmax,ati,atj
+    real reelcut, pairep, rst, dis2, invr2, invr3, invr6
+    real :: eplj, epcl, xst(3), half_cell(3)
+    real :: upljcut2, lwljcut2, upljcut3, lwljcut3, upljcut6, lwljcut6
+    real :: ljeps, ljsgm2, ljsgm3, ljsgm6, vdwa, vdwb, swth, swfac
     integer :: ljtype_i, ljtype_j
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
@@ -195,14 +196,46 @@ contains
 
              invr2=ljsgm2/dis2
              invr6=invr2*invr2*invr2
-             eplj=4.0e0*ljeps*invr6*(invr6-1.0e0)
-             if(rst > lwljcut) then    ! potential-based switch
-                lwljcut2 = lwljcut**2
-                upljcut2 = upljcut**2
-                swth=(2.0e0*dis2+upljcut2-3.0e0*lwljcut2) &
-                    *((dis2-upljcut2)**2)/((upljcut2-lwljcut2)**3)
-                eplj=swth*eplj
-             endif
+             select case(ljswitch)
+             case(0,1)                      ! potential switch
+                eplj=4.0e0*ljeps*invr6*(invr6-1.0e0)
+                if(rst > lwljcut) then
+                   select case(ljswitch)
+                   case(0)                  ! CHARMM type
+                      lwljcut2 = lwljcut**2
+                      upljcut2 = upljcut**2
+                      swth=(2.0e0*dis2+upljcut2-3.0e0*lwljcut2)          &
+                          *((dis2-upljcut2)**2)/((upljcut2-lwljcut2)**3)
+                   case(1)                  ! GROMACS type
+                      swfac=(rst-lwljcut)/(upljcut-lwljcut)
+                      swth=1.0e0-10.0e0*(swfac**3)                       &
+                                +15.0e0*(swfac**4)-6.0e0*(swfac**5)
+                   case default
+                     stop "Unknown ljswitch"
+                   end select
+                   eplj=swth*eplj
+                endif
+             case(2)                        ! force switch
+                lwljcut3 = lwljcut**3
+                upljcut3 = upljcut**3
+                lwljcut6 = lwljcut3*lwljcut3
+                upljcut6 = upljcut3*upljcut3
+                ljsgm6=ljsgm2*ljsgm2*ljsgm2
+                if(rst <= lwljcut) then
+                   vdwa=invr6*invr6-ljsgm6*ljsgm6/(lwljcut6*upljcut6)
+                   vdwb=invr6-ljsgm6/(lwljcut3*upljcut3)
+                else
+                   invr3=sqrt(invr6)
+                   ljsgm3=sqrt(ljsgm6)
+                   vdwa=upljcut6/(upljcut6-lwljcut6) &
+                       *((invr6-ljsgm6/upljcut6)**2)
+                   vdwb=upljcut3/(upljcut3-lwljcut3) &
+                       *((invr3-ljsgm3/upljcut3)**2)
+                endif
+                eplj=4.0e0*ljeps*(vdwa-vdwb)
+             case default
+                stop "Unknown ljswitch"
+             end select
           endif
           if(rst >= reelcut) then
              epcl = 0.0e0
@@ -524,8 +557,10 @@ contains
     real, intent(out) :: energy_vec(:, :)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
-    real :: crdu(3), crdv(3), d(3), dist, r, dist_next, invr2, invr6
-    real :: upljcut2, lwljcut2, elecut2, half_cell(3), e_eps
+    real :: crdu(3), crdv(3), d(3), dist, r, dist_next, invr2, invr3, invr6
+    real :: upljcut2, lwljcut2, upljcut3, lwljcut3, upljcut6, lwljcut6
+    real :: ljeps, ljsgm2, ljsgm3, ljsgm6, vdwa, vdwb, swfac
+    real :: elecut2, half_cell(3)
     integer :: n_lowlj, n_switch, n_el
     integer :: i, curp
     
@@ -543,6 +578,12 @@ contains
 
     lwljcut2 = lwljcut ** 2
     upljcut2 = upljcut ** 2
+    if(ljswitch == 2) then            ! force switch
+       lwljcut3 = lwljcut2 * lwljcut
+       lwljcut6 = lwljcut3 * lwljcut3
+       upljcut3 = upljcut2 * upljcut
+       upljcut6 = upljcut3 * upljcut3
+    endif
     elecut2 = elecut ** 2
 
     ! TODO optimize:
@@ -579,17 +620,17 @@ contains
           dist_next = sum(d(:) ** 2) ! CHECK: any sane compiler will expand and unroll
 
           ! lines up all variables, to enable vectorization in 2nd phase
-          e_eps = ljene_mat(ljtype_v, ljtype_u)
-          if(e_eps > 0) then
+          ljeps = ljene_mat(ljtype_v, ljtype_u)
+          if(ljeps > 0) then
              if(dist <= lwljcut2) then
                 n_lowlj = n_lowlj + 1
-                ljeps_lowlj (n_lowlj, curp) = e_eps
+                ljeps_lowlj (n_lowlj, curp) = ljeps
                 ljsgm2_lowlj(n_lowlj, curp) = ljlensq_mat(ljtype_v, ljtype_u)
                 dist_lowlj(n_lowlj, curp) = dist
                 belong_lowlj(n_lowlj, curp) = belong_v
              elseif(dist <= upljcut2) then
                 n_switch = n_switch + 1
-                ljeps_switch (n_switch, curp) = e_eps
+                ljeps_switch (n_switch, curp) = ljeps
                 ljsgm2_switch(n_switch, curp) = ljlensq_mat(ljtype_v, ljtype_u)
                 dist_switch(n_switch, curp) = dist
                 belong_switch(n_switch, curp) = belong_v
@@ -612,9 +653,21 @@ contains
 
     ! LJ inside low cutoff
     do i = 1, n_lowlj
-       invr2 = ljsgm2_lowlj(i, curp) / dist_lowlj(i, curp)
+       ljeps = ljeps_lowlj(i, curp)
+       ljsgm2 = ljsgm2_lowlj(i, curp)
+       invr2 = ljsgm2 / dist_lowlj(i, curp)
        invr6 = invr2 * invr2 * invr2
-       e_t(i, curp) = 4.0e0 * ljeps_lowlj(i, curp) * invr6 * (invr6 - 1.0e0)
+       select case(ljswitch)
+       case(0,1)                      ! potential switch
+          e_t(i, curp) = 4.0e0 * ljeps * invr6 * (invr6 - 1.0e0)
+       case(2)                        ! force switch
+          ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
+          vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 / (lwljcut6 * upljcut6)
+          vdwb = invr6 - ljsgm6 / (lwljcut3 * upljcut3)
+          e_t(i, curp) = 4.0e0 * ljeps * (vdwa - vdwb)
+       case default
+          stop "Unknown ljswitch"
+       end select
     end do
     do i = 1, n_lowlj
        energy_vec(belong_lowlj(i, curp), curp) = energy_vec(belong_lowlj(i, curp), curp) + e_t(i, curp)
@@ -622,12 +675,34 @@ contains
 
     ! LJ switching region
     do i = 1, n_switch
-       invr2 = ljsgm2_switch(i, curp) / dist_switch(i, curp)
+       ljeps = ljeps_switch(i, curp)
+       ljsgm2 = ljsgm2_switch(i, curp)
+       dist = dist_switch(i, curp)
+       invr2 = ljsgm2 / dist
        invr6 = invr2 * invr2 * invr2
-       e_t(i, curp) = 4.0e0 * ljeps_switch(i, curp) * invr6 * (invr6 - 1.0e0) &
-          * (2.0e0 * dist_switch(i, curp) + upljcut2 - 3.0e0 * lwljcut2)      &
-          * ((dist_switch(i, curp) - upljcut2) ** 2)                          &
-          * (1.0 / (upljcut2 - lwljcut2) ** 3)
+       select case(ljswitch)
+       case(0)                        ! potential switch (CHRAMM form)
+          e_t(i, curp) = 4.0e0 * ljeps * invr6 * (invr6 - 1.0e0)         &
+                   * (2.0e0 * dist + upljcut2 - 3.0e0 * lwljcut2)        &
+                   * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
+       case(1)                        ! potential switch (GROMACS form)
+          r = sqrt(dist)
+          swfac = (r - lwljcut) / (upljcut - lwljcut)
+          e_t(i, curp) = 4.0e0 * ljeps * invr6 * (invr6 - 1.0e0)         &
+                   * (1.0e0 - 10.0e0 * (swfac ** 3)                      &
+                            + 15.0e0 * (swfac ** 4) - 6.0e0 * (swfac ** 5) )
+       case(2)                        ! force switch
+          invr3=sqrt(invr6)
+          ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
+          ljsgm3 = sqrt(ljsgm6)
+          vdwa = upljcut6 / (upljcut6 - lwljcut6) &
+               * ( (invr6 - ljsgm6 / upljcut6) ** 2 )
+          vdwb = upljcut3 / (upljcut3 - lwljcut3) &
+               * ( (invr3 - ljsgm3 / upljcut3) ** 2 )
+          e_t(i, curp) = 4.0e0 * ljeps * (vdwa - vdwb)
+       case default
+          stop "Unknown ljswitch"
+       end select
     end do
     do i = 1, n_switch
        energy_vec(belong_switch(i, curp), curp) = energy_vec(belong_switch(i, curp), curp) + e_t(i, curp)
