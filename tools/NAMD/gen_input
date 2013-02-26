@@ -68,6 +68,7 @@ def parse_log():
     temp = 300.0
     simtype = 1 # nvt
     is_periodic = 0
+    ljfrcswt = 0 # CHARMM-type potential switch
     cut = 0.
     switchlj = 0.
     coulombtype = 0
@@ -104,8 +105,12 @@ def parse_log():
             temp = float(m.group(1))
         
         # Info: SWITCHING ACTIVE
+        # VDW FORCE SWITCHING ACTIVE
         # Info: SWITCHING ON           9
         # Info: SWITCHING OFF          10
+        m = re.search(r"VDW FORCE SWITCHING ACTIVE", l)
+        if m:
+            ljfrcswt = 2 # force switching
         m = re.search(r"SWITCHING OFF\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
         if m:
             cut = float(m.group(1))
@@ -150,6 +155,7 @@ def parse_log():
         "switchlj": switchlj,
         "boxshape": is_periodic,
         "calctype": mode,
+        "ljswitch": ljfrcswt,
         "cut": cut,
         "lowlj": switchlj,
         "cltype": coulombtype
@@ -163,6 +169,7 @@ def parse_log():
   inptemp = %(temp)f,
   elecut = %(cut)f,
   ljformat = 1,
+  ljswitch = %(ljswitch)d,
   upljcut = %(cut)f,
   lwljcut = %(lowlj)f,
   cltype = %(cltype)d,""" % params
