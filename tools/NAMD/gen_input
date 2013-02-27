@@ -105,7 +105,7 @@ def parse_log():
             temp = float(m.group(1))
         
         # Info: SWITCHING ACTIVE
-        # VDW FORCE SWITCHING ACTIVE
+        # Info: VDW FORCE SWITCHING ACTIVE
         # Info: SWITCHING ON           9
         # Info: SWITCHING OFF          10
         m = re.search(r"VDW FORCE SWITCHING ACTIVE", l)

@@ -54,31 +54,31 @@
 !   boxshp : shape of the unit cell box
 !               0 : non-periodic  1 : periodic and parallelepiped
 !
-!   insorigin : the origin of the insertion position
+!   insorigin : translational origin of the insertion position
 !               0 : (default) mass weighted center is moved to (0, 0, 0)
-!               1 : mass weighted center is moved to aggregate center
+!               1 : no COM change from the value in the file to be read
+!                   (error unless insposition = 1)
+!               2 : mass weighted center is moved to aggregate center
 !                   (species forming the aggregate is defined by hostspec)
-!               2 : fit to reference structure.
+!               3 : fit to reference structure.
 !                   reference structure needs be given as RefInfo in PDB format.
 !                   RefInfo should conatin the structure specified in refpick
 !                   and the solute structure, in order.
-!               3 : no COM change from the value in the file to be read
-!                   (error unless insposition = 3)
 !   insposition : position for the inserted solute
 !               0 : (default) fully random position (within perodic bondary)
-!               1 : spherically random position,
+!               1 : no position change from the value in the file to be read
+!                   (error unless insorigin = 1)
+!               2 : spherically random position,
 !                   with radius specified from lwreg to upreg.
-!               2 : slab random position
+!               3 : slab random position
 !                   slab geometry specified as z = com(aggregate) + dz with
 !                   (-upreg < dz < -lwreg AND lwreg < dz < upreg)
 !                   for rectangular box periodic condition.
 !                   Position is much more complex for parallelpiped structure.
 !                   (see insertion.F90)
-!               3 : no position change from the value in the file to be read
-!                   (error unless insorigin = 3)
 !               4 : (experimental) Gaussian random position.
 !                   Position is given by displacing the reference coordinate,
-!                   or coordinate fit to reference (insorigin = 2), with upreg.
+!                   or coordinate fit to reference (insorigin = 3), with upreg.
 !                   Solute weight is automatically adjusted
 !   insorient : orientation for the inserted solute
 !               0 : (default) random orientation
@@ -86,19 +86,19 @@
 !
 !   inscnd : (deprecated) geometrical condition of the solute configuration
 !               0 : random    (insorigin = 0, insposition = 0) 
-!               1 : spherical (insorigin = 1, insposition = 1)
-!               2 : slab      (insorigin = 1, insposition = 2)
-!               3 : reference (insorigin = 2, insposition = 4)
+!               1 : spherical (insorigin = 2, insposition = 2)
+!               2 : slab      (insorigin = 2, insposition = 3)
+!               3 : reference (insorigin = 3, insposition = 4)
 !   inscfg : (deprecated) position and orientation for the inserted solute
 !               0 : only the intramolecular configuration is from the file.
 !                   (insorient = 0)
 !               1 : orientation is fixed from the file with random position
 !                   (insorient = 1)
 !               2 : position and orientation are also fixed from the file
-!                   (insorient = 1, insposition = 3)
+!                   (insorient = 1, insposition = 1)
 !              default = 0
 !   hostspec : type of molecule forming host (micelle, membrane, or protein)
-!              active only when insorigin = 1
+!              active only when insorigin = 2
 !               1 <= hostspec <= numtype    when slttype = 1
 !               1 <= hostspec <= numtype-1  when slttype >= 2
 !
@@ -185,6 +185,7 @@
 !   voffset : offset value for the self-energy
 !   lwreg : lower bound for the region of solute position
 !   upreg : upper bound for the region of solute position
+!            lwreg and upreg are effective only when insposition == 2, 3 or 4
 !
 !  constants defining the discretized energy coordinate
 !     these appear only in the enginit subroutine
@@ -274,10 +275,16 @@ module engmain
   ! numeric constants reference
   integer, parameter :: SYS_NONPERIODIC = 0, SYS_PERIODIC = 1
   integer, parameter :: EL_COULOMB = 0, EL_PME = 2
-  integer, parameter :: CAL_SOLN = 1, CAL_REFS_RIGID = 2, CAL_REFS_FLEX = 3
   integer, parameter :: ES_NVT = 1, ES_NPT = 2
-  integer, parameter :: PT_SOLVENT = 0, PT_SOLUTE = 1, PT_TEST_RIGID = 2, PT_TEST_FLEX = 3
-  ! note: PT_SOLUTE to PT_TEST_FLEX should correspond to CAL_SOLN .. CAL_REFS_FLEX
+  integer, parameter :: CAL_SOLN = 1, CAL_REFS_RIGID = 2, CAL_REFS_FLEX = 3
+  integer, parameter :: PT_SOLVENT = 0, &
+                        PT_SOLUTE = 1, PT_TEST_RIGID = 2, PT_TEST_FLEX = 3
+  ! PT_SOLUTE to PT_TEST_FLEX should correspond to CAL_SOLN to CAL_REFS_FLEX
+  integer, parameter :: INSORG_ORIGIN = 0, INSORG_NOCHANGE= 1, &
+                        INSORG_AGGCEN = 2, INSORG_REFSTR = 3
+  integer, parameter :: INSPOS_RANDOM = 0, INSPOS_NOCHANGE= 1, &
+                        INSPOS_SPHERE = 2, INSPOS_SLAB = 3, INSPOS_GAUSS = 4
+  integer, parameter :: INSROT_RANDOM = 0, INSROT_NOCHANGE= 1
 
   character(len=*), parameter :: ene_confname = "parameters_er"
 

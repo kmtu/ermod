@@ -60,7 +60,7 @@ module ptinsrt
   !
 contains
   subroutine instslt(stat_weight_solute,caltype)
-    use engmain, only: nummol, slttype, numslt, sltlist, iseed
+    use engmain, only: nummol, slttype, numslt, sltlist, iseed, CAL_REFS_FLEX
     implicit none
     real stat_weight_solute
     character*4 caltype
@@ -71,7 +71,7 @@ contains
 
     if(caltype.eq.'init') call urand_init(iseed)
     if((caltype.eq.'init').or.(caltype.eq.'last')) then
-       if(slttype.eq.3) call getsolute(0,caltype)      ! flexible solute
+       if(slttype.eq.CAL_REFS_FLEX) call getsolute(0,caltype) ! flexible solute
        return
     endif
 
@@ -80,8 +80,8 @@ contains
     if((numslt.eq.1).and.(sltlist(1).ne.nummol)) reject = .true.
     if(reject) call insrt_stop('set')          ! incorrect solute specification
 
-    insml=nummol                                       ! inserted solute
-    if(slttype.eq.3) call getsolute(insml,'conf')      ! flexible solute
+    insml=nummol                                              ! inserted solute
+    if(slttype.eq.CAL_REFS_FLEX) call getsolute(insml,'conf') ! flexible solute
 
     reject = .true.
     do while(reject)
@@ -97,7 +97,8 @@ contains
 
   subroutine set_solute_origin(insml)
     use engmain, only: insorigin, numsite, mol_begin_index, mol_end_index, &
-                       bfcoord, sitepos
+                   bfcoord, sitepos, &
+                   INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR
     use bestfit, only: com_aggregate
     implicit none
     integer, intent(in) :: insml
@@ -110,16 +111,16 @@ contains
     sitepos(1:3, molb:mole) = bfcoord(1:3, 1:nsite)
 
     select case(insorigin)
-    case(0)
+    case(INSORG_ORIGIN)
        syscen(:) = (/ 0., 0., 0. /)
        call set_solute_com(insml, syscen)     ! set solute COM to (0,0,0)
-    case(1)
+    case(INSORG_NOCHANGE)
+       ! do nothing and use the coordinate as read from the file
+    case(INSORG_AGGCEN)
        call com_aggregate(syscen)             ! get aggregate center (syscen)
        call set_solute_com(insml, syscen)     ! set solute COM to syscen
-    case(2)
+    case(INSORG_REFSTR)
        call reffit(insml)
-    case(3)
-       ! do nothing
     case default
        stop "Unknown insorigin"
     end select
@@ -127,7 +128,9 @@ contains
 
   subroutine set_shift_com(insml, weight)
     use engmain, only: insposition, lwreg, upreg, &
-                       cell, celllen, boxshp, SYS_NONPERIODIC
+                       cell, celllen, boxshp, SYS_NONPERIODIC, &
+                       INSPOS_RANDOM, INSPOS_NOCHANGE, &
+                       INSPOS_SPHERE, INSPOS_SLAB, INSPOS_GAUSS
     implicit none
     integer, intent(in) :: insml
     real, intent(inout) :: weight
@@ -136,7 +139,7 @@ contains
     real :: com(3), syscen(3), r(3), norm, dir, t, s
 
     select case(insposition)
-    case(0)
+    case(INSPOS_RANDOM)
        ! fully random position within periodic box
        if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
        do i = 1, 3
@@ -145,7 +148,12 @@ contains
        com(:) = matmul(cell(:, :), r(:))
        call set_solute_com(insml, com)
        return
-    case(1) ! spherical random position
+    case(INSPOS_NOCHANGE)
+       ! fixed position as read from the file
+       ! do nothing
+       return
+    case(INSPOS_SPHERE)
+       ! spherical random position
        ! rejection method. Probability may not be good esp. lwreg ~ upreg.
        do
           do i = 1, 3
@@ -158,7 +166,8 @@ contains
        com(:) = r(:) * upreg
        call shift_solute_com(insml, com)
        return
-    case(2) ! slab position
+    case(INSPOS_SLAB)
+       ! slab random position
        if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
        call urand(r(1))
        call urand(r(2))
@@ -173,11 +182,7 @@ contains
        com(:) = matmul(cell(:, :), r(:))
        call shift_solute_com(insml, com)
        return
-    case(3)
-       ! fixed position
-       ! do nothing
-       return
-    case(4)
+    case(INSPOS_GAUSS)
        ! 50% mixture of uniform distribution and weighted distribution
        call uniform_gauss_mixture(com, weight)
        call shift_solute_com(insml, com)
@@ -275,7 +280,7 @@ contains
   end subroutine set_solute_com
 
   subroutine apply_orientation(insml)
-    use engmain, only: insorient, &
+    use engmain, only: insorient, INSROT_RANDOM, INSROT_NOCHANGE, &
                        numsite, mol_begin_index, mol_end_index, &
                        sitepos, sitemass
     use quaternion, only: rotate_inplace
@@ -290,8 +295,7 @@ contains
     inse = mol_end_index(insml)
 
     select case(insorient)
-    case(0)
-       ! random orientation
+    case(INSROT_RANDOM)     ! random orientation
        call com_shift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
 
        ! get random quaternion (prob. success ~ 0.3)
@@ -311,8 +315,7 @@ contains
 
        call com_unshift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
        return
-    case(1)
-       ! no orientational change
+    case(INSROT_NOCHANGE)   ! no orientational change
        return
     case default
        stop "Unknown insorient"

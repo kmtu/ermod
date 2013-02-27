@@ -163,7 +163,10 @@ contains
          block_threshold,&
          force_calculation, &
          SYS_NONPERIODIC, SYS_PERIODIC, EL_PME, ES_NPT, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+         INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR, &
+         INSPOS_RANDOM, INSPOS_NOCHANGE, INSPOS_SPHERE, INSPOS_SLAB, INSPOS_GAUSS, &
+         INSROT_RANDOM, INSROT_NOCHANGE
     use OUTname, only: OUTintprm,&               ! from outside
          OUTens,OUTbxs,OUTtemp,&                 ! from outside
          OUTelc,OUTlwl,OUTupl,&                  ! from outside
@@ -171,6 +174,7 @@ contains
          OUTew1,OUTew2,OUTew3,&                  ! from outside
          OUTms1,OUTms2,OUTms3                    ! from outside
     use mpiproc                                                      ! MPI
+    implicit none
     real, parameter :: tiny=1.0e-20
     real :: real_seed
     character*3 scrtype
@@ -200,7 +204,9 @@ contains
     end select
     
     inscnd = 0 ; inscfg = 0                      ! deprecated
-    insorigin = 0 ; insposition = 0 ; insorient = 0
+    insorigin = INSORG_ORIGIN
+    insposition = INSPOS_RANDOM
+    insorient = INSROT_RANDOM
 
     ! block-wise calculation, corresponds to 13 atoms / box
     block_threshold = 4.0
@@ -227,25 +233,25 @@ contains
     endif
 
     select case(inscnd)
-    case(0)
-       insorigin = 0 ; insposition = 0
-    case(1)
-       insorigin = 1 ; insposition = 1
-    case(2)
-       insorigin = 1 ; insposition = 2
-    case(3)
-       insorigin = 2 ; insposition = 4
+    case(0)    ! random
+       insorigin = INSORG_ORIGIN ; insposition = INSPOS_RANDOM
+    case(1)    ! spherical
+       insorigin = INSORG_AGGCEN ; insposition = INSPOS_SPHERE
+    case(2)    ! slab
+       insorigin = INSORG_AGGCEN ; insposition = INSPOS_SLAB
+    case(3)    ! reference
+       insorigin = INSORG_REFSTR ; insposition = INSPOS_GAUSS
     case default
        stop "Unknown inscnd"
     end select
 
     select case(inscfg)
     case(0)    ! only the intramolecular configuration is from the file
-       insorient = 0
+       insorient = INSROT_RANDOM
     case(1)    ! orientation is fixed from the file with random position
-       insorient = 1
+       insorient = INSROT_NOCHANGE
     case(2)    ! position and orientation are both fixed from the file
-       insorient = 1 ; insposition = 3
+       insorient = INSROT_NOCHANGE ; insposition = INSPOS_NOCHANGE
     case default
        stop "Unknown inscfg"
     end select
@@ -293,10 +299,10 @@ contains
     endif
     ! insorigin and insorient is effective only for insertion
     if(slttype == CAL_SOLN) then
-       insorigin = 0 ; insorient = 0
+       insorigin = INSORG_ORIGIN ; insorient = INSROT_RANDOM
     endif
     ! when restrained relative to aggregate
-    if(insorigin == 1) then
+    if(insorigin == INSORG_AGGCEN) then
        if(slttype == CAL_SOLN) then
           if((hostspec < 1).or.(hostspec > numtype)) call set_stop('ins')
        endif
@@ -308,12 +314,15 @@ contains
     if((insorigin < 0).or.(insorigin > 3)) call set_stop('ins')
     if((insposition < 0).or.(insposition > 4)) call set_stop('ins')
     if((insorient < 0).or.(insorient > 1)) call set_stop('ins')
-    if((insorigin == 3).and.(insposition /= 3)) call set_stop('ins')
-    if((insorigin /= 3).and.(insposition == 3)) call set_stop('ins')
+    if((insorigin == INSORG_NOCHANGE .and. insposition /= INSPOS_NOCHANGE).or.&
+       (insorigin /= INSORG_NOCHANGE .and. insposition == INSPOS_NOCHANGE)) then
+       call set_stop('ins')
+    endif
 
     ! maxins > 1 in insertion makes no sense if coordinate is used as is read
     if((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. &
-       insposition == 3 .and. insorient == 1 .and. maxins /= 1) then
+       insposition == INSPOS_NOCHANGE .and. insorient == INSROT_NOCHANGE .and. &
+       maxins /= 1) then
        call warning('insu')
     endif
          
@@ -356,7 +365,6 @@ contains
     use mpiproc, only: halt_with_error
     use utility, only: itoa
     implicit none
-    integer, parameter :: large=1000000
     ! only integer power is allowed as the initialization expression (7.1.6.1)
     real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
     real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
@@ -410,14 +418,13 @@ contains
        ptcnt(numtype) = 1          ! Test particle can only be one molecule
 
        open(unit=sltio,file=sltfile,status='old')
+       ! here only counts no. of lines
        stmax=0
-       do sid=1,large
-          ! here only counts no. of lines
-          read(sltio, *, end=99) m, atmtype
+       do
+          read(sltio, *, end=99) m
           stmax=stmax+1
        end do
-99     continue
-       close(sltio)
+99     close(sltio)
        ptsite(numtype) = stmax
        pttype(numtype) = slttype   ! Test particle is the last (for insertion)       
        solute_index = numtype
@@ -648,7 +655,7 @@ contains
     real, dimension(:,:), allocatable :: OUTpos, OUTcell, readpos
     real :: readcell(3, 3)
     real :: weight, readweight
-    integer i, k, OUTatm, iproc, nread
+    integer i, OUTatm, iproc, nread
 
     logical, save :: first_time = .true.
     integer, allocatable, save :: permutation(:)

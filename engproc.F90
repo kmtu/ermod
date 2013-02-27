@@ -997,7 +997,9 @@ contains
   ! Check whether molecule is within specified region
   subroutine check_mol_configuration(out_of_range)
     use engmain, only: insposition, lwreg, upreg, &
-                       boxshp, SYS_NONPERIODIC, invcl, celllen
+                       boxshp, invcl, celllen, SYS_NONPERIODIC, &
+                       INSPOS_RANDOM, INSPOS_NOCHANGE, &
+                       INSPOS_SPHERE, INSPOS_SLAB, INSPOS_GAUSS
     use ptinsrt, only: insscheme
     use mpiproc, only: halt_with_error
     implicit none
@@ -1005,18 +1007,18 @@ contains
     logical, intent(out) :: out_of_range
     out_of_range = .false.
     select case(insposition)
-    case(0)
+    case(INSPOS_RANDOM)     ! random
        return
-    case(1) ! sphere geometry
+    case(INSPOS_NOCHANGE)   ! fixed configuration
+       return
+    case(INSPOS_SPHERE)     ! sphere geometry
        call relative_com(tagslt,dx)
        distance = sqrt(dot_product(dx, dx))
-    case(2) ! slab (only z-axis is constrained) configuration
+    case(INSPOS_SLAB)       ! slab (only z-axis is constrained) configuration
        if(boxshp == SYS_NONPERIODIC) call halt_with_error('slb')
        call relative_com(tagslt,dx)
        distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
-    case(3) ! fixed configuration
-       return
-    case(4) ! comparison to reference
+    case(INSPOS_GAUSS)      ! comparison to reference
        ! Under construction...  What is to be written?
        return
     case default
