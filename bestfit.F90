@@ -209,11 +209,9 @@ contains
 
   ! standard fit-to-structure procedure
   subroutine fit(n, refcoord, coord, masses, outcoord)
-    use quaternion
     implicit none
     integer, intent(in) :: n
-    real, intent(in) :: refcoord(3, n), masses(n)
-    real, intent(in) :: coord(3, n)
+    real, intent(in) :: refcoord(3, n), coord(3, n), masses(n)
     real, intent(out) :: outcoord(3, n)
     call fit_a_rotate_b(n, refcoord, coord, masses, n, coord, outcoord)
   end subroutine fit
@@ -246,8 +244,20 @@ contains
        call rotate(bcrd, rotation, bcrdr)
        bout(:, i) = bcrdr(:) + com_refa(:)
     end do
-    
   end subroutine fit_a_rotate_b
+
+  ! RMSD calculation
+  real function rmsd(n, refcoord, coord, masses)
+    implicit none
+    integer, intent(in) :: n
+    real, intent(in) :: refcoord(3, n), coord(3, n), masses(n)
+    integer :: i
+    real :: fitted_coord(3, n), disp(n), dx(3)
+    call fit(n, refcoord, coord, masses, fitted_coord)
+    do i = 1, n
+       dx(1:3) = fitted_coord(1:3, i) - refcoord(1:3, i)
+       disp(i) = sum( dx(1:3) ** 2 )
+    enddo
+    rmsd = sqrt( sum(masses(1:n) * disp(1:n)) / sum(masses(1:n)) )
+  end function rmsd
 end module bestfit
-
-

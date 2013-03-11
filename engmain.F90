@@ -146,6 +146,8 @@
 !                    are read from the parent MD program
 !      default = 0 in the case of on-the-fly calculation
 !      default = 1 in the case of trajectory reading
+!            on-the-fly calculation is not effective in the current version
+!            and some modification of the programs is necessary
 !   elecut : cutoff of the real-space part of electrostatic interaction
 !   lwljcut : lower limit of the LJ cutoff tapering function
 !   upljcut : upper limit of the LJ cutoff tapering function
@@ -185,7 +187,7 @@
 !   voffset : offset value for the self-energy
 !   lwreg : lower bound for the region of solute position
 !   upreg : upper bound for the region of solute position
-!            lwreg and upreg are effective only when insposition == 2, 3 or 4
+!            lwreg and upreg are effective only when insposition = 2, 3 or 4
 !
 !  constants defining the discretized energy coordinate
 !     these appear only in the enginit subroutine

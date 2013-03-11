@@ -324,12 +324,14 @@ contains
   !
   ! user-defined scheme to specify inserted molecule
   ! user may reject snapshot by specifying out_of_range to .true.
-  ! or set coordinate in specatm
+  ! or set coordinate in sitepos manually
   subroutine insscheme(insml, out_of_range)
-    use engmain, only: nummol,numatm,numsite,specatm,sitepos,cell
+    use engmain, only: nummol, numsite, specatm, sitepos, cell
+    use bestfit, only: center_of_mass, rmsd
     implicit none
-    integer insml,stmax,sid,ati
+    integer, intent(in) :: insml
     logical, intent(out) :: out_of_range
+    integer :: stmax, sid, ati
     out_of_range = .false.
     stmax=numsite(insml)
     return
@@ -467,12 +469,10 @@ contains
     real, allocatable, save :: solv_mass(:) ! masked mass vector;
     real, allocatable, save :: lig_mass(:)  ! atoms not used for fitting is zeroed
 
-    real :: crd(3)
     integer :: natom_solv, natom_lig
     integer :: solvmol
     integer :: solv_begin, solv_end
     integer :: lig_begin, lig_end
-    real :: com_solv(3), com_lig(3)
     integer :: i
     
     solvmol = -1

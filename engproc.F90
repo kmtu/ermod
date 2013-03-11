@@ -1005,12 +1005,14 @@ contains
     implicit none
     real :: dx(3), distance
     logical, intent(out) :: out_of_range
+
     out_of_range = .false.
+
     select case(insposition)
     case(INSPOS_RANDOM)     ! random
-       return
+       ! do nothing
     case(INSPOS_NOCHANGE)   ! fixed configuration
-       return
+       ! do nothing
     case(INSPOS_SPHERE)     ! sphere geometry
        call relative_com(tagslt,dx)
        distance = sqrt(dot_product(dx, dx))
@@ -1020,13 +1022,17 @@ contains
        distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
     case(INSPOS_GAUSS)      ! comparison to reference
        ! Under construction...  What is to be written?
-       return
     case default
        stop "Unknown insposition"
     end select
+    if((lwreg > distance) .or. (distance > upreg)) then
+       out_of_range = .true.  ! configuration is rejected
+       return
+    endif
+
     call insscheme(tagslt, out_of_range)
-    if((lwreg > distance) .or. (distance > upreg)) out_of_range = .true.
     return
+
   contains
     subroutine relative_com(tagpt,dx)
       use engmain, only: numsite, mol_begin_index, mol_end_index, &

@@ -730,7 +730,7 @@ contains
        if(allocated(permutation)) then
           sitepos(:, 1:OUTatm) = OUTpos(:, permutation(1:OUTatm))
        else
-          sitepos(:, 1:OUTatm) = OUTpos(:, :)
+          sitepos(:, 1:OUTatm) = OUTpos(:, 1:OUTatm)
        endif
        cell(:, :) = OUTcell(:, :)
        stat_weight_system = weight
