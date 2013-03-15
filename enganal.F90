@@ -37,13 +37,12 @@ end subroutine enganal_init
 ! FIXME: recover routine which runs as "combined with MD program"
 !  connection to the main routine of trajectory generation is done in
 !  setparam for parameter setting and getconf for configuration reading
-subroutine enganal(stnum, nactiveproc)
-  use engmain, only: maxcnf,engdiv,skpcnf,inscnd
-  use engproc, only: engclear,engconst,engstore
+subroutine enganal(stnum, nread)
+  use engproc, only: engconst, nactiveproc
   implicit none
-  integer, intent(in) :: stnum, nactiveproc
-
-  call engconst(stnum, nactiveproc)
+  integer, intent(in) :: stnum, nread
+  nactiveproc = nread
+  call engconst(stnum)
 end subroutine enganal
 !     
 program trjmain
@@ -54,7 +53,7 @@ program trjmain
   use engproc, only: engclear,engstore, engproc_cleanup
   use mpiproc               ! MPI
   implicit none
-  integer :: stnum, iproc, iskip, idiv, frames_per_div, nread, iframe
+  integer :: stnum, idiv, frames_per_div, nread, iframe
 
   call mpi_setup('init')    ! MPI
   if(myrank == 0) then

@@ -340,7 +340,7 @@ contains
     integer cntrun,slnini,slnfin,refini,reffin,ecmin,ecmax
     integer iduv,iduvp,i,k,m,pti,cnt
     real factor,ampl
-    real, allocatable :: corref_temp(:, :)
+    real, allocatable :: cormat_temp(:, :)
     character*85 opnfile
     character*3 suffnum
 
@@ -377,68 +377,57 @@ contains
     
     ! FIXME: this part is kinda spaghetti and should be rewritten WITHOUT looping by cnt!
     do cnt=1,4
-       if((cnt.eq.2).and.(slncor.ne.'yes')) cycle
-       if((cnt.ge.3).and.(cntrun.gt.1) .and. &
-            (refmerge.eq.'yes')) cycle
+       if((cnt == 2) .and. (slncor.ne.'yes')) cycle
+       if((cnt >= 3) .and. (cntrun > 1) .and. (refmerge.eq.'yes')) cycle
        
-       if(cnt.le.2) ecmin=slnini
-       if(cnt.le.2) ecmax=slnfin
-       if(cnt.ge.3) ecmin=refini
-       if(cnt.ge.3) ecmax=reffin
+       if(cnt <= 2) then
+          ecmin=slnini ; ecmax=slnfin
+          factor=sum(wgtsln(ecmin:ecmax))
+          wgtsln(ecmin:ecmax)=wgtsln(ecmin:ecmax)/factor
+       endif
+       if(cnt >= 3) then
+          ecmin=refini ; ecmax=reffin
+          factor=sum(wgtref(ecmin:ecmax))
+          wgtref(ecmin:ecmax)=wgtref(ecmin:ecmax)/factor
+       endif
        
-       if(cnt.le.2) then
-         factor=sum(wgtsln(ecmin:ecmax))
-         wgtsln(ecmin:ecmax)=wgtsln(ecmin:ecmax)/factor
-       endif
-       if(cnt.ge.3) then
-         factor=sum(wgtref(ecmin:ecmax))
-         wgtref(ecmin:ecmax)=wgtref(ecmin:ecmax)/factor
-       endif
-
        do i=ecmin,ecmax
           if(clcond.ne.'merge') opnfile=engfile(cnt)
           if(clcond.eq.'merge') then
              m=i/10 ; k=i-10*m
              suffnum='.'//numbers(m+1:m+1)//numbers(k+1:k+1)
-             if(cnt.eq.1) opnfile=trim(solndirec)//'/'//trim(slndnspf)//suffnum
-             if(cnt.eq.2) opnfile=trim(solndirec)//'/'//trim(slncorpf)//suffnum
-             if(cnt.eq.3) opnfile=trim(refsdirec)//'/'//trim(refdnspf)//suffnum
-             if(cnt.eq.4) opnfile=trim(refsdirec)//'/'//trim(refcorpf)//suffnum
+             if(cnt == 1) opnfile=trim(solndirec)//'/'//trim(slndnspf)//suffnum
+             if(cnt == 2) opnfile=trim(solndirec)//'/'//trim(slncorpf)//suffnum
+             if(cnt == 3) opnfile=trim(refsdirec)//'/'//trim(refdnspf)//suffnum
+             if(cnt == 4) opnfile=trim(refsdirec)//'/'//trim(refcorpf)//suffnum
           endif
-          if(cnt == 4) open(unit=71,file=opnfile,status='old', form="UNFORMATTED")
-          if(cnt /= 4) open(unit=71,file=opnfile,status='old')
-          if((cnt.eq.1).or.(cnt.eq.3)) then
+          if((cnt == 1) .or. (cnt == 3)) then
+             open(unit=71,file=opnfile,status='old')
              k=0 ; m=0
-          endif
-          if(cnt == 4) then
-             allocate(corref_temp(ermax, ermax))
-             read(71) corref_temp
-             rdcor(:, :) = rdcor(:, :) + wgtref(i) * corref_temp(:, :)
-             deallocate(corref_temp)
-          else
              do iduv=1,ermax
-                if((cnt.eq.1).or.(cnt.eq.3)) then
-                   read(71,*) rdcrd(iduv),pti,factor
-                   if(pti.ne.k) then
-                      if(factor.gt.zero) then
-                         write(6,*) ' Incorrect energy range with species ',pti
-                         stop
-                      endif
-                      k=pti ; m=m+1
+                read(71,*) rdcrd(iduv),pti,factor
+                if(pti.ne.k) then
+                   if(factor.gt.zero) then
+                      write(6,*) ' Incorrect energy range with species ',pti
+                      stop
                    endif
-                   if(cnt.eq.1) rddst(iduv)=rddst(iduv)+wgtsln(i)*factor
-                   if(cnt.eq.3) rddns(iduv)=rddns(iduv)+wgtref(i)*factor
-                   rdspec(iduv)=m
+                   k=pti ; m=m+1
                 endif
-                if(cnt.eq.2) then
-                   do iduvp=1,ermax
-                      read(71,*) factor
-                      rdslc(iduvp,iduv)=rdslc(iduvp,iduv)+wgtsln(i)*factor
-                   end do
-                endif
-             end do
+                if(cnt == 1) rddst(iduv)=rddst(iduv)+wgtsln(i)*factor
+                if(cnt == 3) rddns(iduv)=rddns(iduv)+wgtref(i)*factor
+                rdspec(iduv)=m
+             enddo
+             close(71)
           endif
-          close(71)
+          if((cnt == 2) .or. (cnt == 4)) then
+             allocate(cormat_temp(ermax, ermax))
+             open(unit=72,file=opnfile,status='old',form="UNFORMATTED")
+             read(72) cormat_temp
+             close(72)
+             if(cnt == 2) rdslc(:, :) = rdslc(:, :)+wgtsln(i)*cormat_temp(:, :)
+             if(cnt == 4) rdcor(:, :) = rdcor(:, :)+wgtref(i)*cormat_temp(:, :)
+             deallocate(cormat_temp)
+          endif
        end do
     end do
 !

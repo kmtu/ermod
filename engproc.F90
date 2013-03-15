@@ -22,6 +22,7 @@ module engproc
   integer :: cntdst, slvmax
   integer :: maxdst
   integer :: tagslt
+  integer :: nactiveproc              ! number of active processors in MPI
   integer, allocatable :: tagpt(:)
 
   ! flceng needs to be output in-order
@@ -290,7 +291,7 @@ contains
   end subroutine engproc_cleanup
   !
   !
-  subroutine engconst(stnum, nactiveproc)
+  subroutine engconst(stnum)
     use engmain, only: nummol,skpcnf,slttype,sluvid,&
          maxins,numslv,numslt,cltype,cell,&
          io_flcuv, &
@@ -303,10 +304,9 @@ contains
          recpcal_self_energy
     use mpiproc                                                      ! MPI
     implicit none
-    integer, intent(in) :: stnum, nactiveproc
-    integer i,pti,k
-    integer :: irank
-    real engnmfc,pairep,stat_weight_solute,factor
+    integer, intent(in) :: stnum
+    integer :: i, k, irank
+    real :: engnmfc,pairep,stat_weight_solute,factor
     integer, dimension(:), allocatable :: insdst,engdst,tplst
     real, dimension(:),    allocatable :: uvengy,svfl
     logical, allocatable :: flceng_stored_g(:,:)
@@ -385,8 +385,8 @@ contains
        if(slttype == CAL_SOLN) then
           ! for soln only: need to output flceng
           
-          allocate(flceng_g(numslv, maxdst, nactiveproc))
           allocate(flceng_stored_g(maxdst, nactiveproc))
+          allocate(flceng_g(numslv, maxdst, nactiveproc))
           
 #ifndef noMPI
           ! gather flceng values to rank 0
@@ -396,6 +396,9 @@ contains
           call mpi_gather(flceng, numslv * maxdst, mpi_double_precision, &
                flceng_g, numslv * maxdst, mpi_double_precision, &
                0, mpi_comm_activeprocs, ierror)
+#else
+          flceng_stored_g(:,1) = flceng_stored(:)
+          flceng_g(:,:,1) = flceng(:,:)
 #endif
           
           if(myrank == 0) then
@@ -403,9 +406,9 @@ contains
                 do cntdst = 1, maxdst
                    if(flceng_stored_g(maxdst, irank)) then
                       if(maxdst.eq.1) then
-                         write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, (flceng_g(pti, cntdst, irank), pti=1,numslv)
+                         write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, flceng_g(1:numslv, cntdst, irank)
                       else
-                         write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, (flceng_g(pti, cntdst, irank), pti=1,numslv)
+                         write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, flceng_g(1:numslv, cntdst, irank)
                       endif
 911                   format(i9,999f15.5)
 912                   format(2i9,999f15.5)
@@ -423,7 +426,7 @@ contains
     endif
 
     deallocate( tagpt,uvengy )
-    deallocate(flceng, flceng_stored)
+    deallocate( flceng, flceng_stored )
 
     call mpi_finish_active_group()
     return
@@ -441,7 +444,7 @@ contains
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
     use mpiproc                                                      ! MPI
     implicit none
-    integer stnum,i,pti,j,iduv,k,cntdst,division
+    integer stnum,i,pti,j,iduv,k,division
     character*10, parameter :: numbers='0123456789'
     character*9 engfile
     character*3 suffeng
@@ -449,7 +452,6 @@ contains
     real :: factor
     real, parameter :: tiny=1.0e-30
     real, dimension(:), allocatable :: sve1,sve2
-    character(len=11) :: formtype="UNFORMATTED"
     call mpi_info                                                    ! MPI
     !
 
@@ -531,7 +533,8 @@ contains
     if(selfcal == 1) eself(1:esmax)=eself(1:esmax)/engnorm
     avslf=avslf/engnorm
     !
-    if(myrank.ne.0) go to 7999                                       ! MPI
+    if(myrank.ne.0) return                                           ! MPI
+    !
     division = stnum / (maxcnf / skpcnf / engdiv)
     if(slttype.eq.1) aveuv(division,1:numslv)=slnuv(1:numslv)/engnorm
     avediv(division,1)=engnorm/engsmpl
@@ -539,17 +542,18 @@ contains
     if(slttype.ge.2) avediv(division,2)=voffset+temp*log(avslf)
     !
     if(division == engdiv) then
-       if(slttype.eq.1) then
+       select case(slttype)
+       case (CAL_SOLN)
           open(unit=75,file='aveuv.tt',action='write')
           do k=1,engdiv
-             write(75,751) k,(aveuv(k,pti), pti=1,numslv)
+             write(75,751) k,aveuv(k,1:numslv)
           end do
-          endfile(75)
-          close(75)
+          endfile(75) ; close(75)
 751       format(i5,9999f15.5)
-       endif
-       if(slttype.eq.1) open(unit=73,file='weight_soln', action='write')
-       if(slttype.ge.2) open(unit=73,file='weight_refs', action='write')
+          open(unit=73,file='weight_soln', action='write')
+       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+          open(unit=73,file='weight_refs', action='write')
+       end select
        do k=1,engdiv
           if(wgtslf.eq.0) write(73,731) k,avediv(k,1)
           if(wgtslf.eq.1) write(73,732) k,avediv(k,1),avediv(k,2)
@@ -572,48 +576,48 @@ contains
 773    format(i5,f15.5,g18.5)
     endif
 
-    ! FIXME: this part is kinda spaghetti and should be rewritten WITHOUT looping by cntdst!
     j=division/10
     k=division-10*j
     if(engdiv.eq.1) suffeng='.tt'
     if(engdiv.gt.1) suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
-    do cntdst=1,3
-       formtype = "FORMATTED  "
-       if(cntdst.eq.1) then
-          if(slttype.eq.1) engfile='engsln'//suffeng
-          if(slttype.ge.2) engfile='engref'//suffeng
-       endif
-       if((cntdst.eq.2).and.(corrcal.ne.1)) goto 7199
-       if((cntdst.eq.2).and.(corrcal.eq.1)) then
-          if(slttype.eq.1) engfile='corsln'//suffeng
-          if(slttype.ge.2) then
-             engfile='corref'//suffeng
-             formtype = "UNFORMATTED"
-          endif
-       endif
-       if((cntdst.eq.3).and.(selfcal.ne.1)) goto 7199
-       if((cntdst.eq.3).and.(selfcal.eq.1)) engfile='slfeng'//suffeng
-       open(unit=71,file=engfile, form=trim(formtype), action='write')
-       if(cntdst.eq.1) then
-          do iduv=1,ermax
-             call repval(iduv,factor,pti,'intn')
-             write(71,'(g15.7,i5,g25.15)') factor,pti,edens(iduv)
-          enddo
-       endif
-       if(cntdst.eq.2) then
-          write(71) ecorr
-       endif
-       if(cntdst.eq.3) then
-          do iduv=1,esmax
-             call repval(iduv,factor,pti,'self')
-             write(71,'(g15.7,g25.15)') factor,eself(iduv)
-          end do
-       endif
-       endfile(71)
-       close(71)
-7199   continue
-    end do
-7999 continue                                                         ! MPI
+    !
+    ! storting the solute-solvent pair distribution function
+    select case(slttype)
+    case (CAL_SOLN)
+       engfile='engsln'//suffeng
+    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       engfile='engref'//suffeng
+    end select
+    open(unit=71, file=engfile, form="FORMATTED", action='write')
+    do iduv=1,ermax
+       call repval(iduv,factor,pti,'intn')
+       write(71,'(g15.7,i5,g25.15)') factor,pti,edens(iduv)
+    enddo
+    endfile(71) ; close(71)
+    !
+    ! storting the solvent-solvent correlation matrix in energy representation
+    if(corrcal.eq.1) then
+       select case(slttype)
+       case (CAL_SOLN)
+          engfile='corsln'//suffeng
+       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+          engfile='corref'//suffeng
+       end select
+       open(unit=72, file=engfile, form="UNFORMATTED", action='write')
+       write(72) ecorr
+       endfile(72) ; close(72)
+    endif
+    !
+    ! storting the distribution function of the self-energy of solute
+    if(selfcal.eq.1) then
+       engfile='slfeng'//suffeng
+       open(unit=73, file=engfile, form="FORMATTED", action='write')
+       do iduv=1,esmax
+          call repval(iduv,factor,pti,'self')
+          write(73,'(g15.7,g25.15)') factor,eself(iduv)
+       end do
+       endfile(73) ; close(73)
+    endif
     !
     return
   end subroutine engstore

@@ -217,13 +217,19 @@ contains
     call init_params()
 
     ! default settings
-    skpcnf=1                    ! no skip for trajectory reading
+    skpcnf=1                     ! no skip for trajectory reading
     
-    if(slttype == 1) corrcal=0  ! no calculation of correlation matrix
-    if(slttype >= 2) corrcal=1  ! calculation of correlation matrix
-    selfcal=0                   ! no construction of self-energy distribution
+    selfcal=0                    ! no construction of self-energy distribution
     wgtslf=0 ; wgtins=0 ; wgtsys=0
-    if((slttype >= 2).and.(cltype /= 0)) wgtslf=1  ! Ewald and PME
+    select case(slttype)
+    case(CAL_SOLN)
+       corrcal=0                 ! no calculation of correlation matrix
+    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+       corrcal=1                 ! calculation of correlation matrix
+       if(cltype /= 0) wgtslf=1  ! Ewald and PME
+    case default
+       stop "Unknown slttype"
+    end select
     sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1 ; ljswitch=0
     maxins=1000 ; lwreg=0.0e0 ; upreg=5.0e0
     if(intprm /= 0) then

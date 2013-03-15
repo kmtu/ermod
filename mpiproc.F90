@@ -99,18 +99,18 @@ contains
 #endif
   end subroutine mpi_abend
 
-  subroutine mpi_init_active_group(nproc)
+  subroutine mpi_init_active_group(nactiveproc)
     implicit none
-    integer, intent(in) :: nproc
+    integer, intent(in) :: nactiveproc
 
 #ifndef noMPI
-    if(myrank < nproc) then
+    if(myrank < nactiveproc) then
        call mpi_comm_split(mpi_comm_world, 1, myrank, mpi_comm_activeprocs, ierror)
     else
        call mpi_comm_split(mpi_comm_world, mpi_undefined, 0, mpi_comm_activeprocs, ierror)
     endif
 
-    if(myrank >= nproc .and. mpi_comm_activeprocs /= mpi_comm_null) then
+    if(myrank >= nactiveproc .and. mpi_comm_activeprocs /= mpi_comm_null) then
        stop "failed @ mpi_init_active_group"
     endif
 #endif
