@@ -41,7 +41,7 @@ contains
          voffset, &
          aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
          ene_param, ene_confname, &
-         io_flcuv, CAL_SOLN, PT_SOLVENT
+         io_flcuv, CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, PT_SOLVENT
     use mpiproc, only: halt_with_error, warning, myrank
     implicit none
     real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
@@ -60,6 +60,7 @@ contains
     !
     integer, parameter :: paramfile_io=191
     integer :: param_err
+    logical :: check_ok
     namelist /hist/ ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,&
          eclbin, ecfbin, ec0bin, finfac, ectmvl,&
          peread, pemax, pesoft, pecore
@@ -74,22 +75,26 @@ contains
        endif
     end do
     ! solute must have moltype value equal to solute_moltype
-    if(any(sluvid(:) /= PT_SOLVENT .and. moltype(:) /= solute_moltype)) call halt_with_error('typ')
+    if(any(sluvid(:) /= PT_SOLVENT .and. moltype(:) /= solute_moltype)) call halt_with_error('eng_typ')
     ! solvent must have moltype value not equal to solute_moltype
-    if(any(sluvid(:) == PT_SOLVENT .and. moltype(:) == solute_moltype)) call halt_with_error('typ')
+    if(any(sluvid(:) == PT_SOLVENT .and. moltype(:) == solute_moltype)) call halt_with_error('eng_typ')
     !
     ! consistency check between slttype and numslt (number of solute molecules)
-    iduv=0
-    if(numslt.le.0) iduv=9
-    if((slttype.ge.2).and.(numslt.ne.1)) iduv=9
-    if(iduv.ne.0) call halt_with_error('num')
+    check_ok = .true.
+    if(numslt.le.0) check_ok = .false.
+    if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+       if(numslt.ne.1) check_ok = .false.
+    endif
+    if(.not. check_ok) call halt_with_error('eng_num')
     !
     allocate( sltlist(numslt) )
     sltlist(1:numslt)=tplst(1:numslt)   ! list of solute molecules
     deallocate( tplst )
     !
     ! solute needs to be the last particle in reference system
-    if((slttype.ge.2).and.(sltlist(1).ne.nummol)) call halt_with_error('ins')
+    if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+       if(sltlist(1) /= nummol) call halt_with_error('eng_ins')
+    endif
     !
     ! number of solvent species
     if(numslt.eq.1) numslv=numtype-1
@@ -135,7 +140,7 @@ contains
                 finfac=ecpmrd(4) ; ecdmin=ecpmrd(5) ; ecfmns=ecpmrd(6)
                 ecdcen=ecpmrd(7) ; eccore=ecpmrd(8)
                 if(eccore.lt.tiny) pecore=0
-                if(pecore.eq.1) call halt_with_error('ecd')
+                if(pecore.eq.1) call halt_with_error('eng_ecd')
                 exit
              endif
           end do
@@ -155,12 +160,12 @@ contains
        pesoft=0
        do regn=1,rglmax
           factor=rgcnt(regn)
-          if(int(factor).lt.1) call halt_with_error('ecd')
+          if(int(factor).lt.1) call halt_with_error('eng_ecd')
           pesoft=pesoft+nint(factor)
        end do
 
        pemax=pesoft+pecore
-       if(pemax.gt.large) call halt_with_error('siz')
+       if(pemax.gt.large) call halt_with_error('eng_siz')
 
        cdrgvl(0)=ecdmin
        cdrgvl(1)=ecfmns
@@ -239,7 +244,7 @@ contains
     endif
     deallocate( ercrd )
 
-    if(slttype.eq.1) allocate( aveuv(engdiv,numslv),slnuv(numslv) )
+    if(slttype == CAL_SOLN) allocate( aveuv(engdiv,numslv),slnuv(numslv) )
     allocate( avediv(engdiv,2) )
     allocate( minuv(0:numslv),maxuv(0:numslv) )
      
@@ -315,10 +320,8 @@ contains
     real, parameter :: tiny = 1.0e-20
     logical :: skipcond
     logical, save :: pme_initialized = .false.
-    ! FIXME: this call to mpi_info is sprious
-    call mpi_info                                                    ! MPI
-    call mpi_init_active_group(nactiveproc)
 
+    call mpi_init_active_group(nactiveproc)
     call sanity_check_sluvid()
 
     ! for soln: maxdst is number of solutes (multiple solute)
@@ -788,7 +791,7 @@ contains
        i=tagpt(k)
        if(i.eq.tagslt) cycle
        pti=uvspec(i)
-       if(pti.le.0) call halt_with_error('eng')
+       if(pti.le.0) call halt_with_error('eng_eng')
 
        pairep=uvengy(k)
        call getiduv(pti,pairep,iduv)
@@ -964,7 +967,7 @@ contains
        iduv=idpick+1                                 ! smallest energy mesh
        write(stdout,199) engcoord,pti
 199    format('  energy of ',g12.4,' for ',i3,'-th species')
-       call halt_with_error('min')
+       call halt_with_error('eng_min')
     endif
     if(iduv.gt.(idpick+idmax)) iduv=idpick+idmax    ! largest energy mesh
 
@@ -978,20 +981,20 @@ contains
     implicit none
 
     ! sanity check
-    if(any(sluvid(:) < 0) .or. any(sluvid(:) > 3)) call halt_with_error('bug')
+    if(any(sluvid(:) < 0) .or. any(sluvid(:) > 3)) call halt_with_error('eng_bug')
     select case(slttype)
     case(CAL_SOLN)
        ! sluvid should be 0 (solvent) or 1 (solute)
-       if(any(sluvid(:) >= 2)) call halt_with_error('par')
+       if(any(sluvid(:) >= 2)) call halt_with_error('eng_par')
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        ! sluvid should be 0 (solvent), 2, 3 (test particles)
-       if(any(sluvid(:) == 1)) call halt_with_error('par')
+       if(any(sluvid(:) == 1)) call halt_with_error('eng_par')
        ! solvent must exist
-       if(all(sluvid(:) /= 0)) call halt_with_error('par')
+       if(all(sluvid(:) /= 0)) call halt_with_error('eng_par')
     end select
 
     ! solute / test particle must exist
-    if(all(sluvid(:) == 0)) call halt_with_error('par')
+    if(all(sluvid(:) == 0)) call halt_with_error('eng_par')
   end subroutine sanity_check_sluvid
 
   ! Check whether molecule is within specified region
@@ -1017,7 +1020,7 @@ contains
        call relative_com(tagslt,dx)
        distance = sqrt(dot_product(dx, dx))
     case(INSPOS_SLAB)       ! slab (only z-axis is constrained) configuration
-       if(boxshp == SYS_NONPERIODIC) call halt_with_error('slb')
+       if(boxshp == SYS_NONPERIODIC) call halt_with_error('eng_slb')
        call relative_com(tagslt,dx)
        distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
     case(INSPOS_GAUSS)      ! comparison to reference
@@ -1090,7 +1093,7 @@ contains
        idsoft=uvsoft(pti)
        idmax=uvmax(pti)
        idpt=iduv-idpick
-       if((idpt.lt.0).or.(idpt.gt.idmax)) call halt_with_error('ecd')
+       if((idpt.lt.0).or.(idpt.gt.idmax)) call halt_with_error('eng_ecd')
        if(idpt.le.idsoft) factor=(uvcrd(iduv)+uvcrd(iduv+1))/2.0e0
        if((idpt.gt.idsoft).and.(idpt.lt.idmax)) then
           factor=sqrt(uvcrd(iduv)*uvcrd(iduv+1))

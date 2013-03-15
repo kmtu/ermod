@@ -61,6 +61,7 @@ module ptinsrt
 contains
   subroutine instslt(caltype, stat_weight_solute)
     use engmain, only: nummol, slttype, numslt, sltlist, iseed, CAL_REFS_FLEX
+    use mpiproc, only: nactiveproc, halt_with_error
     implicit none
     character(len=4), intent(in) :: caltype
     real, optional, intent(out) :: stat_weight_solute
@@ -70,15 +71,15 @@ contains
     if(.not. present(stat_weight_solute)) then
        select case(caltype)
        case('init')
-          ! initialize the random number used for solute insertion
-          call urand_init(iseed)
           ! sanity check of solute specification
           reject = .false.
           if(numslt /= 1) reject = .true.
           if((numslt == 1).and.(sltlist(1) /= nummol)) reject = .true.
-          if(reject) call insrt_stop('set')
+          if(reject) call halt_with_error('ins_set')
           ! inserted solute is set to the last molecule in the system
           insml = sltlist(1)
+          ! initialize the random number used for solute insertion
+          call urand_init(iseed)
           ! opening the file for coordinate of flexible solute
           if(slttype == CAL_REFS_FLEX) call getsolute(caltype)
           return
@@ -87,13 +88,13 @@ contains
           if(slttype == CAL_REFS_FLEX) call getsolute(caltype)
           return
        case('proc')
-          call insrt_stop('bug')
+          call halt_with_error('ins_bug')
        case default
           stop "Incorrect caltype in instslt"
        end select
     endif
 
-    if(.not. present(stat_weight_solute)) call insrt_stop('bug')
+    if(.not. present(stat_weight_solute)) call halt_with_error('ins_bug')
 
     if(slttype == CAL_REFS_FLEX) then
        ! get the coordinate and structure-specific weight of flexible solute
@@ -151,6 +152,7 @@ contains
                        cell, celllen, boxshp, SYS_NONPERIODIC, &
                        INSPOS_RANDOM, INSPOS_NOCHANGE, &
                        INSPOS_SPHERE, INSPOS_SLAB, INSPOS_GAUSS
+    use mpiproc, only: halt_with_error
     implicit none
     integer, intent(in) :: insml
     real, intent(inout) :: weight
@@ -161,7 +163,9 @@ contains
     select case(insposition)
     case(INSPOS_RANDOM)
        ! fully random position within periodic box
-       if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
+       if(boxshp == SYS_NONPERIODIC) then    ! system has to be periodic
+          call halt_with_error('ins_geo')
+       endif
        do i = 1, 3
           call urand(r(i))
        end do
@@ -188,7 +192,9 @@ contains
        return
     case(INSPOS_SLAB)
        ! slab random position
-       if(boxshp == SYS_NONPERIODIC) call insrt_stop('geo') ! system has to be periodic
+       if(boxshp == SYS_NONPERIODIC) then    ! system has to be periodic
+          call halt_with_error('ins_geo')
+       endif
        call urand(r(1))
        call urand(r(2))
        
@@ -358,26 +364,9 @@ contains
   end subroutine insscheme
 
 
-  ! FIXME: move to mpiproc
-  subroutine insrt_stop(type)
-    use engmain, only: stdout
-    use mpiproc                                                      ! MPI
-    character(len=3), intent(in) :: type
-    if(type.eq.'set') write(stdout,791)
-    if(type.eq.'geo') write(stdout,792)
-    if(type.eq.'bug') write(stdout,793)
-    if(type.eq.'wgt') write(stdout,*) " The weight file (", sltwgt, ") is ill-formed"
-791 format(' The solute specification is incorrectly set')
-792 format(' The system geometry is incorrectly set')
-793 format(' There is a bug in the insertion program')
-    call mpi_setup('stop')                                           ! MPI
-    stop
-  end subroutine insrt_stop
-!
-!
   subroutine getsolute(caltype, insml, stat_weight)
     use trajectory, only: open_trajectory, close_trajectory
-    use engmain, only: slttype, wgtins, numsite, bfcoord, CAL_REFS_FLEX
+    use engmain, only: slttype, wgtins, numsite, bfcoord, stdout, CAL_REFS_FLEX
     use OUTname, only: OUTconfig, solute_trajectory
     use mpiproc
     implicit none
@@ -389,7 +378,7 @@ contains
     real :: dumcl(3,3)
     real, dimension(:,:), allocatable :: psite
 !
-    if(slttype /= CAL_REFS_FLEX) call insrt_stop('bug')
+    if(slttype /= CAL_REFS_FLEX) call halt_with_error('ins_bug')
 !
     if((.not. present(insml)) .and. &
        (.not. present(stat_weight))) then
@@ -410,14 +399,14 @@ contains
           if(read_weight) close(unit=sltwgt_io)
           return
        case('proc')
-          call insrt_stop('bug')
+          call halt_with_error('ins_bug')
        case default
           stop "Incorrect caltype in getsolute"
        end select
     endif
 !
     if((.not. present(insml)) .or. &
-       (.not. present(stat_weight))) call insrt_stop('bug')
+       (.not. present(stat_weight))) call halt_with_error('ins_bug')
 !
     stmax=numsite(insml)
     allocate( psite(3,stmax) )
@@ -425,10 +414,14 @@ contains
        call OUTconfig(psite,dumcl,stmax,0,'solute','trjfl_read')
        if(read_weight) then
           read(sltwgt_io, *, iostat = ioerr) dumint, stat_weight
-          if(ioerr /= 0) then
+          if(ioerr /= 0) then      ! wrap around
              rewind(sltwgt_io)
              read(sltwgt_io, *, iostat = ioerr) dumint, stat_weight
-             if(ioerr /= 0) call insrt_stop('wgt')
+             if(ioerr /= 0) then
+                write(stdout,*) " The weight file (", sltwgt, ") is ill-formed"
+                call mpi_setup('stop')
+                stop
+             endif
           endif
        else
           stat_weight = 1.0e0
@@ -634,6 +627,7 @@ contains
   subroutine sltpstn(sltstat,pcom,type,tagslt)
     use engmain, only: nummol,numatm,boxshp,inscnd,inscfg,hostspec,&
          moltype,numsite,specatm,sitepos,cell,invcl,lwreg,upreg
+    use mpiproc, only: halt_with_error
     use bestfit, only: com_aggregate
     implicit none
     integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
@@ -648,7 +642,9 @@ contains
     if(type.ne.'insert') stop "BUG"
     !
     if(inscnd.eq.0) then   ! solute with random position
-       if(boxshp.eq.0) call insrt_stop('geo') ! system has to be periodic
+       if(boxshp.eq.0) then    ! system has to be periodic
+          call halt_with_error('ins_geo')
+       endif
        do k=1,3
           call URAND(rdum)
           clm(k)=rdum-0.50e0
@@ -675,7 +671,9 @@ contains
     endif
     !
     if(inscnd.eq.2) then   ! solute in slab geometry
-       if(boxshp.eq.0) call insrt_stop('geo')    ! system has to be periodic
+       if(boxshp.eq.0) then    ! system has to be periodic
+          call halt_with_error('ins_geo')
+       endif
        elen=0.0e0
        do m=1,3
           elen=elen+cell(m,3)*cell(m,3)
@@ -714,7 +712,7 @@ contains
     endif
     !
     if(inscnd.eq.3) then   ! solute against reference structure
-       if(type.eq.'insert') call insrt_stop('bug')
+       if(type.eq.'insert') call halt_with_error('ins_bug')
        call refsdev(dis,2,'system')
     endif
     !
@@ -723,7 +721,7 @@ contains
        if((lwreg.le.dis).and.(dis.le.upreg)) then
           sltstat=1
        else
-          call insrt_stop('bug')
+          call halt_with_error('ins_bug')
        endif
     endif
     !
@@ -1039,6 +1037,7 @@ contains
 ! refsdev: RMSD calculation, used only in refmc and sltpstn
   subroutine refsdev(strchr,refmol,caltype)
     use engmain, only: nummol,numatm,numsite,specatm,sitepos
+    use mpiproc, only: halt_with_error
     implicit none
     integer refmol,rfyn,i,m,k,ati,rfi,sid,stmax
     character*6 caltype
@@ -1050,7 +1049,7 @@ contains
     case('extend')
        call dispref(centg,cenrf,qrtn,reftot)
     case default
-       call insrt_stop('bug')
+       call halt_with_error('ins_bug')
     end select
     call getrot(qrtn,rotmat)
     strchr=0.0e0
@@ -1086,6 +1085,7 @@ contains
 !          used only in refmc, dispref, and refsdev
   subroutine getrfyn(i,rfi,rfyn,refmol)
     use engmain, only: nummol,sluvid,refmlid
+    use mpiproc, only: halt_with_error
     implicit none
     integer i,rfi,rfyn,refmol
     rfi=refmlid(i)
@@ -1098,7 +1098,7 @@ contains
     case(refsys)
        if((rfi.ne.0).and.(sluvid(i).le.1)) rfyn=1
     case default
-       call insrt_stop('bug')
+       call halt_with_error('ins_bug')
     end select
     return
   end subroutine getrfyn

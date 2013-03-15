@@ -38,7 +38,8 @@ end subroutine enganal_init
 !  connection to the main routine of trajectory generation is done in
 !  setparam for parameter setting and getconf for configuration reading
 subroutine enganal(stnum, nread)
-  use engproc, only: engconst, nactiveproc
+  use engproc, only: engconst
+  use mpiproc, only: nactiveproc
   implicit none
   integer, intent(in) :: stnum, nread
   nactiveproc = nread
@@ -55,7 +56,7 @@ program trjmain
   implicit none
   integer :: stnum, idiv, frames_per_div, nread, iframe
 
-  call mpi_setup('init')    ! MPI
+  call mpi_setup('init')
   if(myrank == 0) then
      print *, "ERMOD " // PACKAGE_VERSION // ", Copyright (C) 2000-2012 Nobuyuki Matubayasi"
      print *, "                           2010-2012 Shun Sakuraba"
@@ -76,7 +77,7 @@ program trjmain
 
   stnum = 0
   frames_per_div = maxcnf / skpcnf / engdiv
-  if(frames_per_div <= 0) call halt_with_error("par")
+  if(frames_per_div <= 0) call halt_with_error("eng_par")
 
   do idiv = 1, engdiv
      call engclear

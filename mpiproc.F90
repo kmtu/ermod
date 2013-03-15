@@ -19,7 +19,7 @@
 
 ! mpi module
 
-module mpiproc                                                   ! MPI
+module mpiproc
 #ifndef noMPI
   ! MPI
   use mpi
@@ -31,7 +31,9 @@ module mpiproc                                                   ! MPI
 #endif
 
   ! mpi common variables
-  integer ierror, mpistatus(mpi_status_size), myrank, nprocs         ! MPI
+  integer :: ierror, mpistatus(mpi_status_size)
+  integer :: myrank, nprocs       ! rank number and total number of processes
+  integer :: nactiveproc          ! number of active processes
   integer, parameter :: tag_cell = 11, tag_coord = 12, tag_weight = 13
   integer :: mpi_comm_activeprocs
 
@@ -51,21 +53,22 @@ module mpiproc                                                   ! MPI
        "RealPrep" /)
 
 contains
-  subroutine mpi_setup(type)                                       ! MPI
-    character*4 type                                                 ! MPI
+  subroutine mpi_setup(type)
+    implicit none
+    character*4 type
     integer :: i
 #ifndef noMPI
-    real(4) :: cputime                                               ! MPI
-    real(8), save :: walltime                                        ! MPI
-    if(type.eq.'init') then                                          ! MPI
-       call mpi_init(ierror)                                          ! MPI
+    real(4) :: cputime
+    real(8), save :: walltime
+    if(type.eq.'init') then
+       call mpi_init(ierror)
 #ifdef PERF
        walltime = MPI_WTIME()
 #endif
        call mpi_info
        times(:) = 0.0
     endif
-    if(type.eq.'stop') then                                          ! MPI
+    if(type.eq.'stop') then
 #ifdef PERF
        call CPU_TIME(cputime)
        print *, "rank = ", myrank, ", CPUtime = ", cputime
@@ -77,40 +80,40 @@ contains
           end do
        endif
 #endif
-       call mpi_finalize(ierror)                                      ! MPI
+       call mpi_finalize(ierror)
     endif
 #endif
-  end subroutine mpi_setup                                                   ! MPI
+  end subroutine mpi_setup
 
-  subroutine mpi_info                                              ! MPI
+  subroutine mpi_info
     nprocs=1
     myrank=0
 #ifndef noMPI
-    call mpi_comm_size(mpi_comm_world,nprocs,ierror)                 ! MPI
-    call mpi_comm_rank(mpi_comm_world,myrank,ierror)                 ! MPI
+    call mpi_comm_size(mpi_comm_world,nprocs,ierror)
+    call mpi_comm_rank(mpi_comm_world,myrank,ierror)
 #endif
     return
-  end subroutine mpi_info                                                   ! MPI
+  end subroutine mpi_info
 
   subroutine mpi_abend()
     integer :: ierror
 #ifndef noMPI
-    call mpi_abort(mpi_comm_world, 1, ierror)                        ! MPI
+    call mpi_abort(mpi_comm_world, 1, ierror)
 #endif
   end subroutine mpi_abend
 
-  subroutine mpi_init_active_group(nactiveproc)
+  subroutine mpi_init_active_group(nactive)
     implicit none
-    integer, intent(in) :: nactiveproc
+    integer, intent(in) :: nactive
 
 #ifndef noMPI
-    if(myrank < nactiveproc) then
+    if(myrank < nactive) then
        call mpi_comm_split(mpi_comm_world, 1, myrank, mpi_comm_activeprocs, ierror)
     else
        call mpi_comm_split(mpi_comm_world, mpi_undefined, 0, mpi_comm_activeprocs, ierror)
     endif
 
-    if(myrank >= nactiveproc .and. mpi_comm_activeprocs /= mpi_comm_null) then
+    if(myrank >= nactive .and. mpi_comm_activeprocs /= mpi_comm_null) then
        stop "failed @ mpi_init_active_group"
     endif
 #endif
@@ -194,36 +197,39 @@ contains
   
 
   ! Stop calculation with error message
-  subroutine halt_with_error(type)
+  subroutine halt_with_error(errtype)
     use engmain, only: stdout
     implicit none
-    character*3 type
-    if(type.eq.'typ') write(stdout,991)
-    if(type.eq.'num') write(stdout,992)
-    if(type.eq.'ins') write(stdout,993)
-    if(type.eq.'par') write(stdout,994)
-    if(type.eq.'slt') write(stdout,995)
-    if(type.eq.'crd') write(stdout,996)
-    if(type.eq.'eng') write(stdout,997)
-    if(type.eq.'siz') write(stdout,998)
-    if(type.eq.'min') write(stdout,999)
-    if(type.eq.'ecd') write(stdout,981)
-    if(type.eq.'fst') write(stdout,982)
-    if(type.eq.'slb') write(stdout,"(A)") " Slab condition can only used in periodic system"
-    if(type.eq.'bug') write(stdout,"(A)") " Critical failure in the program detected"
-    if(type.eq.'trj') write(stdout,"(A)") " Trajectory is shorter than specified in MDinfo"
-    if(type.eq.'pmt') write(stdout,"(A)") " Permutation index file is invalid"
-991 format(' The number of solute types is incorrectly set')
-992 format(' The number of solute molecules is incorrectly set')
-993 format(' The solute numbering is incorrect for insertion')
-994 format(' The input parameter is incorrectly set')
-995 format(' The input parameter is incorrect for solute')
-996 format(' The coordinate system is incorrectly set')
-997 format(' Inconsistency is present in the program')
-998 format(' The number of energy-coordinate meshes is too large')
-999 format(' The minimum of the energy coordinate is too large')
-981 format(' The energy-coordinate system is inconsistent')
-982 format(' The first particle needs to be the solute')
+    character(len=7), intent(in) :: errtype
+
+    if(errtype.eq.'eng_typ') write(stdout,"(A)") " The number of solute types is incorrectly set"
+    if(errtype.eq.'eng_num') write(stdout,"(A)") " The number of solute molecules is incorrectly set"
+    if(errtype.eq.'eng_ins') write(stdout,"(A)") " The solute numbering is incorrect for insertion"
+    if(errtype.eq.'eng_par') write(stdout,"(A)") " The input parameter is incorrectly set"
+    if(errtype.eq.'eng_siz') write(stdout,"(A)") " The number of energy-coordinate meshes is too large"
+    if(errtype.eq.'eng_min') write(stdout,"(A)") " The minimum of the energy coordinate is too large"
+    if(errtype.eq.'eng_ecd') write(stdout,"(A)") " The energy-coordinate system is inconsistent"
+    if(errtype.eq.'eng_eng') write(stdout,"(A)") " Inconsistency is present in the engproc program"
+    if(errtype.eq.'eng_slb') write(stdout,"(A)") " Slab condition can only used in periodic system"
+    if(errtype.eq.'eng_bug') write(stdout,"(A)") " Critical failure in the engproc program detected"
+
+    if(errtype.eq.'rcp_fst') write(stdout,"(A)") " The first particle needs to be the solute"
+    if(errtype.eq.'rcp_eng') write(stdout,"(A)") " Inconsistency is present in the recpcal program"
+
+    if(errtype.eq.'ins_set') write(stdout,"(A)") " The solute specification is incorrectly set"
+    if(errtype.eq.'ins_geo') write(stdout,"(A)") " The system geometry is incorrectly set"
+    if(errtype.eq.'ins_bug') write(stdout,"(A)") " Critical failure in the insertion program detected"
+
+    if(errtype.eq.'set_slt') write(stdout,"(A)") " The solute type is incorrectly set"
+    if(errtype.eq.'set_num') write(stdout,"(A)") " The number of molecules or atoms is incorrectly set"
+    if(errtype.eq.'set_ref') write(stdout,"(A)") " The reference structure of solvent is incorrectly set"
+    if(errtype.eq.'set_prs') write(stdout,"(A)") " The system parameters are incorrectly set"
+    if(errtype.eq.'set_ins') write(stdout,"(A)") " The insertion parameters are incorrectly set"
+    if(errtype.eq.'set_ewa') write(stdout,"(A)") " The Ewald parameters are incorrectly set"
+    if(errtype.eq.'set_trj') write(stdout,"(A)") " Trajectory is shorter than specified in MDinfo"
+    if(errtype.eq.'set_pmt') write(stdout,"(A)") " Permutation index file is invalid"
+    if(errtype.eq.'set_bug') write(stdout,"(A)") " Critical failure in the setconf program detected"
+
     call mpi_abend()                                                     ! MPI
     stop
   end subroutine halt_with_error

@@ -115,7 +115,7 @@ contains
     select case(particle_type)
     case('system')                  ! reading the HISTORY file
        call read_trajectory(history_trajectory, OUTatm, (OUTbox == 1), OUTpos, OUTcell, status)
-       if(status /= 0) call halt_with_error("trj")
+       if(status /= 0) call halt_with_error("set_trj")
     case('solute')                  ! reading the SltConf file
        call read_trajectory(solute_trajectory, OUTatm, .false., OUTpos, OUTcell, status)
        if(status /= 0) then
@@ -177,7 +177,8 @@ contains
     implicit none
     real, parameter :: tiny=1.0e-20
     real :: real_seed
-    character*3 scrtype
+    character(len=3) :: scrtype
+    logical :: check_ins
     call mpi_info                                                    ! MPI
 
     intprm=1                                     ! trajectory reading
@@ -278,52 +279,55 @@ contains
     temp=inptemp*8.314510e-3/4.184e0
     ! get the screening parameter in Ewald and PME
     if((screen <= tiny).and.(cltype /= 0)) then
-       if(ewtoler <= tiny) call set_stop('ewa')
+       if(ewtoler <= tiny) call halt_with_error('set_ewa')
        screen=getscrn(ewtoler,elecut,scrtype)
     endif
     ! check Ewald parameters, not effective in the current version
     if(cltype == 1) then
-       if(ew1max*ew2max*ew3max == 0) call set_stop('ewa')
+       if(ew1max*ew2max*ew3max == 0) call halt_with_error('set_ewa')
     endif
     ! check PME parameters
     if(cltype == EL_PME) then
-       if(ms1max*ms2max*ms3max == 0) call set_stop('ewa')
+       if(ms1max*ms2max*ms3max == 0) call halt_with_error('set_ewa')
     endif
     ! ljswitch parameter
-    if((ljswitch < 0).or.(ljswitch > 2)) call set_stop('prs')
+    if((ljswitch < 0).or.(ljswitch > 2)) call halt_with_error('set_prs')
     ! check slttype parameter
     if((slttype < CAL_SOLN).or.(slttype > CAL_REFS_FLEX)) then
-       call set_stop('slt')
+       call halt_with_error('set_slt')
     endif
     ! check the consistency in parameters for non-periodic system
     if(boxshp == SYS_NONPERIODIC) then
-       if((estype == 2).or.(cltype /= 0)) call set_stop('prs')
+       if((estype == 2).or.(cltype /= 0)) call halt_with_error('set_prs')
     endif
     ! check the consistency of insertion with structure-dependent weight
     if(wgtins == 1) then
-       if(slttype /= 3) call set_stop('ins')
+       if(slttype /= 3) call halt_with_error('set_ins')
     endif
     ! insorigin and insorient is effective only for insertion
     if(slttype == CAL_SOLN) then
        insorigin = INSORG_ORIGIN ; insorient = INSROT_RANDOM
     endif
+
+    check_ins = .true.
     ! when restrained relative to aggregate
     if(insorigin == INSORG_AGGCEN) then
        if(slttype == CAL_SOLN) then
-          if((hostspec < 1).or.(hostspec > numtype)) call set_stop('ins')
+          if((hostspec < 1).or.(hostspec > numtype)) check_ins = .false.
        endif
        if((slttype == CAL_REFS_RIGID).or.(slttype == CAL_REFS_FLEX)) then
-          if((hostspec < 1).or.(hostspec > numtype - 1)) call set_stop('ins')
+          if((hostspec < 1).or.(hostspec > numtype - 1)) check_ins = .false.
        endif
     endif
-
-    if((insorigin < 0).or.(insorigin > 3)) call set_stop('ins')
-    if((insposition < 0).or.(insposition > 4)) call set_stop('ins')
-    if((insorient < 0).or.(insorient > 1)) call set_stop('ins')
+    ! check the consistency for insorigin, insposition, and insorient
+    if((insorigin < 0).or.(insorigin > 3)) check_ins = .false.
+    if((insposition < 0).or.(insposition > 4)) check_ins = .false.
+    if((insorient < 0).or.(insorient > 1)) check_ins = .false.
     if((insorigin == INSORG_NOCHANGE .and. insposition /= INSPOS_NOCHANGE).or.&
        (insorigin /= INSORG_NOCHANGE .and. insposition == INSPOS_NOCHANGE)) then
-       call set_stop('ins')
+       check_ins = .false.
     endif
+    if(.not. check_ins) call halt_with_error('set_ins')
 
     ! maxins > 1 in insertion makes no sense if coordinate is used as is read
     if((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. &
@@ -393,7 +397,6 @@ contains
     integer, parameter :: sltio=71                 ! IO for sltfile
     integer, parameter :: molio=72                 ! IO for molfile
     integer, parameter :: ljtableio=70             ! IO for LJ table
-    integer, parameter :: PT_PHYSICAL = 0, PT_TEST = 1
 
     call OUTinitial                ! initialization of OUTname module
     call iniparam                  ! initialization of parameters
@@ -436,7 +439,7 @@ contains
        solute_index = numtype
     endif
 
-    if((slttype /= CAL_SOLN).and.(refpick == numtype)) call set_stop('ref')
+    if((slttype /= CAL_SOLN).and.(refpick == numtype)) call halt_with_error("set_ref")
 
     ! count up number of mols, 
     ! set max and total no. of atoms 
@@ -454,7 +457,7 @@ contains
        moltype(cmin:cmax) = pti ! sequential identification
        cmin=cmax+1
     end do
-    if(cmax.ne.nummol) call set_stop('num')
+    if(cmax /= nummol) call halt_with_error("set_num")
 
     ! Read solute specification
     do i = 1, nummol
@@ -479,7 +482,7 @@ contains
           if(stmax == -1) then                 ! initialize
              stmax = numsite(i)
           else
-             if(stmax /= numsite(i)) call set_stop('slt')
+             if(stmax /= numsite(i)) call halt_with_error("set_slt")
           endif
        endif
     end do
@@ -504,7 +507,7 @@ contains
     do i = 1, nummol
        mol_begin_index(i + 1) = mol_begin_index(i) + numsite(i)
     end do
-    if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("bug")
+    if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("set_bug")
 
     ! initialize belong_to(map from atom number to molecule no)
     do i = 1, nummol
@@ -688,7 +691,7 @@ contains
              read(perm_io, *) permutation(i)
              if (permutation(i) < 1 .or. permutation(i) > OUTatm) then
                 print *, i, "-th permutation points to ", permutation(i)
-                call halt_with_error('pmt')
+                call halt_with_error('set_pmt')
              endif
           end do
           close(perm_io)
@@ -751,7 +754,8 @@ contains
   end subroutine getconf_parallel
 
   subroutine read_weight(weight)
-    use engmain, only: wgtsys
+    use engmain, only: wgtsys, stdout
+    use mpiproc, only: mpi_setup
     implicit none
     real, intent(out) :: weight
     integer :: dummy, ioerr    
@@ -772,32 +776,14 @@ contains
        rewind(weight_io)
        read(weight_io, *, iostat = ioerr) dummy, weight
        if(ioerr /= 0) then
-          call set_stop('wgt')
+          write(stdout,*) " The weight file (", weight_file, ") is ill-formed"
+          call mpi_setup('stop')
+          stop
        endif
     endif
     
   end subroutine read_weight
 
-  subroutine set_stop(type)
-    use engmain, only: stdout
-    use mpiproc                                                      ! MPI
-    character*3 type
-    if(type.eq.'slt') write(stdout,991)
-    if(type.eq.'num') write(stdout,992)
-    if(type.eq.'ref') write(stdout,993)
-    if(type.eq.'prs') write(stdout,994)
-    if(type.eq.'ins') write(stdout,995)
-    if(type.eq.'ewa') write(stdout,996)
-    if(type.eq.'wgt') write(stdout,*) " The weight file (", weight_file, ") is ill-formed"
-991 format(' The solute type is incorrectly set')
-992 format(' The number of molecules or atoms is incorrectly set')
-993 format(' The reference structure of solvent is incorrectly set')
-994 format(' The system parameters are incorrectly set')
-995 format(' The insertion parameters are incorrectly set')
-996 format(' The Ewald parameters are incorrectly set')
-    call mpi_setup('stop')                                           ! MPI
-    stop
-  end subroutine set_stop
 
   subroutine getmass(stmass,atmtype)
     implicit none

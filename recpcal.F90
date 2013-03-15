@@ -154,7 +154,7 @@ contains
     integer :: svi, stmax
 
     svi=slvtag(i)
-    if(svi <= 0) call halt_with_error('eng')
+    if(svi <= 0) call halt_with_error('rcp_eng')
 
     stmax=numsite(i)
     call calc_spline_molecule(i, stmax, splslv(:,:,svi:svi+stmax-1), grdslv(:,svi:svi+stmax-1))
@@ -228,7 +228,6 @@ contains
 
   subroutine calc_spline_molecule(imol, stmax, store_spline, store_grid)
     use engmain, only: ms1max, ms2max, ms3max, splodr, specatm, sitepos, invcl
-    use mpiproc, only: halt_with_error
     use spline, only: spline_value
     implicit none
 
@@ -285,14 +284,14 @@ contains
     call perf_time("kuve")
     pairep=0.0e0
     k=sluvid(tagslt)
-    if(k.eq.0) call halt_with_error('fst')
+    if(k.eq.0) call halt_with_error('rcp_fst')
     if(tagslt.eq.i) then              ! solute self-energy
        call recpcal_self_energy(pairep)
     endif
 
     if(tagslt.ne.i) then              ! solute-solvent pair interaction
        svi=slvtag(i)
-       if(svi.le.0) call halt_with_error('eng')
+       if(svi.le.0) call halt_with_error('rcp_eng')
        stmax=numsite(i)
        do sid=1,stmax
           ptrnk=svi+sid-1
