@@ -656,14 +656,10 @@ contains
        if(out_of_range) return
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
        tagslt=sltlist(1)
-       if(.not. initialized) then
-          call instslt(stat_weight_solute,'init')
-       endif
-       call instslt(stat_weight_solute,'proc')
-       if((stnum == maxcnf / skpcnf).and.(cntdst.eq.maxdst)) then
-          call instslt(stat_weight_solute,'last')
-       endif
+       if(.not. initialized) call instslt('init')
        initialized = .true.
+       call instslt('proc', stat_weight_solute)
+       if((stnum == maxcnf/skpcnf).and.(cntdst == maxdst)) call instslt('last')
     end select
 
     ! At this moment all coordinate in the system is determined

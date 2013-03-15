@@ -542,9 +542,11 @@ contains
        ! for ljtype /= 5, read the table and make table by program
        open(unit = molio, file = molfile, status='old')
        do sid = 1, stmax
-          if(uvtype == 2) read(molio,*) m,atmtype,(xst(m), m=1,3),&
-               (psite(m,sid), m=1,3)
-          if(uvtype /= 2) read(molio,*) m,atmtype,(xst(m), m=1,3)
+          if(uvtype == CAL_REFS_RIGID) then
+             read(molio,*) m, atmtype, xst(1:3), psite(1:3,sid)
+          else
+             read(molio,*) m, atmtype, xst(1:3)
+          endif
           call getmass(sitemass_temp(sid), atmtype)
 
           charge_temp(sid) = xst(1)
@@ -599,7 +601,7 @@ contains
           cur_atom = cur_atom + stmax
        end do
 
-       if(uvtype.eq.2) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
+       if(uvtype == CAL_REFS_RIGID) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
     end do
 
     deallocate(psite, ljlen_temp, ljene_temp, ljtype_temp, charge_temp, sitemass_temp)

@@ -22,9 +22,9 @@ module ptinsrt
   implicit none
   real, save :: unrn
   !  single-solute trajectrory file           used only when slttype = 3
-  character(*), parameter :: slttrj='SltConf'    ! solute filename
-  character(*), parameter :: sltwgt='SltWght'    ! solute weight filename
-  integer, parameter :: swinf=31                 ! solute weight ID
+  character(*), parameter :: slttrj = 'SltConf'  ! solute filename
+  character(*), parameter :: sltwgt = 'SltWght'  ! solute weight filename
+  integer, parameter :: sltwgt_io = 31           ! solute weight ID
   !
   !  insertion against reference structure
   !   refmlid : superposition reference among solvent species
@@ -59,29 +59,49 @@ module ptinsrt
   !
   !
 contains
-  subroutine instslt(stat_weight_solute,caltype)
+  subroutine instslt(caltype, stat_weight_solute)
     use engmain, only: nummol, slttype, numslt, sltlist, iseed, CAL_REFS_FLEX
     implicit none
-    real stat_weight_solute
-    character*4 caltype
-    integer insml
-    logical reject
+    character(len=4), intent(in) :: caltype
+    real, optional, intent(out) :: stat_weight_solute
+    integer, save :: insml
+    logical :: reject
     
-    call instwgt(stat_weight_solute,caltype)
-
-    if(caltype.eq.'init') call urand_init(iseed)
-    if((caltype.eq.'init').or.(caltype.eq.'last')) then
-       if(slttype.eq.CAL_REFS_FLEX) call getsolute(0,caltype) ! flexible solute
-       return
+    if(.not. present(stat_weight_solute)) then
+       select case(caltype)
+       case('init')
+          ! initialize the random number used for solute insertion
+          call urand_init(iseed)
+          ! sanity check of solute specification
+          reject = .false.
+          if(numslt /= 1) reject = .true.
+          if((numslt == 1).and.(sltlist(1) /= nummol)) reject = .true.
+          if(reject) call insrt_stop('set')
+          ! inserted solute is set to the last molecule in the system
+          insml = sltlist(1)
+          ! opening the file for coordinate of flexible solute
+          if(slttype == CAL_REFS_FLEX) call getsolute(caltype)
+          return
+       case('last')
+          ! closing the file for coordinate of flexible solute
+          if(slttype == CAL_REFS_FLEX) call getsolute(caltype)
+          return
+       case('proc')
+          call insrt_stop('bug')
+       case default
+          stop "Incorrect caltype in instslt"
+       end select
     endif
 
-    reject = .false.
-    if(numslt.ne.1) reject = .true.
-    if((numslt.eq.1).and.(sltlist(1).ne.nummol)) reject = .true.
-    if(reject) call insrt_stop('set')          ! incorrect solute specification
+    if(.not. present(stat_weight_solute)) call insrt_stop('bug')
 
-    insml=nummol                                              ! inserted solute
-    if(slttype.eq.CAL_REFS_FLEX) call getsolute(insml,'conf') ! flexible solute
+    if(slttype == CAL_REFS_FLEX) then
+       ! get the coordinate and structure-specific weight of flexible solute
+       call getsolute(caltype, insml, stat_weight_solute)
+    else
+       ! no structure-specific weight when the solute is rigid
+       stat_weight_solute = 1.0e0
+    endif
 
     reject = .true.
     do while(reject)
@@ -346,6 +366,7 @@ contains
     if(type.eq.'set') write(stdout,791)
     if(type.eq.'geo') write(stdout,792)
     if(type.eq.'bug') write(stdout,793)
+    if(type.eq.'wgt') write(stdout,*) " The weight file (", sltwgt, ") is ill-formed"
 791 format(' The solute specification is incorrectly set')
 792 format(' The system geometry is incorrectly set')
 793 format(' There is a bug in the insertion program')
@@ -354,62 +375,77 @@ contains
   end subroutine insrt_stop
 !
 !
-  subroutine getsolute(insml,caltype)
+  subroutine getsolute(caltype, insml, stat_weight)
     use trajectory, only: open_trajectory, close_trajectory
-    use engmain, only: numsite, bfcoord
+    use engmain, only: slttype, wgtins, numsite, bfcoord, CAL_REFS_FLEX
     use OUTname, only: OUTconfig, solute_trajectory
     use mpiproc
     implicit none
-    character*4 caltype
-    integer insml,stmax
-    real xst(3),dumcl(3,3)
+    character(len=4), intent(in) :: caltype
+    integer, optional, intent(in) :: insml
+    real, optional, intent(out) :: stat_weight
+    logical, save :: read_weight
+    integer :: stmax, dumint, ioerr
+    real :: dumcl(3,3)
     real, dimension(:,:), allocatable :: psite
 !
-    if(caltype.eq.'init') then
-       if(myrank /= 0) return
-       call open_trajectory(solute_trajectory, slttrj)
-       return
+    if(slttype /= CAL_REFS_FLEX) call insrt_stop('bug')
+!
+    if((.not. present(insml)) .and. &
+       (.not. present(stat_weight))) then
+       select case(caltype)
+       case('init')
+          if(wgtins == 1) then
+             read_weight = .true.
+          else
+             read_weight = .false.
+          endif
+          if(myrank /= 0) return
+          call open_trajectory(solute_trajectory, slttrj)
+          if(read_weight) open(unit=sltwgt_io, file=sltwgt, status='old')
+          return
+       case('last')
+          if(myrank /= 0) return
+          call close_trajectory(solute_trajectory)
+          if(read_weight) close(unit=sltwgt_io)
+          return
+       case('proc')
+          call insrt_stop('bug')
+       case default
+          stop "Incorrect caltype in getsolute"
+       end select
     endif
-    if(caltype.eq.'last') then
-       if(myrank /= 0) return
-       call close_trajectory(solute_trajectory)
-       return
-    endif
+!
+    if((.not. present(insml)) .or. &
+       (.not. present(stat_weight))) call insrt_stop('bug')
 !
     stmax=numsite(insml)
     allocate( psite(3,stmax) )
-    if(myrank == 0) call OUTconfig(psite,dumcl,stmax,0,'solute','trjfl_read')
+    if(myrank == 0) then
+       call OUTconfig(psite,dumcl,stmax,0,'solute','trjfl_read')
+       if(read_weight) then
+          read(sltwgt_io, *, iostat = ioerr) dumint, stat_weight
+          if(ioerr /= 0) then
+             rewind(sltwgt_io)
+             read(sltwgt_io, *, iostat = ioerr) dumint, stat_weight
+             if(ioerr /= 0) call insrt_stop('wgt')
+          endif
+       else
+          stat_weight = 1.0e0
+       endif
+    endif
+
 #ifndef noMPI
     ! distribute to non rank-0 nodes
     call mpi_bcast(psite, 3 * stmax, mpi_double_precision, &
                    0, mpi_comm_activeprocs, ierror)
+    call mpi_bcast(stat_weight, 1, mpi_double_precision, &
+                   0, mpi_comm_activeprocs, ierror)
 #endif
     bfcoord(1:3,1:stmax)=psite(1:3,1:stmax)
     deallocate( psite )
-  end subroutine getsolute
 
-  subroutine instwgt(stat_weight_solute,caltype)
-    use engmain, only: slttype,wgtins
-    implicit none
-    integer m
-    real stat_weight_solute
-    character*4 caltype
-    if((slttype.ne.3).or.(wgtins.ne.1)) then
-       stat_weight_solute=1.0e0
-       return
-    endif
-    if(caltype.eq.'init') open(unit=swinf,file=sltwgt,status='old')
-    if(caltype.eq.'last') close(swinf)
-    if(caltype.eq.'proc') then
-       read(swinf,*) m,stat_weight_solute
-       read(swinf,*,END=2199) m
-       backspace(swinf)
-       goto 2195
-2199   rewind(swinf)
-2195   continue
-    endif
-    return
-  end subroutine instwgt
+  end subroutine getsolute
 
 
   ! returns random value from [0,1)
