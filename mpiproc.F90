@@ -55,7 +55,7 @@ module mpiproc
 contains
   subroutine mpi_setup(type)
     implicit none
-    character*4 type
+    character(len=4) :: type
     integer :: i
 #ifndef noMPI
     real(4) :: cputime
@@ -209,12 +209,12 @@ contains
     if(errtype.eq.'eng_siz') write(stdout,"(A)") " The number of energy-coordinate meshes is too large"
     if(errtype.eq.'eng_min') write(stdout,"(A)") " The minimum of the energy coordinate is too large"
     if(errtype.eq.'eng_ecd') write(stdout,"(A)") " The energy-coordinate system is inconsistent"
-    if(errtype.eq.'eng_eng') write(stdout,"(A)") " Inconsistency is present in the engproc program"
+    if(errtype.eq.'eng_cns') write(stdout,"(A)") " Inconsistency is present in the engproc program"
     if(errtype.eq.'eng_slb') write(stdout,"(A)") " Slab condition can only used in periodic system"
     if(errtype.eq.'eng_bug') write(stdout,"(A)") " Critical failure in the engproc program detected"
 
     if(errtype.eq.'rcp_fst') write(stdout,"(A)") " The first particle needs to be the solute"
-    if(errtype.eq.'rcp_eng') write(stdout,"(A)") " Inconsistency is present in the recpcal program"
+    if(errtype.eq.'rcp_cns') write(stdout,"(A)") " Inconsistency is present in the recpcal program"
 
     if(errtype.eq.'ins_set') write(stdout,"(A)") " The solute specification is incorrectly set"
     if(errtype.eq.'ins_geo') write(stdout,"(A)") " The system geometry is incorrectly set"

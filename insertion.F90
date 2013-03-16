@@ -61,7 +61,7 @@ module ptinsrt
 contains
   subroutine instslt(caltype, stat_weight_solute)
     use engmain, only: nummol, slttype, numslt, sltlist, iseed, CAL_REFS_FLEX
-    use mpiproc, only: nactiveproc, halt_with_error
+    use mpiproc, only: halt_with_error
     implicit none
     character(len=4), intent(in) :: caltype
     real, optional, intent(out) :: stat_weight_solute

@@ -22,7 +22,6 @@ module engproc
   integer :: cntdst, slvmax
   integer :: maxdst
   integer :: tagslt
-  integer :: nactiveproc              ! number of active processors in MPI
   integer, allocatable :: tagpt(:)
 
   ! flceng needs to be output in-order
@@ -81,9 +80,9 @@ contains
     !
     ! consistency check between slttype and numslt (number of solute molecules)
     check_ok = .true.
-    if(numslt.le.0) check_ok = .false.
+    if(numslt <= 0) check_ok = .false.
     if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
-       if(numslt.ne.1) check_ok = .false.
+       if(numslt /= 1) check_ok = .false.
     endif
     if(.not. check_ok) call halt_with_error('eng_num')
     !
@@ -139,8 +138,8 @@ contains
                 eclbin=ecpmrd(1) ; ecfbin=ecpmrd(2) ; ec0bin=ecpmrd(3)
                 finfac=ecpmrd(4) ; ecdmin=ecpmrd(5) ; ecfmns=ecpmrd(6)
                 ecdcen=ecpmrd(7) ; eccore=ecpmrd(8)
-                if(eccore.lt.tiny) pecore=0
-                if(pecore.eq.1) call halt_with_error('eng_ecd')
+                if(eccore < tiny) pecore=0
+                if(pecore == 1) call halt_with_error('eng_ecd')
                 exit
              endif
           end do
@@ -160,12 +159,12 @@ contains
        pesoft=0
        do regn=1,rglmax
           factor=rgcnt(regn)
-          if(int(factor).lt.1) call halt_with_error('eng_ecd')
+          if(int(factor) < 1) call halt_with_error('eng_ecd')
           pesoft=pesoft+nint(factor)
        end do
 
        pemax=pesoft+pecore
-       if(pemax.gt.large) call halt_with_error('eng_siz')
+       if(pemax > large) call halt_with_error('eng_siz')
 
        cdrgvl(0)=ecdmin
        cdrgvl(1)=ecfmns
@@ -791,7 +790,7 @@ contains
        i=tagpt(k)
        if(i.eq.tagslt) cycle
        pti=uvspec(i)
-       if(pti.le.0) call halt_with_error('eng_eng')
+       if(pti <= 0) call halt_with_error('eng_cns')
 
        pairep=uvengy(k)
        call getiduv(pti,pairep,iduv)
@@ -1078,27 +1077,27 @@ contains
     integer iduv,idpt,pti,cnt,idpick,idmax,idsoft
     real factor
     character*4 caltype
-    if(caltype.eq.'self') then
+    if(caltype == 'self') then
        if(iduv.lt.esmax) factor=(escrd(iduv)+escrd(iduv+1))/2.0e0
        if(iduv.eq.esmax) factor=escrd(esmax)
     endif
-    if(caltype.eq.'intn') then
+    if(caltype == 'intn') then
        idpick=0
        do cnt=1,numslv
           idpick=idpick+uvmax(cnt)
-          if(iduv.le.idpick) exit
+          if(iduv <= idpick) exit
        enddo
        pti=cnt
        idpick=idpick-uvmax(pti)
        idsoft=uvsoft(pti)
        idmax=uvmax(pti)
        idpt=iduv-idpick
-       if((idpt.lt.0).or.(idpt.gt.idmax)) call halt_with_error('eng_ecd')
-       if(idpt.le.idsoft) factor=(uvcrd(iduv)+uvcrd(iduv+1))/2.0e0
-       if((idpt.gt.idsoft).and.(idpt.lt.idmax)) then
+       if((idpt < 0) .or. (idpt > idmax)) call halt_with_error('eng_ecd')
+       if(idpt <= idsoft) factor=(uvcrd(iduv)+uvcrd(iduv+1))/2.0e0
+       if((idpt > idsoft) .and. (idpt < idmax)) then
           factor=sqrt(uvcrd(iduv)*uvcrd(iduv+1))
        endif
-       if(idpt.eq.idmax) factor=uvcrd(iduv)
+       if(idpt == idmax) factor=uvcrd(iduv)
     endif
     return
   end subroutine repval

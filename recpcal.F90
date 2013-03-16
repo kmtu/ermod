@@ -154,7 +154,7 @@ contains
     integer :: svi, stmax
 
     svi=slvtag(i)
-    if(svi <= 0) call halt_with_error('rcp_eng')
+    if(svi <= 0) call halt_with_error('rcp_cns')
 
     stmax=numsite(i)
     call calc_spline_molecule(i, stmax, splslv(:,:,svi:svi+stmax-1), grdslv(:,svi:svi+stmax-1))
@@ -291,7 +291,7 @@ contains
 
     if(tagslt.ne.i) then              ! solute-solvent pair interaction
        svi=slvtag(i)
-       if(svi.le.0) call halt_with_error('rcp_eng')
+       if(svi <= 0) call halt_with_error('rcp_cns')
        stmax=numsite(i)
        do sid=1,stmax
           ptrnk=svi+sid-1
