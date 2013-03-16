@@ -35,6 +35,7 @@ module mpiproc
   integer :: myrank, nprocs       ! rank number and total number of processes
   integer :: nactiveproc          ! number of active processes
   integer, parameter :: tag_cell = 11, tag_coord = 12, tag_weight = 13
+  integer, parameter :: tag_sltcrd = 22, tag_sltwgt = 23
   integer :: mpi_comm_activeprocs
 
   ! for performance counter
@@ -217,6 +218,7 @@ contains
     if(errtype.eq.'rcp_cns') write(stdout,"(A)") " Inconsistency is present in the recpcal program"
 
     if(errtype.eq.'ins_set') write(stdout,"(A)") " The solute specification is incorrectly set"
+    if(errtype.eq.'ins_siz') write(stdout,"(A)") " Inconsistency is present in the setting of the size of bfcoord"
     if(errtype.eq.'ins_geo') write(stdout,"(A)") " The system geometry is incorrectly set"
     if(errtype.eq.'ins_bug') write(stdout,"(A)") " Critical failure in the insertion program detected"
 

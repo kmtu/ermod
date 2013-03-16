@@ -702,7 +702,7 @@ contains
     nread = min(nprocs, maxread)
 
     if(myrank < nread) then
-       if(myrank == 0) then
+       if(myrank == 0) then              ! rank-0 to read from file
           do iproc = 1, nread
              ! get configuration and store in OUTpos / OUTcell
              do i = 1, skpcnf
@@ -710,31 +710,31 @@ contains
                 call read_weight(readweight)
              end do
              
-             if(iproc /= 1) then
+             if(iproc /= 1) then         ! send the data to other rank
 #ifndef noMPI
                 ! FIXME: rewrite with grouping and scatter?
-                call mpi_send(readpos, 3 * OUTatm, &
-                     mpi_double_precision, iproc - 1, tag_coord, mpi_comm_world, ierror)
-                call mpi_send(readcell, 3 * 3, &
-                     mpi_double_precision, iproc - 1, tag_cell, mpi_comm_world, ierror)
-                call mpi_send(readweight, 1, &
-                     mpi_double_precision, iproc - 1, tag_weight, mpi_comm_world, ierror)
+                call mpi_send(readpos, 3 * OUTatm, mpi_double_precision, &
+                              iproc - 1, tag_coord, mpi_comm_world, ierror)
+                call mpi_send(readcell, 3 * 3, mpi_double_precision, &
+                              iproc - 1, tag_cell, mpi_comm_world, ierror)
+                call mpi_send(readweight, 1, mpi_double_precision, &
+                              iproc - 1, tag_weight, mpi_comm_world, ierror)
 #endif
-             else
+             else                        ! rank-0 to use the data as read
                 ! if this causes memory bottleneck, rewrite with in-place permutation
                 OUTpos(:, :) = readpos(:, :)
                 OUTcell(:, :) = readcell(:, :)
                 weight = readweight
              endif
           end do
-       else
+       else                              ! non-0 rank to receive the data
 #ifndef noMPI
-          call mpi_recv(OUTpos, 3 * OUTatm, &
-               mpi_double_precision, 0, tag_coord, mpi_comm_world, mpistatus, ierror)
-          call mpi_recv(OUTcell, 3 * 3, &
-               mpi_double_precision, 0, tag_cell, mpi_comm_world, mpistatus, ierror)
-          call mpi_recv(weight, 1, &
-               mpi_double_precision, 0, tag_weight, mpi_comm_world, mpistatus, ierror)
+          call mpi_recv(OUTpos, 3 * OUTatm, mpi_double_precision, &
+                        0, tag_coord, mpi_comm_world, mpistatus, ierror)
+          call mpi_recv(OUTcell, 3 * 3, mpi_double_precision, &
+                        0, tag_cell, mpi_comm_world, mpistatus, ierror)
+          call mpi_recv(weight, 1, mpi_double_precision, &
+                        0, tag_weight, mpi_comm_world, mpistatus, ierror)
 #endif
        endif
 

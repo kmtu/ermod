@@ -97,7 +97,7 @@ contains
     if(.not. present(stat_weight_solute)) call halt_with_error('ins_bug')
 
     if(slttype == CAL_REFS_FLEX) then
-       ! get the coordinate and structure-specific weight of flexible solute
+       ! get the configuration and structure-specific weight of flexible solute
        call getsolute(caltype, insml, stat_weight_solute)
     else
        ! no structure-specific weight when the solute is rigid
@@ -374,8 +374,8 @@ contains
     integer, optional, intent(in) :: insml
     real, optional, intent(out) :: stat_weight
     logical, save :: read_weight
-    integer :: stmax, dumint, ioerr
-    real :: dumcl(3,3)
+    integer :: stmax, dumint, iproc, ioerr
+    real :: dumcl(3,3), weight
     real, dimension(:,:), allocatable :: psite
 !
     if(slttype /= CAL_REFS_FLEX) call halt_with_error('ins_bug')
@@ -408,36 +408,53 @@ contains
     if((.not. present(insml)) .or. &
        (.not. present(stat_weight))) call halt_with_error('ins_bug')
 !
-    stmax=numsite(insml)
-    allocate( psite(3,stmax) )
-    if(myrank == 0) then
-       call OUTconfig(psite,dumcl,stmax,0,'solute','trjfl_read')
-       if(read_weight) then
-          read(sltwgt_io, *, iostat = ioerr) dumint, stat_weight
-          if(ioerr /= 0) then      ! wrap around
-             rewind(sltwgt_io)
-             read(sltwgt_io, *, iostat = ioerr) dumint, stat_weight
-             if(ioerr /= 0) then
-                write(stdout,*) " The weight file (", sltwgt, ") is ill-formed"
-                call mpi_setup('stop')
-                stop
+!   The following part has a similar program structure as
+!   the coordinate-reading part of getconf_parallel subroutine in setconf.F90
+    if(myrank < nactiveproc) then
+       stmax=numsite(insml)
+       if(myrank == 0) then              ! rank-0 to read from file
+          allocate( psite(3,stmax) )
+          if( size(psite) /= size(bfcoord) ) call halt_with_error('ins_siz')
+          do iproc = 1, nactiveproc
+             ! get the configuration and structure-specific weight
+             call OUTconfig(psite,dumcl,stmax,0,'solute','trjfl_read')
+             if(read_weight) then        ! weight read from a file
+                read(sltwgt_io, *, iostat = ioerr) dumint, weight
+                if(ioerr /= 0) then      ! wrap around
+                   rewind(sltwgt_io)
+                   read(sltwgt_io, *, iostat = ioerr) dumint, weight
+                   if(ioerr /= 0) then
+                      write(stdout,*) " The weight file (", sltwgt, ") is ill-formed"
+                      call mpi_setup('stop')
+                      stop
+                   endif
+                endif
+             else                        ! no structure-specific weight
+                weight = 1.0e0
              endif
-          endif
-       else
-          stat_weight = 1.0e0
+
+             if(iproc /= 1) then         ! send the data to other rank
+#ifndef noMPI
+                call mpi_send(psite, 3 * stmax, mpi_double_precision, &
+                              iproc - 1, tag_sltcrd, mpi_comm_world, ierror)
+                call mpi_send(weight, 1, mpi_double_precision, &
+                              iproc - 1, tag_sltwgt, mpi_comm_world, ierror)
+#endif
+             else                        ! rank-0 to use the data as read
+                bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
+                stat_weight = weight
+             endif
+          end do
+          deallocate( psite )
+       else                              ! non-0 rank to receive the data
+#ifndef noMPI
+          call mpi_recv(bfcoord, 3 * stmax, mpi_double_precision, &
+                        0, tag_sltcrd, mpi_comm_world, mpistatus, ierror)
+          call mpi_recv(stat_weight, 1, mpi_double_precision, &
+                        0, tag_sltwgt, mpi_comm_world, mpistatus, ierror)
+#endif
        endif
     endif
-
-#ifndef noMPI
-    ! distribute to non rank-0 nodes
-    call mpi_bcast(psite, 3 * stmax, mpi_double_precision, &
-                   0, mpi_comm_activeprocs, ierror)
-    call mpi_bcast(stat_weight, 1, mpi_double_precision, &
-                   0, mpi_comm_activeprocs, ierror)
-#endif
-    bfcoord(1:3,1:stmax)=psite(1:3,1:stmax)
-    deallocate( psite )
-
   end subroutine getsolute
 
 
