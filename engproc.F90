@@ -1015,8 +1015,8 @@ contains
     implicit none
     logical, intent(out) :: out_of_range
     real :: dx(3), distance
-    integer :: i, stmax, ptb, pte
-    real, dimension(:,:), allocatable :: hostcrd, sltcrd
+    integer :: i, ptb, pte
+    real, dimension(:,:), allocatable :: hostcrd, bestfit_sltcrd
 
     out_of_range = .false.
 
@@ -1026,34 +1026,41 @@ contains
     case(INSPOS_NOCHANGE)   ! fixed configuration
        ! do nothing
     case(INSPOS_SPHERE)     ! sphere geometry
+       ! The following has the same structure as the corresponding part
+       ! in the set_shift_com subroutine within insertion.F90
        call relative_com(tagslt, dx)
        distance = sqrt(dot_product(dx, dx))
     case(INSPOS_SLAB)       ! slab (only z-axis is constrained) configuration
+       ! The following has the same structure as the corresponding part
+       ! in the set_shift_com subroutine within insertion.F90
        if(boxshp == SYS_NONPERIODIC) call halt_with_error('eng_slb')
        call relative_com(tagslt, dx)
        distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
     case(INSPOS_RMSD)       ! comparison to reference
-       stmax = numsite(tagslt)
        ptb = mol_begin_index(tagslt)
        pte = mol_end_index(tagslt)
-       if(stmax /= refslt_natom) call halt_with_error('eng_bug')
-       allocate( hostcrd(3, refhost_natom), sltcrd(3, stmax) )
+       if(numsite(tagslt) /= refslt_natom) call halt_with_error('eng_bug')
+       allocate( hostcrd(3, refhost_natom), bestfit_sltcrd(3, refslt_natom) )
+       ! The following has the same structure as the corresponding part
+       ! in the reffit subroutine within insertion.F90
        do i = 1, refhost_natom
           hostcrd(1:3, i) = sitepos(1:3, refhost_specatm(i))
        end do
        call fit_a_rotate_b(refhost_natom, hostcrd, &
                            refhost_crd, refhost_weight, &
-                           stmax, refslt_crd, sltcrd)
-       distance = rmsd_nofit(stmax, sltcrd, &
+                           refslt_natom, refslt_crd, bestfit_sltcrd)
+       ! The following has the same structure as the corresponding part
+       ! in the check_solute_configuration subroutine within insertion.F90
+       distance = rmsd_nofit(refslt_natom, bestfit_sltcrd, &
                              sitepos(1:3, ptb:pte), refslt_weight)
-       deallocate( hostcrd, sltcrd )
+       deallocate( hostcrd, bestfit_sltcrd )
     case(INSPOS_GAUSS)      ! comparison to reference (experimental)
        ! Under construction...  What is to be written?
     case default
        stop "Unknown insposition in check_mol_configuration"
     end select
     if((lwreg > distance) .or. (distance > upreg)) then
-       out_of_range = .true.    ! configuration is rejected
+       out_of_range = .true.        ! configuration is rejected
        return
     endif
 
@@ -1061,16 +1068,17 @@ contains
     case(INSSTR_NOREJECT)    ! no rejection of solute structure
        ! do nothing
     case(INSSTR_RMSD)        ! solute structure rejection with RMSD
-       stmax = numsite(tagslt)
+       ! The following has the same structure as the corresponding part
+       ! in the getsolute subroutine within insertion.F90
        ptb = mol_begin_index(tagslt)
        pte = mol_end_index(tagslt)
-       if(stmax /= refslt_natom) call halt_with_error('eng_bug')
-       distance = rmsd_bestfit(stmax, refslt_crd, &
+       if(numsite(tagslt) /= refslt_natom) call halt_with_error('eng_bug')
+       distance = rmsd_bestfit(refslt_natom, refslt_crd, &
                                sitepos(1:3, ptb:pte), refslt_weight)
-      if((lwstr > distance) .or. (distance > upstr)) then
-         out_of_range = .true.  ! structure is rejected
-         return
-      endif
+       if((lwstr > distance) .or. (distance > upstr)) then
+          out_of_range = .true.     ! structure is rejected
+          return
+       endif
     case default
        stop "Unknown insstructure in check_mol_configuration"
     end select

@@ -41,6 +41,7 @@ module ptinsrt
   integer, dimension(:), allocatable :: refhost_specatm, refslt_specatm
   real, dimension(:,:), allocatable  :: refhost_crd,     refslt_crd
   real, dimension(:),   allocatable  :: refhost_weight,  refslt_weight
+  real, dimension(:,:), allocatable  :: bestfit_sltcrd
   !
   !
   ! parameters and variable used only in the legacy part  starting here
@@ -378,34 +379,6 @@ contains
        stop "Unknown insorient"
     end select
   end subroutine apply_orientation
-   
-  subroutine check_solute_configuration(insml, out_of_range)
-    use engmain, only: insorigin, insposition, lwreg, upreg, &
-                       numsite, mol_begin_index, mol_end_index, sitepos, &
-                       INSORG_REFSTR, INSPOS_RMSD, INSPOS_GAUSS
-    use mpiproc, only: halt_with_error
-    use bestfit, only: rmsd_nofit
-    implicit none
-    integer, intent(in) :: insml
-    logical, intent(out) :: out_of_range
-    integer :: ptb, pte, stmax
-    real :: rmsd
-    out_of_range = .false.
-    if(insorigin == INSORG_REFSTR) then
-       if((insposition /= INSPOS_RMSD) .and. (insposition /= INSPOS_GAUSS)) then
-          call halt_with_error('ins_bug')
-       endif
-    else
-       return
-    endif
-    ptb = mol_begin_index(insml)
-    pte = mol_end_index(insml)
-    stmax = numsite(insml)
-    if(stmax /= refslt_natom) call halt_with_error('ins_bug')
-    rmsd = rmsd_nofit(stmax, refslt_crd, sitepos(1:3, ptb:pte), refslt_weight)
-    if((lwreg > rmsd) .or. (rmsd > upreg)) out_of_range = .true.
-    return
-  end subroutine check_solute_configuration
   !
   ! user-defined scheme to specify inserted molecule
   ! user may reject snapshot by specifying out_of_range to .true.
@@ -497,13 +470,15 @@ contains
                 else                     ! no structure-specific weight
                    weight = 1.0e0
                 endif
+
                 select case(insstructure)
                 case(INSSTR_NOREJECT)    ! no rejection of solute structure
                    reject = .false.
                 case(INSSTR_RMSD)        ! solute structure rejection with RMSD
                    if(size(psite) /= size(refslt_crd)) call halt_with_error('ins_siz')
                    if(stmax /= refslt_natom) call halt_with_error('ins_siz')
-                   rmsd = rmsd_bestfit(stmax, refslt_crd, psite, refslt_weight)
+                   rmsd = rmsd_bestfit(refslt_natom, refslt_crd, &
+                                       psite, refslt_weight)
                    if((lwstr <= rmsd) .and. (rmsd <= upstr)) reject = .false.
                 case default
                    stop "Unknown insstructure in getsolute"
@@ -574,7 +549,35 @@ contains
     call random_seed(put = seedarray)
     deallocate(seedarray)
   end subroutine urand_init
-!
+   
+
+  subroutine check_solute_configuration(insml, out_of_range)
+    use engmain, only: insorigin, insposition, lwreg, upreg, &
+                       numsite, mol_begin_index, mol_end_index, sitepos, &
+                       INSORG_REFSTR, INSPOS_RMSD, INSPOS_GAUSS
+    use mpiproc, only: halt_with_error
+    use bestfit, only: rmsd_nofit
+    implicit none
+    integer, intent(in) :: insml
+    logical, intent(out) :: out_of_range
+    integer :: ptb, pte
+    real :: rmsd
+    out_of_range = .false.
+    if(insorigin == INSORG_REFSTR) then
+       if((insposition /= INSPOS_RMSD) .and. (insposition /= INSPOS_GAUSS)) then
+          call halt_with_error('ins_bug')
+       endif
+    else
+       return
+    endif
+    ptb = mol_begin_index(insml)
+    pte = mol_end_index(insml)
+    if(numsite(insml) /= refslt_natom) call halt_with_error('ins_bug')
+    rmsd = rmsd_nofit(refslt_natom, bestfit_sltcrd, &
+                      sitepos(1:3, ptb:pte), refslt_weight)
+    if((lwreg > rmsd) .or. (rmsd > upreg)) out_of_range = .true.
+    return
+  end subroutine check_solute_configuration
 !
 ! fit to reference structure
   subroutine reffit
@@ -582,22 +585,28 @@ contains
     use bestfit, only: fit_a_rotate_b, fit
     implicit none
     integer :: i
-    real, dimension(:,:), allocatable :: hostcrd, temp_sltcrd, fit_sltcrd
-    allocate( hostcrd(3, refhost_natom), &
-              temp_sltcrd(3, refslt_natom), fit_sltcrd(3, refslt_natom) )
+    logical, save :: first_time = .true.
+    real, dimension(:,:), allocatable :: hostcrd, fit_sltcrd
+    if(first_time) then
+       allocate( bestfit_sltcrd(3, refslt_natom) )
+       first_time = .false.
+    endif
+    allocate( hostcrd(3, refhost_natom), fit_sltcrd(3, refslt_natom) )
     do i = 1, refhost_natom
        hostcrd(1:3, i) = sitepos(1:3, refhost_specatm(i))
     end do
-    ! first fit reference solvent structure from file
-    ! to current structure from MD to get "reference solute configuration"
-    call fit_a_rotate_b(refhost_natom, hostcrd, refhost_crd, refhost_weight, &
-                        refslt_natom, refslt_crd, temp_sltcrd)
-    ! then fit the solute structure read as the bfcoord variable
-    call fit(refslt_natom, temp_sltcrd, bfcoord, refslt_weight, fit_sltcrd)
+    ! 1) fit the reference solvent (specified by hostspec) structure from file
+    !    onto the current solvent structure from MD
+    !    in order to get the best-fit "reference solute configuration"
+    call fit_a_rotate_b(refhost_natom, hostcrd, &
+                        refhost_crd, refhost_weight, &
+                        refslt_natom, refslt_crd, bestfit_sltcrd)
+    ! 2) fit the solute structure read as the bfcoord variable
+    call fit(refslt_natom, bestfit_sltcrd, bfcoord, refslt_weight, fit_sltcrd)
     do i = 1, refslt_natom
        sitepos(1:3, refslt_specatm(i)) = fit_sltcrd(1:3, i)
     end do
-    deallocate( hostcrd, temp_sltcrd, fit_sltcrd )
+    deallocate( hostcrd, fit_sltcrd )
   end subroutine reffit
 !
 ! loading the reference structure
