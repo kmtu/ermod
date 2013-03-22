@@ -138,6 +138,7 @@ contains
   end subroutine find_rotation_quaternion
 
   subroutine center_of_mass(n, points, masses, center)
+    use mpiproc, only: halt_with_error
     implicit none
     integer, intent(in) :: n
     real, intent(in) :: points(3, n), masses(n)
@@ -146,8 +147,9 @@ contains
     integer :: i
     
     sumOfMasses = sum(masses)
+    if(sumOfMasses == 0) call halt_with_error('bst_zrw')
     do i = 1, 3
-       center(i) = dot_product(points(i, :), masses) / sumOfMasses
+       center(i) = dot_product(points(i, :), masses(:)) / sumOfMasses
     end do
   end subroutine center_of_mass
   
@@ -246,18 +248,31 @@ contains
     end do
   end subroutine fit_a_rotate_b
 
-  ! RMSD calculation
-  real function rmsd(n, refcoord, coord, masses)
+  ! RMSD calculation with best-fit
+  real function rmsd_bestfit(n, refcoord, coord, masses)
     implicit none
     integer, intent(in) :: n
     real, intent(in) :: refcoord(3, n), coord(3, n), masses(n)
-    integer :: i
-    real :: fitted_coord(3, n), disp(n), dx(3)
+    real :: fitted_coord(3, n)
     call fit(n, refcoord, coord, masses, fitted_coord)
+    rmsd_bestfit = rmsd_nofit(n, refcoord, fitted_coord, masses)
+  end function rmsd_bestfit
+
+  ! RMSD calculation without any fitting procedure
+  real function rmsd_nofit(n, crdA, crdB, masses)
+    use mpiproc, only: halt_with_error
+    implicit none
+    integer, intent(in) :: n
+    real, intent(in) :: crdA(3, n), crdB(3, n), masses(n)
+    integer :: i
+    real :: sumOfMasses, disp, dx(3)
+    sumOfMasses = sum(masses)
+    if(sumOfMasses == 0) call halt_with_error('bst_zrw')
+    disp = 0.0
     do i = 1, n
-       dx(1:3) = fitted_coord(1:3, i) - refcoord(1:3, i)
-       disp(i) = sum( dx(1:3) ** 2 )
+       dx(1:3) = crdB(1:3, i) - crdA(1:3, i)
+       disp = disp + masses(i) * sum( dx(1:3) ** 2 )
     enddo
-    rmsd = sqrt( sum(masses(1:n) * disp(1:n)) / sum(masses(1:n)) )
-  end function rmsd
+    rmsd_nofit = sqrt( disp / sumOfMasses )
+  end function rmsd_nofit
 end module bestfit

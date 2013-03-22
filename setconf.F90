@@ -107,7 +107,7 @@ contains
     case('on_the_fly')              ! on-the-fly calculation during MD
        stop "Unavailable in the present version"
     case default
-       stop "Unknown calc_type"
+       stop "Unknown calc_type in OUTconfig"
     end select
     !
     OUTcell(:, :) = 0.0e0
@@ -148,25 +148,27 @@ contains
 !  setting molecular simulation parameters
 !
   subroutine iniparam
-    use engmain, only: init_params,&
-         iseed,&
-         numtype,skpcnf,corrcal,selfcal,&
-         slttype,sltpick,refpick,wgtslf,wgtins,wgtsys,&
-         estype,boxshp,hostspec,ljformat,ljswitch,&
-         insorigin, insposition, insorient, inscnd,inscfg,&
-         inptemp,temp,&
-         engdiv,maxins,&
-         lwreg,upreg,&
-         intprm,elecut,lwljcut,upljcut,&
-         cmbrule,cltype,screen,ewtoler,splodr,plmode,&
-         ew1max,ew2max,ew3max,ms1max,ms2max,ms3max,&
-         block_threshold,&
+    use engmain, only: init_params, &
+         iseed, &
+         numtype, skpcnf, corrcal, selfcal, &
+         slttype, sltpick, wgtslf, wgtins, wgtsys, &
+         estype, boxshp, hostspec, ljformat, ljswitch, &
+         insorigin, insposition, insorient, insstructure, inscnd, inscfg, &
+         lwreg, upreg, lwstr, upstr, &
+         inptemp, temp, &
+         engdiv, maxins, &
+         intprm, elecut, lwljcut, upljcut, &
+         cmbrule, cltype, screen, ewtoler, splodr, plmode, &
+         ew1max, ew2max, ew3max, ms1max, ms2max, ms3max, &
+         block_threshold, &
          force_calculation, &
          SYS_NONPERIODIC, SYS_PERIODIC, EL_PME, ES_NPT, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
          INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR, &
-         INSPOS_RANDOM, INSPOS_NOCHANGE, INSPOS_SPHERE, INSPOS_SLAB, INSPOS_GAUSS, &
-         INSROT_RANDOM, INSROT_NOCHANGE
+         INSPOS_RANDOM, INSPOS_NOCHANGE, &
+         INSPOS_SPHERE, INSPOS_SLAB, INSPOS_RMSD, INSPOS_GAUSS, &
+         INSROT_RANDOM, INSROT_NOCHANGE, &
+         INSSTR_NOREJECT, INSSTR_RMSD
     use OUTname, only: OUTintprm,&               ! from outside
          OUTens,OUTbxs,OUTtemp,&                 ! from outside
          OUTelc,OUTlwl,OUTupl,&                  ! from outside
@@ -208,6 +210,7 @@ contains
     insorigin = INSORG_ORIGIN
     insposition = INSPOS_RANDOM
     insorient = INSROT_RANDOM
+    insstructure = INSSTR_NOREJECT
 
     ! block-wise calculation, corresponds to 13 atoms / box
     block_threshold = 4.0
@@ -231,8 +234,8 @@ contains
     case default
        stop "Unknown slttype"
     end select
-    sltpick=0 ; refpick=0 ; hostspec=1 ; ljformat=1 ; ljswitch=0
-    maxins=1000 ; lwreg=0.0e0 ; upreg=5.0e0
+    sltpick=0 ; hostspec=1 ; ljformat=1 ; ljswitch=0
+    maxins=1000 ; lwreg=0.0e0 ; upreg=5.0e0 ; lwstr=0.0e0 ; upstr=2.0e0
     if(intprm /= 0) then
       cmbrule=0                 ! arithmetic mean of LJ sigma
       ew2max=ew1max ; ew3max=ew1max
@@ -247,7 +250,7 @@ contains
     case(2)    ! slab
        insorigin = INSORG_AGGCEN ; insposition = INSPOS_SLAB
     case(3)    ! reference
-       insorigin = INSORG_REFSTR ; insposition = INSPOS_GAUSS
+       insorigin = INSORG_REFSTR ; insposition = INSPOS_RMSD
     case default
        stop "Unknown inscnd"
     end select
@@ -310,19 +313,25 @@ contains
     endif
 
     check_ins = .true.
-    ! when restrained relative to aggregate
-    if(insorigin == INSORG_AGGCEN) then
+    ! when restrained relative to aggregate or against reference
+    if((insorigin == INSORG_AGGCEN) .or. (insorigin == INSORG_REFSTR)) then
        if(slttype == CAL_SOLN) then
-          if((hostspec < 1).or.(hostspec > numtype)) check_ins = .false.
+          if((hostspec < 1) .or. (hostspec > numtype)) check_ins = .false.
        endif
-       if((slttype == CAL_REFS_RIGID).or.(slttype == CAL_REFS_FLEX)) then
-          if((hostspec < 1).or.(hostspec > numtype - 1)) check_ins = .false.
+       if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+          if((hostspec < 1) .or. (hostspec > numtype - 1)) check_ins = .false.
        endif
     endif
+    ! when fit to reference
+    if((insposition == INSPOS_RMSD) .or. (insposition == INSPOS_GAUSS)) then
+       if(insorigin /= INSORG_REFSTR) check_ins = .false.
+    else  ! insposition /= INSPOS_RMSD .and. insposition /= INSPOS_GAUSS
+       if(insorigin == INSORG_REFSTR) check_ins = .false.
+    endif
     ! check the consistency for insorigin, insposition, and insorient
-    if((insorigin < 0).or.(insorigin > 3)) check_ins = .false.
-    if((insposition < 0).or.(insposition > 4)) check_ins = .false.
-    if((insorient < 0).or.(insorient > 1)) check_ins = .false.
+    if((insorigin < 0) .or. (insorigin > 3)) check_ins = .false.
+    if((insposition < 0) .or. (insposition > 5)) check_ins = .false.
+    if((insorient < 0) .or. (insorient > 1)) check_ins = .false.
     if((insorigin == INSORG_NOCHANGE .and. insposition /= INSPOS_NOCHANGE).or.&
        (insorigin /= INSORG_NOCHANGE .and. insposition == INSPOS_NOCHANGE)) then
        check_ins = .false.
@@ -361,17 +370,17 @@ contains
 
   ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
   subroutine setparam
-    use engmain, only: numtype,nummol,numatm,maxcnf,&
-         slttype,sltpick,refpick,ljformat,&
-         moltype,numsite,sluvid,refmlid,&
+    use engmain, only: numtype, nummol, numatm, maxcnf, &
+         slttype, sltpick, ljformat, hostspec, &
+         moltype, numsite, sluvid, &
          bfcoord, sitemass, charge, &
          ljene_mat, ljlensq_mat, ljtype, ljtype_max, cmbrule, &
          specatm, sitepos, mol_begin_index, belong_to, mol_charge, &
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
          PT_SOLVENT, PT_SOLUTE, PT_TEST_RIGID, PT_TEST_FLEX
-    use OUTname, only: OUTinitial,OUTrename,&                 ! from outside
-         OUTntype,OUTnmol,OUTsite,OUTnrun,&     ! from outside
-         OUTstmass,OUTcharge,OUTljene,OUTljlen  ! from outside
+    use OUTname, only: OUTinitial, OUTrename, &    ! from outside
+         OUTntype, OUTnmol, OUTsite, OUTnrun, &    ! from outside
+         OUTstmass, OUTcharge, OUTljene, OUTljlen  ! from outside
     use mpiproc, only: halt_with_error
     use utility, only: itoa
     implicit none
@@ -379,7 +388,7 @@ contains
     real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
     real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
     real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
-    integer pti,stmax,maxsite,uvtype,rftype,cmin,cmax,sid,i,ati,m
+    integer pti,stmax,maxsite,uvtype,cmin,cmax,sid,i,ati,m
     integer :: solute_index, cur_solvent, prev_solvent_type, cur_atom
     real factor,xst(3)
     real, allocatable :: ljlen_temp(:), ljene_temp(:), sitemass_temp(:), charge_temp(:)
@@ -428,10 +437,10 @@ contains
 
        open(unit=sltio,file=sltfile,status='old')
        ! here only counts no. of lines
-       stmax=0
+       stmax = 0
        do
-          read(sltio, *, end=99) m
-          stmax=stmax+1
+          read(sltio, *, end = 99) m
+          stmax = stmax+1
        end do
 99     close(sltio)
        ptsite(numtype) = stmax
@@ -439,15 +448,14 @@ contains
        solute_index = numtype
     endif
 
-    if((slttype /= CAL_SOLN).and.(refpick == numtype)) call halt_with_error("set_ref")
+    if((slttype /= CAL_SOLN).and.(hostspec == numtype)) call halt_with_error("set_hst")
 
     ! count up number of mols, 
     ! set max and total no. of atoms 
     nummol = sum(ptcnt(1:numtype))
     numatm = sum(ptcnt(1:numtype) * ptsite(1:numtype))
 
-    allocate( moltype(nummol),numsite(nummol) )
-    allocate( sluvid(nummol),refmlid(nummol) )
+    allocate( moltype(nummol), numsite(nummol), sluvid(nummol) )
 
     ! make mapping from molecule no. [1..nummol] to particle type [1..numtype]
     cmin=1
@@ -464,21 +472,12 @@ contains
        pti = moltype(i)
        numsite(i) = ptsite(pti)
        sluvid(i) = pttype(pti)
-
-       if(pti.ne.solute_index) then        ! solvent
-          rftype=0                             ! default
-          if(pti.eq.refpick) rftype=1          ! superposition reference
-       else                                ! solute
-          rftype=2
-       endif
-       refmlid(i)=rftype
     end do
 
     ! check if all the solute molecules have the same number of atoms
     stmax = -1
     do i = 1, nummol
-       pti = moltype(i)
-       if(pti.eq.solute_index) then        ! solute
+       if(moltype(i) == solute_index) then        ! solute
           if(stmax == -1) then                 ! initialize
              stmax = numsite(i)
           else
@@ -656,7 +655,7 @@ contains
 ! returns number of frames read (EXCLUDING skipped frames)
   subroutine getconf_parallel(maxread, actual_read)
     use engmain, only: skpcnf, boxshp, numsite, sluvid, stdout, &
-                       sitepos, cell, stat_weight_system
+                       sitepos, cell, stat_weight_system, PT_SOLVENT, PT_SOLUTE
     use OUTname, only: OUTconfig                     ! from outside
     use mpiproc
     implicit none
@@ -673,7 +672,8 @@ contains
     integer :: stat
 
     ! sum over solvent & solute in trajectory file (HISTORY); no test particle
-    OUTatm = sum( numsite, mask = (sluvid <= 1) )
+    OUTatm = sum( numsite, &
+                  mask = ((sluvid == PT_SOLVENT) .or. (sluvid == PT_SOLUTE)) )
     if(myrank == 0) allocate(readpos(3, OUTatm))
     allocate( OUTpos(3,OUTatm), OUTcell(3,3) )
 
@@ -681,21 +681,26 @@ contains
     if(first_time) then
        first_time = .false.
        open(file = perm_file, unit = perm_io, status = 'old', action = 'read', iostat = stat)
-       if(stat == 0) then
-          ! file successfully opened
-          if(myrank == 0) then
-             write(stdout, *) "Reading permutation information"
-          endif
+       if(stat == 0) then ! file exists and is successfully opened
+          if(myrank == 0) write(stdout, *) "Reading permutation information"
           allocate(permutation(OUTatm))
           do i = 1, OUTatm
-             read(perm_io, *) permutation(i)
+             permutation(i) = i
+          end do
+          do
+             ! the i-th atm in the trajectory (HISTORY) file is set to
+             ! the permutation(i)-th atom in the ermod program
+             read(perm_io, *, end = 99) i, permutation(i)
              if (permutation(i) < 1 .or. permutation(i) > OUTatm) then
                 print *, i, "-th permutation points to ", permutation(i)
                 call halt_with_error('set_pmt')
              endif
           end do
-          close(perm_io)
-          ! FIXME TODO: sanity check permutation (doubling)
+99        close(perm_io)
+          ! each particle appears once and only once in permutation
+          do i = 1, OUTatm
+             if( count(permutation == i) /= 1 ) call halt_with_error('set_pmt')
+          end do
        endif
     end if
     
@@ -739,7 +744,7 @@ contains
        endif
 
        if(allocated(permutation)) then
-          sitepos(:, 1:OUTatm) = OUTpos(:, permutation(1:OUTatm))
+          sitepos(:, permutation(1:OUTatm)) = OUTpos(:, 1:OUTatm)
        else
           sitepos(:, 1:OUTatm) = OUTpos(:, 1:OUTatm)
        endif

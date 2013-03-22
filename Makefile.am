@@ -46,13 +46,13 @@ endif
 extra_flags = 
 
 # module dependencies
-ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-utility.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
-ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
-ermod-realcal.$(OBJEXT): realcal.F90 ermod-utility.$(OBJEXT) ermod-engmain.$(OBJEXT)
+ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-insertion.$(OBJEXT) ermod-trajectory.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
+ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-bestfit.$(OBJEXT) ermod-utility.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
+ermod-realcal.$(OBJEXT): realcal.F90 ermod-engmain.$(OBJEXT)
 ermod-recpcal.$(OBJEXT): recpcal.F90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
-ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT) ermod-bestfit.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
-ermod-setconf.$(OBJEXT): setconf.F90 ermod-utility.$(OBJEXT) ermod-engmain.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-trajectory.$(OBJEXT)
-ermod-bestfit.$(OBJEXT): bestfit.F90 ermod-engmain.$(OBJEXT)
+ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT) ermod-bestfit.$(OBJEXT) ermod-trajectory.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
+ermod-setconf.$(OBJEXT): setconf.F90 ermod-utility.$(OBJEXT) ermod-trajectory.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
+ermod-bestfit.$(OBJEXT): bestfit.F90 ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
 ermod-trajectory.$(OBJEXT): trajectory.F90 ermod-utility.$(OBJEXT)
 ermod-utility.$(OBJEXT): utility.F90 ermod-engmain.$(OBJEXT)
 ermod-mpiproc.$(OBJEXT): mpiproc.F90 ermod-engmain.$(OBJEXT)

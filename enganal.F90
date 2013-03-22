@@ -26,11 +26,17 @@
 #endif
 
 subroutine enganal_init()
+  use engmain, only: insorigin, insstructure, INSORG_REFSTR, INSSTR_RMSD
+  use ptinsrt, only: load_refstructure
   use setconf, only: setparam
   use engproc, only: enginit
   implicit none
 
   call setparam
+  ! getting the reference structure from file
+  if((insorigin == INSORG_REFSTR) .or. (insstructure == INSSTR_RMSD)) then
+     call load_refstructure
+  endif
   call enginit
 end subroutine enganal_init
 

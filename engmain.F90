@@ -41,9 +41,6 @@
 !   sltpick : specifying the solute species
 !               1 <= sltpick <= numtype (default = 1) if slttype = 1
 !               sltpick = numtype if slttype >= 2
-!   refpick : specifying the mixed solvent species for superposition
-!               1 <= refpick <= numtype    when slttype = 1
-!               1 <= refpick <= numtype-1  when slttype >= 2
 !   wgtslf : weighting by the self-energy  --- 0 : no  1 : yes
 !   wgtins : weight of the solute intramolecular configuration
 !               0 : no  1 : yes (can be = 1 only when slttype = 3)
@@ -54,7 +51,7 @@
 !   boxshp : shape of the unit cell box
 !               0 : non-periodic  1 : periodic and parallelepiped
 !
-!   insorigin : translational origin of the insertion position
+!   insorigin : translational origin of the solute position
 !               0 : (default) mass weighted center is moved to (0, 0, 0)
 !               1 : no COM change from the value in the file to be read
 !                   (error unless insposition = 1)
@@ -62,9 +59,10 @@
 !                   (species forming the aggregate is defined by hostspec)
 !               3 : fit to reference structure.
 !                   reference structure needs be given as RefInfo in PDB format.
-!                   RefInfo should conatin the structure specified in refpick
+!                   RefInfo contains the structure of the host species
 !                   and the solute structure, in order.
-!   insposition : position for the inserted solute
+!                   (error unless insposition = 4 or 5)
+!   insposition : position for the solute
 !               0 : (default) fully random position (within perodic bondary)
 !               1 : no position change from the value in the file to be read
 !                   (error unless insorigin = 1)
@@ -76,31 +74,51 @@
 !                   for rectangular box periodic condition.
 !                   Position is much more complex for parallelpiped structure.
 !                   (see insertion.F90)
-!               4 : (experimental) Gaussian random position.
+!               4 : random position relative to a reference structure
+!                   solvent species identified with the hostspec parameter
+!                   is set to the reference structure accompanying
+!                   the reference position of solute insertion
+!                   and the solute is placed relative to that reference
+!                   with condition of lwreg < RMSD < upreg
+!                   (error unless insorigin = 3)
+!               5 : (experimental) Gaussian random position.
 !                   Position is given by displacing the reference coordinate,
 !                   or coordinate fit to reference (insorigin = 3), with upreg.
 !                   Solute weight is automatically adjusted
-!   insorient : orientation for the inserted solute
+!                   (error unless insorigin = 3)
+!   insorient : orientation for the solute
 !               0 : (default) random orientation
 !               1 : no orientation change from the value in the file to be read
+!   insstructure : intramolecular structure of the solute
+!               0 : (default) no restriction, used as is from trajectory or file
+!               1 : only the structures with lwstr < RMSD < upstr is counted
+!                     RefInfo needs to be prepared to determine RMSD
 !
 !   inscnd : (deprecated) geometrical condition of the solute configuration
-!               0 : random    (insorigin = 0, insposition = 0) 
+!               0 : random    (insorigin = 0, insposition = 0)  default
 !               1 : spherical (insorigin = 2, insposition = 2)
 !               2 : slab      (insorigin = 2, insposition = 3)
 !               3 : reference (insorigin = 3, insposition = 4)
 !   inscfg : (deprecated) position and orientation for the inserted solute
 !               0 : only the intramolecular configuration is from the file.
-!                   (insorient = 0)
+!                   (insorient = 0)  default
 !               1 : orientation is fixed from the file with random position
 !                   (insorient = 1)
 !               2 : position and orientation are also fixed from the file
 !                   (insorient = 1, insposition = 1)
-!              default = 0
-!   hostspec : type of molecule forming host (micelle, membrane, or protein)
-!              active only when insorigin = 2
+!   hostspec : solvent spcies to act as a host and bind the guest solute
+!              (micelle, membrane or protein)
+!              active only when insorigin = 2 (micelle or membrane)
+!              or when insorigin = 3 (protein)
 !               1 <= hostspec <= numtype    when slttype = 1
 !               1 <= hostspec <= numtype-1  when slttype >= 2
+!
+!   lwreg : lower bound of the region of solute position
+!   upreg : upper bound of the region of solute position
+!            effective only when insorigin = 2 or 3 and insposition >= 2
+!   lwstr : lower bound of order parameter of solute intramolecular structure
+!   upstr : upper bound of order parameter of solute intramolecular structure
+!            effective only when insstructure = 1
 !
 !   ljformat : input-file format for the LJ energy and length parameters
 !               0 : epsilon (kcal/mol) and sigma (A)
@@ -130,10 +148,6 @@
 !   sluvid : solvent or solute
 !               0 : solvent  1 : solute
 !               2 : test particle (rigid)  3 : test particle (flexible)
-!   refmlid : superposition reference among solvent species
-!               0 : not reference
-!               1 : reference solvent  2 : reference solute
-!             default = 0 unless 1 <= refpick <= numtype for solvent species
 !   bfcoord : coordinate of a rigid molecule in body-fixed frame
 !             used only for test particle and kept NULL for physical particle
 !   sitemass : mass of an interaction site in a molecule
@@ -185,9 +199,6 @@
 !   engnorm : normalization factor
 !   engsmpl : number of samplings
 !   voffset : offset value for the self-energy
-!   lwreg : lower bound for the region of solute position
-!   upreg : upper bound for the region of solute position
-!            lwreg and upreg are effective only when insposition = 2, 3 or 4
 !
 !  constants defining the discretized energy coordinate
 !     these appear only in the enginit subroutine
@@ -222,12 +233,14 @@ module engmain
   real, parameter :: PI = 3.1415926535897932
   real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
 !
-  integer :: numtype,nummol,numatm,maxcnf,engdiv,skpcnf,corrcal,selfcal
-  integer :: slttype, sltpick, refpick, wgtslf, wgtins, wgtsys
+  integer :: numtype, nummol, numatm, maxcnf, engdiv, skpcnf, corrcal, selfcal
+  integer :: slttype, sltpick, wgtslf, wgtins, wgtsys
   integer :: estype,boxshp
-  integer :: insorigin, insposition, insorient, inscnd, inscfg, hostspec
+  integer :: insorigin, insposition, insorient, insstructure, inscnd, inscfg
+  integer :: hostspec
+  real :: lwreg, upreg, lwstr, upstr
   integer :: ljformat, ljswitch, iseed
-  real :: inptemp,temp
+  real :: inptemp, temp
   real :: block_threshold
   logical :: force_calculation
 
@@ -235,11 +248,9 @@ module engmain
   integer, parameter :: stdout = 6                      ! standard output
   integer, parameter :: io_flcuv = 91                   ! IO unit for flcuv
 
-  integer, dimension(:),   allocatable :: moltype,numsite
-  integer, dimension(:),   allocatable :: sluvid,refmlid
+  integer, dimension(:),   allocatable :: moltype, numsite, sluvid
   real, dimension(:,:),    allocatable :: bfcoord
-  real, dimension(:),      allocatable :: sitemass
-  real, dimension(:),      allocatable :: charge,ljene,ljlen
+  real, dimension(:),      allocatable :: sitemass, charge, ljene, ljlen
 
   integer :: ljtype_max
   integer, allocatable :: ljtype(:)
@@ -252,15 +263,15 @@ module engmain
   real :: celllen(3)
   real :: volume
 
-  real :: elecut,lwljcut,upljcut,screen,ewtoler
-  integer :: intprm,cmbrule,cltype,splodr,plmode
-  integer :: ew1max,ew2max,ew3max,ms1max,ms2max,ms3max
+  real :: elecut, lwljcut, upljcut, screen, ewtoler
+  integer :: intprm, cmbrule, cltype, splodr, plmode
+  integer :: ew1max, ew2max, ew3max, ms1max, ms2max, ms3max
   
   integer :: ermax,numslv,esmax,maxins
-  integer, dimension(:),   allocatable :: uvmax,uvsoft,uvspec
-  real, dimension(:),      allocatable :: uvcrd,edens
+  integer, dimension(:),   allocatable :: uvmax, uvsoft, uvspec
+  real, dimension(:),      allocatable :: uvcrd, edens
   real, dimension(:,:),    allocatable :: ecorr
-  real, dimension(:),      allocatable :: escrd,eself
+  real, dimension(:),      allocatable :: escrd, eself
   real, dimension(:,:),    allocatable :: aveuv
   real, dimension(:),      allocatable :: slnuv
   real, dimension(:,:),    allocatable :: avediv
@@ -269,9 +280,8 @@ module engmain
   integer :: numslt
   integer, allocatable :: sltlist(:)
   real :: stat_weight_system
-  real :: engnorm,engsmpl,voffset
+  real :: engnorm, engsmpl, voffset
   logical :: voffset_initialized = .false.
-  real :: lwreg,upreg
 
 
   ! numeric constants reference
@@ -285,23 +295,25 @@ module engmain
   integer, parameter :: INSORG_ORIGIN = 0, INSORG_NOCHANGE= 1, &
                         INSORG_AGGCEN = 2, INSORG_REFSTR = 3
   integer, parameter :: INSPOS_RANDOM = 0, INSPOS_NOCHANGE= 1, &
-                        INSPOS_SPHERE = 2, INSPOS_SLAB = 3, INSPOS_GAUSS = 4
+                        INSPOS_SPHERE = 2, INSPOS_SLAB = 3,    &
+                        INSPOS_RMSD = 4, INSPOS_GAUSS = 5
   integer, parameter :: INSROT_RANDOM = 0, INSROT_NOCHANGE= 1
+  integer, parameter :: INSSTR_NOREJECT = 0, INSSTR_RMSD = 1
 
   character(len=*), parameter :: ene_confname = "parameters_er"
 
   namelist /ene_param/ iseed, &
-       skpcnf,corrcal,selfcal, &
-       slttype,sltpick,refpick,wgtslf,wgtins,wgtsys, &
+       skpcnf, corrcal, selfcal, &
+       slttype, sltpick, wgtslf, wgtins, wgtsys, &
        estype,boxshp, &
-       insorigin, insposition, insorient, inscnd, inscfg, &
-       hostspec, lwreg, upreg, &
+       insorigin, insposition, insorient, insstructure, inscnd, inscfg, &
+       hostspec, lwreg, upreg, lwstr, upstr, &
        ljformat, ljswitch, &
-       inptemp,temp, &
-       engdiv,maxins, &
-       intprm,elecut,lwljcut,upljcut, &
-       cmbrule,cltype,screen,ewtoler,splodr,plmode, &
-       ew1max,ew2max,ew3max,ms1max,ms2max,ms3max, &
+       inptemp, temp, &
+       engdiv, maxins, &
+       intprm, elecut, lwljcut, upljcut, &
+       cmbrule, cltype, screen, ewtoler, splodr, plmode, &
+       ew1max, ew2max, ew3max, ms1max, ms2max, ms3max, &
        block_threshold, force_calculation
 
 contains 

@@ -300,9 +300,8 @@ contains
          maxins,numslv,numslt,cltype,cell,&
          io_flcuv, &
          SYS_NONPERIODIC, SYS_PERIODIC, &
-         EL_COULOMB, EL_PME, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
-         ES_NVT, ES_NPT
+         EL_COULOMB, EL_PME, ES_NVT, ES_NPT, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, PT_SOLVENT, PT_SOLUTE
     use reciprocal, only: recpcal_init, &
          recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
          recpcal_self_energy
@@ -335,7 +334,8 @@ contains
     allocate( tplst(nummol) )
     slvmax=0
     do i=1,nummol
-       if(sluvid(i) <= 1) then ! exists in trajectory (0 = solvent, 1 = solute in soln)
+       ! particle exists in trajectory (not a test particle)
+       if((sluvid(i) == PT_SOLVENT) .or. (sluvid(i) == PT_SOLUTE)) then
           slvmax=slvmax+1
           tplst(slvmax)=i
        end if
@@ -685,7 +685,8 @@ contains
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
     if(current_solute_hash == solute_hash .or. &
        (slttype == CAL_REFS_RIGID .and. solute_hash /= 0)) then 
-       ! For refs part, the structure of solute may change because of rotation & translation upon insertion, 
+       ! For refs calculation, the configuration of solute may change with
+       ! random translation and/or rotation upon insertion, 
        ! though the self energy will not change.
        pairep = usreal ! reuse
     else
@@ -841,14 +842,15 @@ contains
   end subroutine residual_ene
   !
   subroutine volcorrect(engnmfc)
-    use engmain, only:  sluvid, cltype, screen, &
-                        mol_charge, volume, temp, EL_COULOMB, PI
+    use engmain, only:  sluvid, cltype, screen, mol_charge, volume, temp, &
+                        EL_COULOMB, PT_SOLVENT, PT_SOLUTE, PI
     implicit none
     real total_charge,factor,engnmfc
     engnmfc=volume*engnmfc
     if(cltype /= EL_COULOMB) then  ! Ewald and PME
        ! sum of charges over physical particles
-       total_charge = sum( mol_charge, mask = (sluvid <= 1) )
+       total_charge = sum( mol_charge, mask = ((sluvid == PT_SOLVENT) &
+                                          .or. (sluvid == PT_SOLUTE)) )
        factor=PI*total_charge*total_charge/screen/screen/volume/2.0e0
        engnmfc=engnmfc*exp(factor/temp)
     endif
@@ -998,15 +1000,23 @@ contains
 
   ! Check whether molecule is within specified region
   subroutine check_mol_configuration(out_of_range)
-    use engmain, only: insposition, lwreg, upreg, &
-                       boxshp, invcl, celllen, SYS_NONPERIODIC, &
+    use engmain, only: insposition, insstructure, lwreg, upreg, lwstr, upstr, &
+                       numsite, mol_begin_index, mol_end_index, &
+                       sitepos, boxshp, invcl, celllen, SYS_NONPERIODIC, &
                        INSPOS_RANDOM, INSPOS_NOCHANGE, &
-                       INSPOS_SPHERE, INSPOS_SLAB, INSPOS_GAUSS
-    use ptinsrt, only: insscheme
+                       INSPOS_SPHERE, INSPOS_SLAB, INSPOS_RMSD, INSPOS_GAUSS, &
+                       INSSTR_NOREJECT, INSSTR_RMSD
+    use ptinsrt, only: refhost_natom, refhost_specatm, &
+                       refhost_crd, refhost_weight, &
+                       refslt_natom, refslt_crd, refslt_weight, &
+                       insscheme
+    use bestfit, only: fit_a_rotate_b, rmsd_nofit, rmsd_bestfit
     use mpiproc, only: halt_with_error
     implicit none
-    real :: dx(3), distance
     logical, intent(out) :: out_of_range
+    real :: dx(3), distance
+    integer :: i, stmax, ptb, pte
+    real, dimension(:,:), allocatable :: hostcrd, sltcrd
 
     out_of_range = .false.
 
@@ -1016,47 +1026,81 @@ contains
     case(INSPOS_NOCHANGE)   ! fixed configuration
        ! do nothing
     case(INSPOS_SPHERE)     ! sphere geometry
-       call relative_com(tagslt,dx)
+       call relative_com(tagslt, dx)
        distance = sqrt(dot_product(dx, dx))
     case(INSPOS_SLAB)       ! slab (only z-axis is constrained) configuration
        if(boxshp == SYS_NONPERIODIC) call halt_with_error('eng_slb')
-       call relative_com(tagslt,dx)
+       call relative_com(tagslt, dx)
        distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
-    case(INSPOS_GAUSS)      ! comparison to reference
+    case(INSPOS_RMSD)       ! comparison to reference
+       stmax = numsite(tagslt)
+       ptb = mol_begin_index(tagslt)
+       pte = mol_end_index(tagslt)
+       if(stmax /= refslt_natom) call halt_with_error('eng_bug')
+       allocate( hostcrd(3, refhost_natom), sltcrd(3, stmax) )
+       do i = 1, refhost_natom
+          hostcrd(1:3, i) = sitepos(1:3, refhost_specatm(i))
+       end do
+       call fit_a_rotate_b(refhost_natom, hostcrd, &
+                           refhost_crd, refhost_weight, &
+                           stmax, refslt_crd, sltcrd)
+       distance = rmsd_nofit(stmax, sltcrd, &
+                             sitepos(1:3, ptb:pte), refslt_weight)
+       deallocate( hostcrd, sltcrd )
+    case(INSPOS_GAUSS)      ! comparison to reference (experimental)
        ! Under construction...  What is to be written?
     case default
-       stop "Unknown insposition"
+       stop "Unknown insposition in check_mol_configuration"
     end select
     if((lwreg > distance) .or. (distance > upreg)) then
-       out_of_range = .true.  ! configuration is rejected
+       out_of_range = .true.    ! configuration is rejected
        return
     endif
+
+    select case(insstructure)
+    case(INSSTR_NOREJECT)    ! no rejection of solute structure
+       ! do nothing
+    case(INSSTR_RMSD)        ! solute structure rejection with RMSD
+       stmax = numsite(tagslt)
+       ptb = mol_begin_index(tagslt)
+       pte = mol_end_index(tagslt)
+       if(stmax /= refslt_natom) call halt_with_error('eng_bug')
+       distance = rmsd_bestfit(stmax, refslt_crd, &
+                               sitepos(1:3, ptb:pte), refslt_weight)
+      if((lwstr > distance) .or. (distance > upstr)) then
+         out_of_range = .true.  ! structure is rejected
+         return
+      endif
+    case default
+       stop "Unknown insstructure in check_mol_configuration"
+    end select
 
     call insscheme(tagslt, out_of_range)
     return
 
   contains
-    subroutine relative_com(tagpt,dx)
+    subroutine relative_com(tagpt, dx)
       use engmain, only: numsite, mol_begin_index, mol_end_index, &
                          sitemass, sitepos
-      use bestfit, only: center_of_mass,com_aggregate
+      use bestfit, only: center_of_mass, com_aggregate
       implicit none
       integer, intent(in) :: tagpt
       real, intent(out) :: dx(3)
-      integer ptb,pte,sid,stmax
+      integer ptb, pte, stmax
       real :: solute_com(3), aggregate_com(3)
       real, dimension(:), allocatable   :: ptmass
       real, dimension(:,:), allocatable :: ptsite
       stmax = numsite(tagpt)
       ptb = mol_begin_index(tagpt)
       pte = mol_end_index(tagpt)
-      allocate( ptmass(stmax), ptsite(3,stmax) )
+      allocate( ptmass(stmax), ptsite(3, stmax) )
       ptmass(1:stmax) = sitemass(ptb:pte)
-      ptsite(1:3,1:stmax) = sitepos(1:3,ptb:pte)
+      ptsite(1:3, 1:stmax) = sitepos(1:3, ptb:pte)
       call center_of_mass(stmax,ptsite,ptmass,solute_com)  ! solute COM
       call com_aggregate(aggregate_com)                    ! aggregate COM
       dx(1:3) = solute_com(1:3) - aggregate_com(1:3)
       deallocate( ptmass, ptsite )
+      return
     end subroutine relative_com
   end subroutine check_mol_configuration
 

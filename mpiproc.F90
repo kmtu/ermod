@@ -220,17 +220,20 @@ contains
     if(errtype.eq.'ins_set') write(stdout,"(A)") " The solute specification is incorrectly set"
     if(errtype.eq.'ins_siz') write(stdout,"(A)") " Inconsistency is present in the setting of the size of bfcoord"
     if(errtype.eq.'ins_geo') write(stdout,"(A)") " The system geometry is incorrectly set"
+    if(errtype.eq.'ins_rus') write(stdout,"(A)") " Incorrect size for RefUseIndenx file"
     if(errtype.eq.'ins_bug') write(stdout,"(A)") " Critical failure in the insertion program detected"
 
     if(errtype.eq.'set_slt') write(stdout,"(A)") " The solute type is incorrectly set"
     if(errtype.eq.'set_num') write(stdout,"(A)") " The number of molecules or atoms is incorrectly set"
-    if(errtype.eq.'set_ref') write(stdout,"(A)") " The reference structure of solvent is incorrectly set"
+    if(errtype.eq.'set_hst') write(stdout,"(A)") " The solvent species acting as the host is incorrectly set"
     if(errtype.eq.'set_prs') write(stdout,"(A)") " The system parameters are incorrectly set"
     if(errtype.eq.'set_ins') write(stdout,"(A)") " The insertion parameters are incorrectly set"
     if(errtype.eq.'set_ewa') write(stdout,"(A)") " The Ewald parameters are incorrectly set"
     if(errtype.eq.'set_trj') write(stdout,"(A)") " Trajectory is shorter than specified in MDinfo"
     if(errtype.eq.'set_pmt') write(stdout,"(A)") " Permutation index file is invalid"
     if(errtype.eq.'set_bug') write(stdout,"(A)") " Critical failure in the setconf program detected"
+
+    if(errtype.eq.'bst_zrw') write(stdout,"(A)") " Division by zero due to inappropriate setting of mass or weight"
 
     call mpi_abend()                                                     ! MPI
     stop
