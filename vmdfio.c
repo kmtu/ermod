@@ -1,4 +1,4 @@
-/* ERMOD - Eneregy Representation Module
+/* ERmod - Eneregy Representation Module
    Copyright (C) 2000-2012 Nobuyuki Matubayasi
    Copyright (C) 2010-2012 Shun Sakuraba
 

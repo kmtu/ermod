@@ -1,4 +1,4 @@
-ER - a tool for obtaining histograms of solute-solvent interaction energy
+ERmod (Energy Representation Module) is a program to calculate the solvation free energy based on the energy representation method. The program allows users to calculate the solvation free energy to arbitrary solvents, including inhomogeneous systems, and can run in cooperation with state-of-art molecular simulation softwares, such as NAMD, GROMACS and/or AMBER.
 
 *** Typical Installation
 

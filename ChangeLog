@@ -1,3 +1,35 @@
+version 0.3.alpha6 (02/21/2013)
+* Misc:
+    * A snapshot can have its own weight; the weight information is saved in a
+    separate file. The name of the file storing the weight is SysWght for the
+    solution and for the solvent, and is SltWght for the isolated solute used
+    for test-particle insertion. To activate the weight input, wgtsys = 1 in
+    the case of SysWght and wgtins = 1 in the case of SltWght in
+    parameters_er.
+
+version 0.2.4 (02/13/2013)
+* Misc:
+    * There was a bug in case that the soln system contains more than one
+    molecules for the solute species, and this bug is fixed
+    * When the ermod program is used with an NAMD trajectory, it is no more
+    necessary to prepare a .xst file. The cell information is directly read
+    from the .dcd file and the file of HISTCELL linked to .xst file is not
+    created by the gen_input script.
+
+version 0.3.alpha5 (01/30/2013)
+* Misc:
+    * The ermod program does not output the self-energy distribution slfeng.XX
+    at default. A key of selfcal is defined to output the self-energy
+    distribution.
+    * There was a bug in case that the soln system contains more than one
+    molecules for the solute species, and this bug is fixed
+    * When the ermod program is used with an NAMD trajectory, it is no more
+    necessary to prepare a .xst file. The cell information is directly read
+    from the .dcd file and the file of HISTCELL linked to .xst file is not
+    created by the gen_input script.
+    * The predetermined directories and filenames for the slvfe program is now
+    flexible.
+
 version 0.3.alpha4 (05/06/2012)
 * Misc:
     * trajectory-formats/modylas.F90: Added I/O for Modylas MD package

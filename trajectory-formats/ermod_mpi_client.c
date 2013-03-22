@@ -38,7 +38,7 @@ static void sleep_real(double len) {
 }
 
 /*
-  Connect to ERMOD program via MPI intercommunicator.
+  Connect to ERmod program via MPI intercommunicator.
  */
 void* ermod_connect()
 {
@@ -98,10 +98,10 @@ void* ermod_connect()
     r = MPI_Comm_rank(handle->comm, &myrank);
     if(r) halt_with_mpi_error(r);
     if(commsize != 2) {
-      fprintf(stderr, "Warning: ERMOD MPI trajectory client: Communicator size is expected to be 2, but was %d.\n", commsize);
+      fprintf(stderr, "Warning: ERmod MPI trajectory client: Communicator size is expected to be 2, but was %d.\n", commsize);
     }
     if(myrank != 1) {
-      fprintf(stderr, "Warning: ERMOD MPI trajectory client: Client rank is expected to be 1, but was %d.\n", myrank);
+      fprintf(stderr, "Warning: ERmod MPI trajectory client: Client rank is expected to be 1, but was %d.\n", myrank);
     }
     
     handle->server_rank = 1 - myrank;
@@ -111,7 +111,7 @@ void* ermod_connect()
 }
 
 /*
-  Close the connection to ERMOD and release the resource.
+  Close the connection to ERmod and release the resource.
  */
 void ermod_disconnect(void* handle_p)
 {
