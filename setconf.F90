@@ -688,9 +688,15 @@ contains
              permutation(i) = i
           end do
           do
-             ! the i-th atm in the trajectory (HISTORY) file is set to
+             ! the i-th atom in the trajectory (HISTORY) file is set to
              ! the permutation(i)-th atom in the ermod program
+             ! All the other variables such as mass and interaction parameters
+             ! and the input files have the order of particles AFTER permutation
              read(perm_io, *, end = 99) i, permutation(i)
+             if (i < 1 .or. i > OUTatm) then
+                print *, "Incorrect range of particle number at ",i
+                call halt_with_error('set_pmt')
+             endif
              if (permutation(i) < 1 .or. permutation(i) > OUTatm) then
                 print *, i, "-th permutation points to ", permutation(i)
                 call halt_with_error('set_pmt')

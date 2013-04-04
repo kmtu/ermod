@@ -218,8 +218,8 @@ contains
           nsite = numsite(i)
           molb = mol_begin_index(i)
           mole = mol_end_index(i)
-          agg_mass(cnt+1:cnt+nsite)=sitemass(molb:mole)
-          agg_site(1:3,cnt+1:cnt+nsite)=sitepos(1:3,molb:mole)
+          agg_mass(cnt+1:cnt+nsite) = sitemass(molb:mole)
+          agg_site(1:3, cnt+1:cnt+nsite) = sitepos(1:3, molb:mole)
           cnt = cnt + nsite
        endif
     enddo

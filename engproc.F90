@@ -519,7 +519,7 @@ contains
     deallocate( sve1 )                                                ! MPI
 #endif
     edens(1:ermax)=edens(1:ermax)/engnorm
-    if(corrcal.eq.1) then
+    if(corrcal == 1) then
        do iduv=1,ermax
 #ifndef noMPI
           allocate( sve1(ermax),sve2(ermax) )                         ! MPI
@@ -538,52 +538,62 @@ contains
     if(myrank.ne.0) return                                           ! MPI
     !
     division = stnum / (maxcnf / skpcnf / engdiv)
-    if(slttype.eq.1) aveuv(division,1:numslv)=slnuv(1:numslv)/engnorm
-    avediv(division,1)=engnorm/engsmpl
-    if(slttype.eq.1) avediv(division,2)=voffset-temp*log(avslf)
-    if(slttype.ge.2) avediv(division,2)=voffset+temp*log(avslf)
+    !
+    avediv(division, 1) = engnorm / engsmpl
+    select case(slttype)
+    case (CAL_SOLN)
+       aveuv(division, 1:numslv) = slnuv(1:numslv) / engnorm
+       avediv(division, 2) = voffset - temp * log(avslf)
+    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       avediv(division, 2) = voffset + temp * log(avslf)
+    end select
     !
     if(division == engdiv) then
-       select case(slttype)
-       case (CAL_SOLN)
-          open(unit=75,file='aveuv.tt',action='write')
+       if(slttype == CAL_SOLN) then
+          open(unit=75, file='aveuv.tt', action='write')
           do k=1,engdiv
-             write(75,751) k,aveuv(k,1:numslv)
+             write(75,751) k, aveuv(k, 1:numslv)
           end do
           endfile(75) ; close(75)
 751       format(i5,9999f15.5)
-          open(unit=73,file='weight_soln', action='write')
+       endif
+
+       select case(slttype)
+       case (CAL_SOLN)
+          open(unit=73, file='weight_soln', action='write')
        case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          open(unit=73,file='weight_refs', action='write')
+          open(unit=73, file='weight_refs', action='write')
        end select
        do k=1,engdiv
-          if(wgtslf.eq.0) write(73,731) k,avediv(k,1)
-          if(wgtslf.eq.1) write(73,732) k,avediv(k,1),avediv(k,2)
+          if(wgtslf == 0) then
+             write(73,'(i5,e15.8)') k, avediv(k,1)
+          else
+             write(73,'(i5,e15.8,e15.7)') k, avediv(k,1), avediv(k,2)
+          endif
        end do
-       endfile(73)
-       close(73)
-731    format(i5,e15.8)
-732    format(i5,e15.8,e15.7)
-       open(77,file='uvrange.tt',action='write')
-       write(77,771)
+       endfile(73) ; close(73)
+
+       open(77, file='uvrange.tt', action='write')
+       write(77,'(A)') ' species     minimum        maximum'
        do pti=0,numslv
-          factor=maxuv(pti)
-          if(factor.lt.1.0e5) write(77,772) pti,minuv(pti),factor
-          if(factor.ge.1.0e5) write(77,773) pti,minuv(pti),factor
+          if(maxuv(pti) < 1.0e5) then
+             write(77,'(i5,2f15.5)') pti, minuv(pti), maxuv(pti)
+          else
+             write(77,'(i5,f15.5,g18.5)') pti, minuv(pti), maxuv(pti)
+          endif
        end do
-       endfile(77)
-       close(77)
-771    format(' species     minimum        maximum')
-772    format(i5,2f15.5)
-773    format(i5,f15.5,g18.5)
+       endfile(77) ; close(77)
     endif
 
     j=division/10
     k=division-10*j
-    if(engdiv.eq.1) suffeng='.tt'
-    if(engdiv.gt.1) suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
+    if(engdiv == 1) then
+       suffeng='.tt'
+    else
+       suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
+    endif
     !
-    ! storting the solute-solvent pair distribution function
+    ! storing the solute-solvent pair-energy distribution function
     select case(slttype)
     case (CAL_SOLN)
        engfile='engsln'//suffeng
@@ -593,12 +603,12 @@ contains
     open(unit=71, file=engfile, form="FORMATTED", action='write')
     do iduv=1,ermax
        call repval(iduv,factor,pti,'intn')
-       write(71,'(g15.7,i5,g25.15)') factor,pti,edens(iduv)
+       write(71,'(g15.7,i5,g25.15)') factor, pti, edens(iduv)
     enddo
     endfile(71) ; close(71)
     !
-    ! storting the solvent-solvent correlation matrix in energy representation
-    if(corrcal.eq.1) then
+    ! storing the solvent-solvent correlation matrix in energy representation
+    if(corrcal == 1) then
        select case(slttype)
        case (CAL_SOLN)
           engfile='corsln'//suffeng
@@ -610,13 +620,13 @@ contains
        endfile(72) ; close(72)
     endif
     !
-    ! storting the distribution function of the self-energy of solute
-    if(selfcal.eq.1) then
+    ! storing the distribution function of the self-energy of solute
+    if(selfcal == 1) then
        engfile='slfeng'//suffeng
        open(unit=73, file=engfile, form="FORMATTED", action='write')
        do iduv=1,esmax
           call repval(iduv,factor,pti,'self')
-          write(73,'(g15.7,g25.15)') factor,eself(iduv)
+          write(73,'(g15.7,g25.15)') factor, eself(iduv)
        end do
        endfile(73) ; close(73)
     endif
@@ -1016,7 +1026,7 @@ contains
     logical, intent(out) :: out_of_range
     real :: dx(3), distance
     integer :: i, ptb, pte
-    real, dimension(:,:), allocatable :: hostcrd, bestfit_sltcrd
+    real, dimension(:,:), allocatable :: hostcrd, refslt_bestfit
 
     out_of_range = .false.
 
@@ -1040,7 +1050,7 @@ contains
        ptb = mol_begin_index(tagslt)
        pte = mol_end_index(tagslt)
        if(numsite(tagslt) /= refslt_natom) call halt_with_error('eng_bug')
-       allocate( hostcrd(3, refhost_natom), bestfit_sltcrd(3, refslt_natom) )
+       allocate( hostcrd(3, refhost_natom), refslt_bestfit(3, refslt_natom) )
        ! The following has the same structure as the corresponding part
        ! in the reffit subroutine within insertion.F90
        do i = 1, refhost_natom
@@ -1048,12 +1058,12 @@ contains
        end do
        call fit_a_rotate_b(refhost_natom, hostcrd, &
                            refhost_crd, refhost_weight, &
-                           refslt_natom, refslt_crd, bestfit_sltcrd)
+                           refslt_natom, refslt_crd, refslt_bestfit)
        ! The following has the same structure as the corresponding part
        ! in the check_solute_configuration subroutine within insertion.F90
-       distance = rmsd_nofit(refslt_natom, bestfit_sltcrd, &
+       distance = rmsd_nofit(refslt_natom, refslt_bestfit, &
                              sitepos(1:3, ptb:pte), refslt_weight)
-       deallocate( hostcrd, bestfit_sltcrd )
+       deallocate( hostcrd, refslt_bestfit )
     case(INSPOS_GAUSS)      ! comparison to reference (experimental)
        ! Under construction...  What is to be written?
     case default

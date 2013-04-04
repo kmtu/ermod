@@ -52,7 +52,7 @@
 !               0 : non-periodic  1 : periodic and parallelepiped
 !
 !   insorigin : translational origin of the solute position
-!               0 : (default) mass weighted center is moved to (0, 0, 0)
+!               0 (default) : mass weighted center is moved to (0, 0, 0)
 !               1 : no COM change from the value in the file to be read
 !                   (error unless insposition = 1)
 !               2 : mass weighted center is moved to aggregate center
@@ -63,7 +63,7 @@
 !                   and the solute structure, in order.
 !                   (error unless insposition = 4 or 5)
 !   insposition : position for the solute
-!               0 : (default) fully random position (within perodic bondary)
+!               0 (default) : fully random position (within perodic bondary)
 !               1 : no position change from the value in the file to be read
 !                   (error unless insorigin = 1)
 !               2 : spherically random position,
@@ -72,7 +72,7 @@
 !                   slab geometry specified as z = com(aggregate) + dz with
 !                   (-upreg < dz < -lwreg AND lwreg < dz < upreg)
 !                   for rectangular box periodic condition.
-!                   Position is much more complex for parallelpiped structure.
+!                   Positioning is more complicated in parallelpiped cell.
 !                   (see insertion.F90)
 !               4 : random position relative to a reference structure
 !                   solvent species identified with the hostspec parameter
@@ -87,19 +87,19 @@
 !                   Solute weight is automatically adjusted
 !                   (error unless insorigin = 3)
 !   insorient : orientation for the solute
-!               0 : (default) random orientation
+!               0 (default) : random orientation
 !               1 : no orientation change from the value in the file to be read
 !   insstructure : intramolecular structure of the solute
-!               0 : (default) no restriction, used as is from trajectory or file
+!               0 (default) : no restriction, used as is from trajectory or file
 !               1 : only the structures with lwstr < RMSD < upstr is counted
 !                     RefInfo needs to be prepared to determine RMSD
 !
-!   inscnd : (deprecated) geometrical condition of the solute configuration
+!   inscnd : (to be obsolete) geometrical condition of the solute configuration
 !               0 : random    (insorigin = 0, insposition = 0)  default
 !               1 : spherical (insorigin = 2, insposition = 2)
 !               2 : slab      (insorigin = 2, insposition = 3)
 !               3 : reference (insorigin = 3, insposition = 4)
-!   inscfg : (deprecated) position and orientation for the inserted solute
+!   inscfg : (to be obsolete) position and orientation for the inserted solute
 !               0 : only the intramolecular configuration is from the file.
 !                   (insorient = 0)  default
 !               1 : orientation is fixed from the file with random position
@@ -127,7 +127,7 @@
 !               3 : A (kcal/mol A^12) and C (kcal/mol A^6)
 !               4 : C12 (kJ/mol nm^12) and C6 (kJ/mol nm^6)
 !               5 : Read from table, LJTable file
-!                   (epsilon as kcal/mol and sigma as A)
+!                   (epsilon in kcal/mol and sigma in A)
 !   ljswitch : switching function for smooth LJ truncation
 !               0 (default) : energy switch in CHARMM form
 !               1 : energy switch in GROMACS form

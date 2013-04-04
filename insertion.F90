@@ -41,7 +41,7 @@ module ptinsrt
   integer, dimension(:), allocatable :: refhost_specatm, refslt_specatm
   real, dimension(:,:), allocatable  :: refhost_crd,     refslt_crd
   real, dimension(:),   allocatable  :: refhost_weight,  refslt_weight
-  real, dimension(:,:), allocatable  :: bestfit_sltcrd
+  real, dimension(:,:), allocatable  ::                  refslt_bestfit
   !
   !
   ! parameters and variable used only in the legacy part  starting here
@@ -171,6 +171,7 @@ contains
     
     integer :: i, insb, inse
     real :: com(3), syscen(3), r(3), norm, dir, t, s, maxdis, dst, movmax
+    real, parameter :: margin_factor = 3.0   ! see below for explanation
 
     select case(insposition)
     case(INSPOS_RANDOM)
@@ -233,7 +234,10 @@ contains
           if(dst > maxdis) maxdis = dst
        end do
        maxdis = sqrt(maxdis)    ! maximum distance in solute from COM to atom
-       movmax = upreg + 3 * maxdis
+       ! margin_factor assures that the random translation within movmax
+       ! and the following, random rotation encloses
+       ! the total domain of solute RMSD < upreg
+       movmax = upreg + margin_factor * maxdis
        do i = 1, 3
           call urand(r(i))
        end do
@@ -269,7 +273,7 @@ contains
       use mpiproc, only: myrank
       use engmain, only: PI, celllen, upreg
       implicit none
-      real, intent(out) :: com(3), weight
+      real, intent(inout) :: com(3), weight
 
       real, parameter :: uniform_ratio = 0.5
 
@@ -312,7 +316,7 @@ contains
       endif
       sqsum = sum(scaled_coord(:) ** 2)
       ! from WHAM
-      weight = 1.0 / (uniform_ratio * 1 / z0 + (1 - uniform_ratio) * exp(-sqsum) / z1)
+      weight = weight / (uniform_ratio * 1 / z0 + (1 - uniform_ratio) * exp(-sqsum) / z1)
       com(:) = matmul(cell(:, :) , scaled_coord(:) / (l_of_sigma(:) * 2))
     end subroutine uniform_gauss_mixture
   end subroutine set_shift_com
@@ -573,7 +577,7 @@ contains
     ptb = mol_begin_index(insml)
     pte = mol_end_index(insml)
     if(numsite(insml) /= refslt_natom) call halt_with_error('ins_bug')
-    rmsd = rmsd_nofit(refslt_natom, bestfit_sltcrd, &
+    rmsd = rmsd_nofit(refslt_natom, refslt_bestfit, &
                       sitepos(1:3, ptb:pte), refslt_weight)
     if((lwreg > rmsd) .or. (rmsd > upreg)) out_of_range = .true.
     return
@@ -588,7 +592,7 @@ contains
     logical, save :: first_time = .true.
     real, dimension(:,:), allocatable :: hostcrd, fit_sltcrd
     if(first_time) then
-       allocate( bestfit_sltcrd(3, refslt_natom) )
+       allocate( refslt_bestfit(3, refslt_natom) )
        first_time = .false.
     endif
     allocate( hostcrd(3, refhost_natom), fit_sltcrd(3, refslt_natom) )
@@ -600,9 +604,9 @@ contains
     !    in order to get the best-fit "reference solute configuration"
     call fit_a_rotate_b(refhost_natom, hostcrd, &
                         refhost_crd, refhost_weight, &
-                        refslt_natom, refslt_crd, bestfit_sltcrd)
+                        refslt_natom, refslt_crd, refslt_bestfit)
     ! 2) fit the solute structure read as the bfcoord variable
-    call fit(refslt_natom, bestfit_sltcrd, bfcoord, refslt_weight, fit_sltcrd)
+    call fit(refslt_natom, refslt_bestfit, bfcoord, refslt_weight, fit_sltcrd)
     do i = 1, refslt_natom
        sitepos(1:3, refslt_specatm(i)) = fit_sltcrd(1:3, i)
     end do
@@ -649,8 +653,9 @@ contains
     open(unit = refuse_io, file = refuse_file, status = 'old', iostat = stat)
     if(stat == 0) then ! file exists and is successfully opened
        refuse_read = .true.
-       atom_count = 0  ! only counts the number of lines
+       atom_count = 0      ! counts the number of lines with ATOM/HETATM header
        do
+          call searchATOM  ! skip until ATOM/HETATM lines
           read(refuse_io, *, end = 99) i
           atom_count = atom_count + 1
        end do
@@ -680,7 +685,6 @@ contains
       implicit none
       integer, intent(in) :: ati
       real, intent(out) :: crd(3), wgt
-      character(len=6) :: header
       integer :: dumint, intval
       logical :: setval
       setval = .true.
@@ -689,26 +693,41 @@ contains
          if(intval == 0) setval = .false.
       endif
       if(setval) then         ! read the coordinate and use it as reference
-         do ! skip until ATOM/HETATM lines
-            read(refstr_io, '(A6)', advance='no') header
-            if(header == 'ATOM  ' .or. header == 'HETATM') exit
-            read(refstr_io, *)
-         end do
+         call searchATOM      ! skip until ATOM/HETATM lines
          read(refstr_io, '(24X, 3F8.3)') crd(1:3)
          ! initialize the weight as the atomic mass
          wgt = sitemass(ati)
          !
          ! user can implement his own special selection rule to mask fitting
          ! (e.g. by using B-factor, etc.)
-         ! default: hydrogen is masked
-         if(wgt < 1.2) wgt = 0.0
+         ! default: hydrogen is masked and the others have the same weight
+         if(wgt > 1.2) then   ! non-hydrogen
+            ! wgt > massH, actually, where the massH value is listed
+            ! in the getmass subroutine within the setconf.F90 program
+            wgt = 1.0
+         else                 ! hydrogen
+            wgt = 0.0
+         endif
+         !
+         ! when mass weight is to be used, comment out the following line
+!        wgt = sitemass(ati)
          !
       else                    ! skip the atom and do not use it as reference
-         crd(1:3) = 0.0e0
-         wgt = 0.0e0
+         crd(1:3) = 0.0
+         wgt = 0.0
       endif
       return
     end subroutine read_refPDF_weight
+
+    subroutine searchATOM
+      character(len=6) :: header
+      do
+         read(refstr_io, '(A6)', advance='no') header
+         if(header == 'ATOM  ' .or. header == 'HETATM') exit
+         read(refstr_io, *)
+      end do
+      return
+    end subroutine searchATOM
   end subroutine load_refstructure
 
 

@@ -285,7 +285,7 @@ contains
 
           rst=sqrt(dis2)
           ! distinct (different ati and atj arguments for two charge variables)
-          epcl = - charge(ati) * charge(atj) * derf(screen*rst) / rst
+          epcl = - charge(ati) * charge(atj) * erf(screen*rst) / rst
           pairep = pairep + epcl
        enddo
     enddo
