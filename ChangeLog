@@ -1,4 +1,4 @@
-version 0.3.alpha7 (04/XX/2013)
+version 0.3.alpha7 (04/08/2013)
 * Misc:
     * The gromacs-type potential switch and the force switch for the LJ
     interaction is implemented with a new key of ljswitch.
