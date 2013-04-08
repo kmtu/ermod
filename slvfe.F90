@@ -483,7 +483,7 @@ module sfecalc
   real, dimension(:),    allocatable :: zrsln,zrref,zrsdr
   integer gemax
 contains
-  ! TODO: write the cases for (kind(real) /= 4).
+  ! TODO: write the cases for (kind(real) /= 8).
   subroutine syevr_wrap(n, mat, eigval, info)
     integer, intent(in) :: n
     real, intent(inout) :: mat(n, n)
