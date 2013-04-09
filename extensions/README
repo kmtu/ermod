@@ -1,0 +1,24 @@
+slvfe.F90:
+
+The slvfe.F90 program contained in the extensions directory has a key of ljlrc, which enables the Lennard-Jones long-range correction at ljlrc = 'yes'
+To use the slvfe.F90 program in extensions, user simply does the followings in the parent directory of ermod.
+
+$ mv slvfe.F90 slvfe_original.F90
+$ mv extensions/slvfe.F90 ./
+$ make
+$ make install
+
+Without stating ljlrc = 'yes' in parameters_fe, the modified slvfe works just as in the same way as the original slvfe.
+By setting ljlrc = 'yes' in parameters_fe, user is required to prepare a file contaning the average volume of the reference solvent, read, for example, as
+
+$ cat volumedata
+3010.64
+
+The volumedata file simpy has the average volume of the reference solvent in the Angstrom^3 unit; note that it not be given in nm^3.
+If the volumedata file is not present, user is asked
+
+write(6, *) " What is the average volume of reference solvent? (in Angstrom^3)"
+
+and is to type the average volume in Angstrom^3 on terminal.
+
+The difference between the original and modified slvfe.F90 is always updated in diff_slvfe in the extensions directory.

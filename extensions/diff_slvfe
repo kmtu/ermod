@@ -1,0 +1,395 @@
+--- slvfe.F90	2013-04-09 16:28:01.871985274 +0900
++++ extensions/slvfe.F90	2013-04-09 16:28:07.296111369 +0900
+@@ -26,7 +26,7 @@
+   integer :: numsln=10,numref=5,numdiv=-1
+ 
+   character*3 :: peread='not', uvread='yes'
+-  character*3 :: slfslt='yes', infchk='not'
++  character*3 :: slfslt='yes', infchk='not', ljlrc='not'
+   character*4 :: zerosft='orig',wgtfnform='harm'
+   character*3 :: refmerge='yes',extsln='lin'
+   character*3 :: wgtf2smpl='yes',slncor='not'
+@@ -71,6 +71,7 @@
+   
+   namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
+        peread, uvread, slfslt, infchk, zerosft, wgtfnform, &
++       ljlrc, &
+        refmerge, extsln, extthres_soln, extthres_refs, &
+        wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
+        inptemp, pickgr, msemin, msemax, mesherr, &
+@@ -474,6 +475,356 @@
+   end subroutine datread
+ end module
+ 
++
++module uvcorrect
++  character(len=*), parameter :: volmfname = 'volumedata'
++  real :: volm
++
++  character(len=*), parameter :: ermodfname = 'parameters_er'
++  integer :: ljformat, ljswitch, cmbrule
++  real :: lwljcut, upljcut
++
++  character(len=*), parameter :: sltfile = 'SltInfo'
++  character(len=*), parameter :: prmfile = 'MolPrm'
++  character(len=*), parameter :: ljtablefile = 'LJTable'
++  integer                              :: ljtype_max
++  integer, dimension(:,:), allocatable :: ljtype
++  real, dimension(:,:),    allocatable :: ljlensq_mat, ljene_mat
++  integer, dimension(:),   allocatable :: ljsite
++  real, dimension(:),      allocatable :: ljcorr
++  integer, dimension(:), allocatable :: ptsite
++
++  ! Only ljformat, ljswitch, cmbrule, lwljcut, and upljcut used in this program
++  namelist /ene_param/ iseed, &
++       skpcnf, corrcal, selfcal, &
++       slttype, sltpick, wgtslf, wgtins, wgtsys, &
++       estype,boxshp, &
++       insorigin, insposition, insorient, insstructure, inscnd, inscfg, &
++       hostspec, lwreg, upreg, lwstr, upstr, &
++       ljformat, ljswitch, &
++       inptemp, temp, &
++       engdiv, maxins, &
++       intprm, elecut, lwljcut, upljcut, &
++       cmbrule, cltype, screen, ewtoler, splodr, plmode, &
++       ew1max, ew2max, ew3max, ms1max, ms2max, ms3max, &
++       block_threshold, force_calculation
++
++contains
++  subroutine ljcorrect(cntrun)
++    use sysvars, only: uvread, clcond, numslv, aveuv, blkuv
++    implicit none
++    integer, intent(in) :: cntrun
++    logical, save :: first_time = .true.
++    integer :: pti
++    if(first_time) then
++       call set_keyparam
++       write(6,550) lwljcut, upljcut
++550    format('  Be sure that the solvent distribution is homegeneous (radial distribution function is unity) when the solvent is separated by distances of',f8.3,' or ',f8.3,' Angstrom in any direction from any atom within solute')
++       write(6,*)
++       call get_ljtable
++       allocate( ljcorr(numslv) )
++       do pti = 1, numslv
++          call calc_ljlrc(pti, ljcorr(pti))
++       end do
++       write(6,551) ljcorr(1:numslv)
++       write(6,*)
++551    format('  LJ long-range correction    =   ', 9999f12.4)
++       first_time = .false.
++    endif
++    aveuv(1:numslv) = aveuv(1:numslv) + ljcorr(1:numslv)
++    if((uvread.eq.'yes').and.(clcond.eq.'merge')) then
++       blkuv(1:numslv, cntrun) = blkuv(1:numslv, cntrun) + ljcorr(1:numslv)
++       blkuv(0, cntrun) = blkuv(0, cntrun) + sum(ljcorr(1:numslv))
++    endif
++    return
++  end subroutine ljcorrect
++
++  subroutine set_keyparam
++    use sysvars, only: refsdirec
++    implicit none
++    character(len=80) :: keyfile
++    integer, parameter :: iounit = 555
++    integer :: stat
++    logical :: found
++    ljformat = 1 ; ljswitch = 0 ; cmbrule = 0     ! default setting
++    upljcut = 12.0 ; lwljcut = upljcut - 2.0      ! default setting
++    keyfile = trim(refsdirec)//'/'//ermodfname
++    open(unit = iounit, file = keyfile, action='read', status='old', iostat=stat)
++    if(stat == 0) then
++       read(iounit, nml = ene_param)
++    else
++       stop "The parameters_er file is not found in the refs directory"
++    endif
++    close(iounit)
++
++    inquire(file = volmfname, exist = found)
++    if(found) then
++       open(unit = iounit, file = volmfname, status='old')
++       read(iounit, *) volm
++       close(iounit)
++    else
++       write(6, *) " What is the average volume of reference solvent? (in Angstrom^3)"
++       read(5, *) volm
++    endif
++  end subroutine set_keyparam
++
++  subroutine get_ljtable   ! taken essentially from setconf.F90
++    use sysvars, only: numslv, refsdirec
++    implicit none
++    real, parameter :: sgmcnv = 1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
++    real, parameter :: lencnv = 1.0e1                ! from nm to Angstrom
++    real, parameter :: engcnv = 1.0e0/4.184e0        ! from kJ/mol to kcal/mol
++    integer :: pti, sid, stmax, maxsite, i, m
++    real :: factor, xst(3)
++    integer, allocatable :: ljtype_temp(:)
++    real, dimension(:), allocatable :: ljlen_temp, ljene_temp
++    real, dimension(:), allocatable :: ljlen_temp_table, ljene_temp_table
++    integer :: ljtype_found
++    logical :: lj_is_new
++    character(len=5) :: atmtype
++    character(len=80) :: molfile
++    integer, parameter :: molio = 71                 ! IO for molfile
++    integer, parameter :: ljtableio = 70             ! IO for LJ table
++    character(len=9) :: numbers = '123456789'
++
++    allocate( ptsite(0:numslv) )
++    do pti = 0, numslv
++       if(pti == 0) then
++          molfile = sltfile                      ! solute
++       else
++          molfile = prmfile//numbers(pti:pti)    ! solvent
++       endif
++       molfile = trim(refsdirec)//'/'//molfile
++       open(unit = molio, file = molfile, status='old')
++       stmax = 0
++       do
++          read(molio, *, end = 99) m
++          stmax = stmax + 1
++       end do
++99     close(molio)
++       ptsite(pti) = stmax
++    end do
++
++    ! large enough LJ table size
++    allocate( ljlen_temp_table(1:sum(ptsite(:))), &
++              ljene_temp_table(1:sum(ptsite(:))) )
++    ! temporary set of LJ
++    maxsite = maxval( ptsite(0:numslv) )
++    allocate( ljtype_temp(maxsite), ljlen_temp(maxsite), ljene_temp(maxsite) )
++
++    allocate( ljtype(maxsite, 0:numslv) )
++    ljtype(:, :) = 0
++
++    do pti = 0, numslv
++       if(pti == 0) then
++          molfile = sltfile                      ! solute
++       else
++          molfile = prmfile//numbers(pti:pti)    ! solvent
++       endif
++       molfile = trim(refsdirec)//'/'//molfile
++       stmax = ptsite(pti)
++       open(unit = molio, file = molfile, status='old')
++       do sid = 1, stmax
++          read(molio,*) m, atmtype, xst(1:3)
++          if(ljformat == 1) xst(3) = sgmcnv * xst(3)
++          if((ljformat == 3).or.(ljformat == 4)) then
++             if(xst(3) /= 0.0) then
++                factor = (xst(2)/xst(3))**(1.0/6.0)
++                xst(2) = xst(3)/(4.0*(factor**6.0))
++                xst(3) = factor
++             else
++                xst(2) = 0.0
++             endif
++          endif
++          if((ljformat == 2).or.(ljformat == 4)) then
++             xst(2) = engcnv * xst(2)
++             xst(3) = lencnv * xst(3)
++          endif
++          ljene_temp(sid) = xst(2)
++          ljlen_temp(sid) = xst(3)
++       end do
++       close(molio)
++
++      if(ljformat == 5) then
++          ljtype_temp(1:stmax) = ljene_temp(1:stmax)
++       else
++          do sid = 1, stmax
++             lj_is_new = .true.
++             do i = 1, ljtype_max
++                ! linear search LJ table
++                if((ljlen_temp_table(i) == ljlen_temp(sid)) .and. &
++                   (ljene_temp_table(i) == ljene_temp(sid))) then
++                   ljtype_found = i
++                   lj_is_new = .false.
++                   exit
++                endif
++             end do
++             if(lj_is_new) then
++                ! new LJ type
++                ljtype_max = ljtype_max + 1
++                ljlen_temp_table(ljtype_max) = ljlen_temp(sid)
++                ljene_temp_table(ljtype_max) = ljene_temp(sid)
++                ljtype_found = ljtype_max
++             endif
++             ljtype_temp(sid) = ljtype_found
++          end do
++       endif
++
++       ljtype(1:stmax, pti) = ljtype_temp(1:stmax)
++    end do
++    deallocate( ljlen_temp, ljene_temp, ljtype_temp )
++
++    ! Fill LJ table
++    if(ljformat == 5) then
++       ! From table (directly)
++       open(unit = ljtableio, file = trim(refsdirec)//'/'//ljtablefile, status = 'old', action = 'read')
++       read(ljtableio, *) ljtype_max
++       allocate( ljlensq_mat(ljtype_max, ljtype_max), &
++                 ljene_mat(ljtype_max, ljtype_max) )
++       do i = 1, ljtype_max
++          read (ljtableio, *) ljlensq_mat(i, 1:ljtype_max)
++          ljlensq_mat(i, 1:ljtype_max) = ljlensq_mat(i, 1:ljtype_max) ** 2
++       end do
++       do i = 1, ljtype_max
++          read (ljtableio, *) ljene_mat(i, 1:ljtype_max)
++       end do
++       close(ljtableio)
++    else
++       ! From LJ data
++       allocate( ljlensq_mat(ljtype_max, ljtype_max), &
++                 ljene_mat(ljtype_max, ljtype_max) )
++       do i = 1, ljtype_max
++          select case(cmbrule)
++          case(0) ! arithmetic mean
++             ljlensq_mat(1:ljtype_max, i) = (( ljlen_temp_table(1:ljtype_max) &
++                                             + ljlen_temp_table(i) ) / 2.0) ** 2
++          case(1) ! geometric mean
++             ljlensq_mat(1:ljtype_max, i) = ljlen_temp_table(1:ljtype_max) &
++                                          * ljlen_temp_table(i)
++          case default
++             stop "Incorrect cmbrule"
++          end select
++          ljene_mat(1:ljtype_max, i) = sqrt( ljene_temp_table(1:ljtype_max)  &
++                                           * ljene_temp_table(i) )
++       end do
++    endif
++    deallocate(ljlen_temp_table, ljene_temp_table)
++
++    return
++  end subroutine get_ljtable
++
++  subroutine calc_ljlrc(pti, correction)
++    use sysvars, only: nummol
++    implicit none
++    integer, intent(in) :: pti
++    real, intent(out) :: correction
++    real :: dens, ljeps, ljsgm2
++    integer :: ui, vi
++    dens = nummol(pti) / volm
++    correction = 0.0
++    do ui = 1, ptsite(0)           ! sum over solute sites
++       do vi = 1, ptsite(pti)      ! sum over solvent sites
++          ljeps = ljene_mat( ljtype(ui, 0), ljtype(vi, pti) )
++          ljsgm2 = ljlensq_mat( ljtype(ui, 0), ljtype(vi, pti) )
++          correction = correction + dens * enelj(ljeps, ljsgm2)
++       end do
++    end do
++    return
++  end subroutine calc_ljlrc
++
++  real function enelj(ljeps, ljsgm2)
++    implicit none
++    real, save :: rbin = 1.0e-3
++    integer, save :: numbin
++    real, intent(in) :: ljeps, ljsgm2
++    real, parameter :: PI = 3.1415926535897932
++    real :: ljint, edev, dist, r
++    real :: upljcut2, lwljcut2, upljcut3, lwljcut3, upljcut6, lwljcut6
++    real :: invr2, invr3, invr6, ljsgm3, ljsgm6, vdwa, vdwb, swth, swfac
++    logical, save :: do_swth, first_time = .true.
++    integer :: i
++
++    if(first_time) then
++       if(lwljcut > upljcut) then
++          stop "Incorrect setting of lwljcut and upljcut (lwljcut > upljcut)"
++       else
++          numbin = nint((upljcut - lwljcut) / rbin)
++          if(numbin >= 1) then
++             do_swth = .true.
++             rbin = (upljcut - lwljcut) / real(numbin)
++          else
++             do_swth = .false.
++          endif
++       endif
++       first_time = .false.
++    endif
++
++    lwljcut2 = lwljcut ** 2
++    lwljcut3 = lwljcut2 * lwljcut
++    lwljcut6 = lwljcut3 * lwljcut3
++
++    upljcut2 = upljcut ** 2
++    upljcut3 = upljcut2 * upljcut
++    upljcut6 = upljcut3 * upljcut3
++
++    ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
++    ljsgm3 = sqrt(ljsgm6)
++
++    ljint = 0.0
++
++    ! r < lwljcut
++    select case(ljswitch)
++    case(0,1)                            ! potential switch
++       ! do nothing
++    case(2)                              ! force switch
++       vdwa = ljsgm6 * ljsgm6 / (lwljcut6 * upljcut6)
++       vdwb = ljsgm6 / (lwljcut3 * upljcut3)
++       edev = 4.0 * ljeps * (vdwa - vdwb)
++       ljint = ljint + (4.0 * PI /3.0) * lwljcut3 * edev
++    case default
++       stop "Unknown ljswitch"
++    end select
++
++    ! lwljcut < r < upljcut
++    if(do_swth) then
++       do i = 1, numbin
++          r = lwljcut + (real(i) - 0.5) * rbin
++          dist = r * r
++          invr2 = ljsgm2 / dist
++          invr6 = invr2 * invr2 * invr2
++          select case(ljswitch)
++          case(0)                        ! potential switch (CHRAMM form)
++             swth = (2.0 * dist + upljcut2 - 3.0 * lwljcut2)        &
++                  * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
++             edev = 4.0 * ljeps * invr6 * (invr6 - 1.0) * (1.0 - swth)
++          case(1)                        ! potential switch (GROMACS form)
++             swfac = (r - lwljcut) / (upljcut - lwljcut)
++             swth = 1.0 - 10.0 * (swfac ** 3)                      &
++                        + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) 
++             edev = 4.0 * ljeps * invr6 * (invr6 - 1.0) * (1.0 - swth)
++          case(2)                        ! force switch
++             invr3 = sqrt(invr6)
++             vdwa = upljcut6 / (upljcut6 - lwljcut6)          &
++                  * ( (invr6 - ljsgm6 / upljcut6) ** 2 )
++             vdwb = upljcut3 / (upljcut3 - lwljcut3)          &
++                  * ( (invr3 - ljsgm3 / upljcut3) ** 2 )
++             edev = 4.0 * ljeps * ( invr6 * (invr6 - 1.0) - (vdwa - vdwb) )
++          end select
++          ljint = ljint + 4.0 * PI * r * r * rbin * edev
++       end do
++    endif
++
++    ! r > upljcut
++    invr3 = ljsgm3 / upljcut3
++    ljint = ljint + ljeps * ljsgm3 &
++                          * (16.0 * PI / 3.0) * ( (invr3 ** 3 / 3.0) - invr3 )
++
++    enelj = ljint
++    return
++  end function enelj
++end module
++
++
+ module sfecalc
+   use sysvars, only: zerosft,wgtfnform,slncor, &
+                      numslv,ermax,nummol,kT,itrmax,zero,error, &
+@@ -538,8 +889,10 @@
+   subroutine chmpot(prmcnt,cntrun)
+     !
+     use sysvars, only: uvread,slfslt,normalize,showdst,wrtzrsft, &
++                       ljlrc, &
+                        slfeng,chmpt,aveuv,svgrp,svinf, &
+                        pickgr,cumuint,cumuintfl
++    use uvcorrect, only: ljcorrect
+     !
+     implicit none
+     integer prmcnt,cntrun,group,inft
+@@ -640,6 +993,7 @@
+              aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
+           end do
+        endif
++       if(ljlrc == 'yes') call ljcorrect(cntrun)   ! LJ long-range correction
+     endif
+     !
+     if((cumuint == 'yes').and.(group == pickgr).and.(inft == 0)) then
