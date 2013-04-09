@@ -82,6 +82,7 @@ module sysvars
 contains
 
   subroutine init_sysvars
+    implicit none
     character(len=*), parameter :: parmfname = 'parameters_fe'
     integer, parameter :: iounit = 191
     integer :: iostat
@@ -102,6 +103,7 @@ module sysread
        numslv,ermax,slfeng,nummol,&
        rdcrd,rddst,rddns,rdslc,rdcor,rdspec,&
        aveuv,uvene,blkuv,wgtsln,wgtref
+  implicit none
   character*85 engfile(5)
 contains
 
@@ -115,6 +117,7 @@ contains
          rduvmax,rduvcore,&
          chmpt,svgrp,svinf
 
+    implicit none
     integer group,inft,prmcnt,iduv,i,j,k,m,pti,cnt
     real factor
     character*85 opnfile
@@ -337,6 +340,7 @@ contains
   subroutine datread(cntrun)
     use sysvars, only: refmerge,zero,tiny,&
          solndirec,refsdirec,slndnspf,slncorpf,refdnspf,refcorpf,numbers
+    implicit none
     integer cntrun,slnini,slnfin,refini,reffin,ecmin,ecmax
     integer iduv,iduvp,i,k,m,pti,cnt
     real factor,ampl
@@ -380,12 +384,12 @@ contains
        if((cnt == 2) .and. (slncor.ne.'yes')) cycle
        if((cnt >= 3) .and. (cntrun > 1) .and. (refmerge.eq.'yes')) cycle
        
-       if(cnt <= 2) then
+       if(cnt <= 2) then                         ! solution
           ecmin=slnini ; ecmax=slnfin
           factor=sum(wgtsln(ecmin:ecmax))
           wgtsln(ecmin:ecmax)=wgtsln(ecmin:ecmax)/factor
        endif
-       if(cnt >= 3) then
+       if(cnt >= 3) then                         ! reference solvent
           ecmin=refini ; ecmax=reffin
           factor=sum(wgtref(ecmin:ecmax))
           wgtref(ecmin:ecmax)=wgtref(ecmin:ecmax)/factor
@@ -401,7 +405,7 @@ contains
              if(cnt == 3) opnfile=trim(refsdirec)//'/'//trim(refdnspf)//suffnum
              if(cnt == 4) opnfile=trim(refsdirec)//'/'//trim(refcorpf)//suffnum
           endif
-          if((cnt == 1) .or. (cnt == 3)) then
+          if((cnt == 1) .or. (cnt == 3)) then    ! 1-D distribution
              open(unit=71,file=opnfile,status='old')
              k=0 ; m=0
              do iduv=1,ermax
@@ -419,7 +423,7 @@ contains
              enddo
              close(71)
           endif
-          if((cnt == 2) .or. (cnt == 4)) then
+          if((cnt == 2) .or. (cnt == 4)) then    ! 2-D correlation matrix
              allocate(cormat_temp(ermax, ermax))
              open(unit=72,file=opnfile,status='old',form="UNFORMATTED")
              read(72) cormat_temp
@@ -475,6 +479,7 @@ module sfecalc
                      numslv,ermax,nummol,kT,itrmax,zero,error, &
                      rduvmax,rduvcore, &
                      rdcrd,rddst,rddns,rdslc,rdcor,rdspec
+  implicit none
   integer, dimension(:), allocatable :: idrduv,uvmax
   real, dimension(:),    allocatable :: uvcrd,edist,edens
   real, dimension(:,:),  allocatable :: edscr,ecorr
@@ -485,13 +490,14 @@ module sfecalc
 contains
   ! TODO: write the cases for (kind(real) /= 8).
   subroutine syevr_wrap(n, mat, eigval, info)
+    implicit none
     integer, intent(in) :: n
     real, intent(inout) :: mat(n, n)
     real, intent(out) :: eigval(n)
     integer, intent(out) :: info
     real, allocatable :: z(:, :)
     real, allocatable :: work(:)
-    real :: worksize, worktmp
+    real :: worksize
     integer :: lwork, liwork
     integer, allocatable :: iwork(:)
     integer, allocatable :: isuppz(:)
@@ -507,7 +513,7 @@ contains
     allocate(iwork(liwork))
     call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr, &
          dummyi, dummyi, abstol, dummyi, eigval, &
-         z, n, isuppz, worktmp, lwork, iwork, liwork, info)
+         z, n, isuppz, worksize, lwork, iwork, liwork, info)
     if (info /= 0) then
        deallocate(isuppz)
        deallocate(z)
@@ -515,7 +521,7 @@ contains
        return
     endif
 
-    lwork = worktmp
+    lwork = worksize
     allocate(work(lwork))
     call DSYEVR('V', 'A', 'U', n, mat, n, dummyr, dummyr, &
          dummyi, dummyi, abstol, dummyi, eigval, &
@@ -535,6 +541,7 @@ contains
                        slfeng,chmpt,aveuv,svgrp,svinf, &
                        pickgr,cumuint,cumuintfl
     !
+    implicit none
     integer prmcnt,cntrun,group,inft
     integer iduv,iduvp,pti,cnt,j,k,m
     real factor,ampl,slvfe,uvpot,lcent,lcsln,lcref
@@ -627,22 +634,18 @@ contains
     call getslncv
     call getinscv
     !
-    if((uvread.ne.'yes').and.(prmcnt.eq.1)) then
-      do pti=1,numslv
-        uvpot=0.0e0
-        do iduv=1,gemax
-          if(uvspec(iduv).eq.pti) uvpot=uvpot+uvcrd(iduv)*edist(iduv)
-        enddo
-        aveuv(pti)=uvpot
-      enddo
+    if(prmcnt == 1) then
+       if(uvread /= 'yes') then
+          do pti=1,numslv
+             aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
+          end do
+       endif
     endif
     !
-    ! if some correction such as LJ long-range is added, it should be here
-    !
-    if((cumuint.eq.'yes').and.(group.eq.pickgr).and.(inft.eq.0)) then
-      j=gemax/numslv
-      if(any(uvmax(1:numslv).ne.j)) stop ' Incorrect file format for storing the running integral'
-      allocate( cumsfe(numslv,j) )
+    if((cumuint == 'yes').and.(group == pickgr).and.(inft == 0)) then
+       j=gemax/numslv
+       if(any(uvmax(1:numslv) /= j)) stop ' Incorrect file format for storing the running integral'
+       allocate( cumsfe(numslv,j) )
     endif
     !
     do pti=1,numslv
@@ -717,6 +720,7 @@ contains
 
   subroutine getslncv
     use sysvars, only: extsln,extthres_soln,extthres_refs
+    implicit none
     integer iduv,iduvp,pti,j,k,m
     real factor,ampl,lcsln,lcref,min_rddst,min_rddns
     real, dimension(:), allocatable :: work
@@ -841,6 +845,7 @@ contains
   !
   subroutine getinscv
     !
+    implicit none
     integer iduv,iduvp,pti,cnt,wrksz,k
     real factor,ampl,lcsln,lcref
     real, dimension(:),   allocatable :: work,egnvl,zerouv
@@ -954,6 +959,7 @@ contains
   !
   !
   real function wgtmxco(pti)
+    implicit none
     integer pti
     real numpt
     numpt=nummol(pti)
@@ -963,6 +969,7 @@ contains
   !
   !
   real function cvfcen(pti,cnt,systype,wgttype,engtype)
+    implicit none
     integer pti,cnt,iduv,errtag
     real factor,cvfnc
     real, dimension(:), allocatable :: weight
@@ -997,6 +1004,7 @@ contains
   !
   !
   subroutine getwght(weight,pti,cnt,systype,wgttype,engtype)
+    implicit none
     integer pti,cnt,iduv
     real weight(gemax),minuv,ampl
     character*5 systype
@@ -1035,6 +1043,7 @@ contains
   !
   !
   integer function zeroec(pti,cnt)
+    implicit none
     integer iduv,cnt,pti,k
     real factor,ampl,lcsln,lcref
     do iduv=1,gemax-1
@@ -1063,6 +1072,7 @@ contains
   !
   real function wgtdst(iduv,cnt,systype,wgttype)
     use sysvars, only: wgtf2smpl
+    implicit none
     real fsln,fref,wght,factor
     integer iduv,cnt,jdg,errtag
     character*5 systype
@@ -1098,6 +1108,7 @@ contains
   !
   !
   real function sfewgt(fsln,fref)
+    implicit none
     real fsln,fref,wght,factor
     if(fsln.ge.fref) wght=1.0e0
     if(fsln.lt.fref) then
@@ -1110,6 +1121,7 @@ contains
   !
   !
   real function pyhnc(indpmf,cnt)
+    implicit none
     real intg,indpmf,factor
     integer cnt
     factor=indpmf/kT
@@ -1131,6 +1143,7 @@ contains
   !
   !
   subroutine distnorm
+    implicit none
     real, dimension(:), allocatable :: correc
     integer iduv,iduvp,pti,cnt,itrcnt
     real factor,ampl,lcsln,lcref,errtmp
@@ -1206,6 +1219,7 @@ contains
   !
   !
   subroutine distshow
+    implicit none
     integer iduv,iduvp,pti,cnt,ecmin,ecmax,i,k
     real factor
     write(6,*)
@@ -1268,15 +1282,17 @@ end module sfecalc
 !
 !
 module opwrite
-  use sysvars, only: clcond,uvread,slfslt,infchk,prmmax,numrun,numslv,&
+  use sysvars, only: clcond,uvread,slfslt,infchk,prmmax,numrun,numslv,zero,&
        pickgr,msemin,msemax,mesherr,&
        slfeng,chmpt,aveuv,blkuv,svgrp,svinf
+  implicit none
   integer grref
   real, dimension(:), allocatable :: mshdif
 contains
   !
   subroutine wrtresl
     !
+    implicit none
     integer prmcnt,pti,k,group,inft
     real factor,valcp
     !
@@ -1370,6 +1386,7 @@ contains
   subroutine wrtmerge
     !
     use sysvars, only: large
+    implicit none
     integer prmcnt,cntrun,group,inft,pti,i,j,k,m
     real avecp,stdcp,avcp0,factor,slvfe,shcp(large)
     real, dimension(:,:), allocatable :: wrtdata
@@ -1508,6 +1525,7 @@ contains
 
   subroutine wrtcumu(wrtdata)
     use sysvars, only: large,zero
+    implicit none
     integer cntrun,pti
     real avecp,factor,slvfe,shcp(large),wrtdata(0:numslv,numrun)
     real, dimension(:),   allocatable :: runcp,runer
@@ -1561,6 +1579,7 @@ program sfemain
   use sysread, only: defcond,datread
   use sfecalc, only: chmpot
   use opwrite, only: wrtresl
+  implicit none
   integer cntrun,prmcnt
   call init_sysvars
   call defcond

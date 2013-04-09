@@ -149,90 +149,91 @@ contains
 
 
   ! Calculate i-j interaction energy in the bare 1/r form
-  subroutine realcal_bare(i,j,pairep)
-    use engmain, only:  boxshp,numsite,&
-         elecut,lwljcut,upljcut,cltype,screen,charge,specatm,&
-         ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat,&
+  subroutine realcal_bare(i, j, pairep)
+    use engmain, only:  boxshp, numsite, &
+         elecut, lwljcut, upljcut, cltype, screen, charge, specatm, &
+         ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat, &
          SYS_NONPERIODIC, SYS_PERIODIC, EL_COULOMB
     implicit none
-    integer i,j,is,js,ismax,jsmax,ati,atj
-    real reelcut, pairep, rst, dis2, invr2, invr3, invr6
+    integer :: i, j, is, js, ismax, jsmax, ati, atj
+    real :: reelcut, pairep, rst, dis2, invr2, invr3, invr6
     real :: eplj, epcl, xst(3), half_cell(3)
     real :: upljcut2, lwljcut2, upljcut3, lwljcut3, upljcut6, lwljcut6
     real :: ljeps, ljsgm2, ljsgm3, ljsgm6, vdwa, vdwb, swth, swfac
     integer :: ljtype_i, ljtype_j
     real, parameter :: infty=1.0e50      ! essentially equal to infinity
     !
-    if(i.eq.j) stop "cannot happen: two particle arguments should not be the same"
+    if(i == j) stop "cannot happen: two particle arguments should not be the same"
     if(cltype /= EL_COULOMB) stop "cannot happen: realcal_bare is called only when cltype is 'bare coulomb'."
 
     if(boxshp == SYS_NONPERIODIC) reelcut=infty
     if(boxshp == SYS_PERIODIC) then
-       reelcut=elecut
+       reelcut = elecut
        half_cell(:) = 0.5 * cell_len_normal(:)
     endif
 
-    pairep=0.0e0
-    ismax=numsite(i)
-    jsmax=numsite(j)
+    pairep = 0.0
+    ismax = numsite(i)
+    jsmax = numsite(j)
 
-    do is=1,ismax
-       do js=1,jsmax
-          ati=specatm(is,i)
-          atj=specatm(js,j)
+    do is = 1, ismax
+       do js = 1, jsmax
+          ati = specatm(is,i)
+          atj = specatm(js,j)
           ljtype_i = ljtype(ati)
           ljtype_j = ljtype(atj)
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
           if(boxshp == SYS_PERIODIC) then   ! when the system is periodic
              xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
           endif
-          dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
-          rst=sqrt(dis2)
+          dis2 = sum(xst(1:3) ** 2)
+          rst = sqrt(dis2)
           if(rst > upljcut) then
-             eplj=0.0e0
+             eplj = 0.0
           else
-             ljeps=ljene_mat(ljtype_i, ljtype_j)
-             ljsgm2=ljlensq_mat(ljtype_i, ljtype_j)
+             ljeps = ljene_mat(ljtype_i, ljtype_j)
+             ljsgm2 = ljlensq_mat(ljtype_i, ljtype_j)
 
-             invr2=ljsgm2/dis2
-             invr6=invr2*invr2*invr2
+             invr2 = ljsgm2 / dis2
+             invr6 = invr2 * invr2 * invr2
              select case(ljswitch)
              case(0,1)                      ! potential switch
-                eplj=4.0e0*ljeps*invr6*(invr6-1.0e0)
+                eplj = 4.0 * ljeps * invr6 * (invr6 - 1.0)
                 if(rst > lwljcut) then
                    select case(ljswitch)
                    case(0)                  ! CHARMM type
-                      lwljcut2 = lwljcut**2
-                      upljcut2 = upljcut**2
-                      swth=(2.0e0*dis2+upljcut2-3.0e0*lwljcut2)          &
-                          *((dis2-upljcut2)**2)/((upljcut2-lwljcut2)**3)
+                      lwljcut2 = lwljcut ** 2
+                      upljcut2 = upljcut ** 2
+                      swth = (2.0 * dis2 + upljcut2 - 3.0 * lwljcut2)      &
+                           * ((dis2 - upljcut2) ** 2)                      &
+                           / ((upljcut2 - lwljcut2) ** 3)
                    case(1)                  ! GROMACS type
-                      swfac=(rst-lwljcut)/(upljcut-lwljcut)
-                      swth=1.0e0-10.0e0*(swfac**3)                       &
-                                +15.0e0*(swfac**4)-6.0e0*(swfac**5)
+                      swfac = (rst - lwljcut) / (upljcut - lwljcut)
+                      swth = 1.0 - 10.0 * (swfac ** 3)                     &
+                                 + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) 
                    case default
                      stop "Unknown ljswitch"
                    end select
-                   eplj=swth*eplj
+                   eplj = swth * eplj
                 endif
              case(2)                        ! force switch
-                lwljcut3 = lwljcut**3
-                upljcut3 = upljcut**3
-                lwljcut6 = lwljcut3*lwljcut3
-                upljcut6 = upljcut3*upljcut3
-                ljsgm6=ljsgm2*ljsgm2*ljsgm2
+                lwljcut3 = lwljcut ** 3
+                upljcut3 = upljcut ** 3
+                lwljcut6 = lwljcut3 * lwljcut3
+                upljcut6 = upljcut3 * upljcut3
+                ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
                 if(rst <= lwljcut) then
-                   vdwa=invr6*invr6-ljsgm6*ljsgm6/(lwljcut6*upljcut6)
-                   vdwb=invr6-ljsgm6/(lwljcut3*upljcut3)
+                   vdwa = invr6 * invr6 - ljsgm6 *ljsgm6 / (lwljcut6 * upljcut6)
+                   vdwb = invr6 - ljsgm6 / (lwljcut3 * upljcut3)
                 else
-                   invr3=sqrt(invr6)
-                   ljsgm3=sqrt(ljsgm6)
-                   vdwa=upljcut6/(upljcut6-lwljcut6) &
-                       *((invr6-ljsgm6/upljcut6)**2)
-                   vdwb=upljcut3/(upljcut3-lwljcut3) &
-                       *((invr3-ljsgm3/upljcut3)**2)
+                   invr3 = sqrt(invr6)
+                   ljsgm3 = sqrt(ljsgm6)
+                   vdwa = upljcut6 / (upljcut6 - lwljcut6)          &
+                        * ( (invr6 - ljsgm6 / upljcut6) ** 2 )
+                   vdwb = upljcut3 / (upljcut3 - lwljcut3)          &
+                        * ( (invr3 - ljsgm3 / upljcut3) ** 2 )
                 endif
-                eplj=4.0e0*ljeps*(vdwa-vdwb)
+                eplj = 4.0 * ljeps * (vdwa - vdwb)
              case default
                 stop "Unknown ljswitch"
              end select
@@ -659,12 +660,12 @@ contains
        invr6 = invr2 * invr2 * invr2
        select case(ljswitch)
        case(0,1)                      ! potential switch
-          e_t(i, curp) = 4.0e0 * ljeps * invr6 * (invr6 - 1.0e0)
+          e_t(i, curp) = 4.0 * ljeps * invr6 * (invr6 - 1.0)
        case(2)                        ! force switch
           ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
           vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 / (lwljcut6 * upljcut6)
           vdwb = invr6 - ljsgm6 / (lwljcut3 * upljcut3)
-          e_t(i, curp) = 4.0e0 * ljeps * (vdwa - vdwb)
+          e_t(i, curp) = 4.0 * ljeps * (vdwa - vdwb)
        case default
           stop "Unknown ljswitch"
        end select
@@ -682,24 +683,24 @@ contains
        invr6 = invr2 * invr2 * invr2
        select case(ljswitch)
        case(0)                        ! potential switch (CHRAMM form)
-          e_t(i, curp) = 4.0e0 * ljeps * invr6 * (invr6 - 1.0e0)         &
-                   * (2.0e0 * dist + upljcut2 - 3.0e0 * lwljcut2)        &
-                   * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
+          e_t(i, curp) = 4.0 * ljeps * invr6 * (invr6 - 1.0)             &
+                       * (2.0 * dist + upljcut2 - 3.0 * lwljcut2)        &
+                       * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
        case(1)                        ! potential switch (GROMACS form)
           r = sqrt(dist)
           swfac = (r - lwljcut) / (upljcut - lwljcut)
-          e_t(i, curp) = 4.0e0 * ljeps * invr6 * (invr6 - 1.0e0)         &
-                   * (1.0e0 - 10.0e0 * (swfac ** 3)                      &
-                            + 15.0e0 * (swfac ** 4) - 6.0e0 * (swfac ** 5) )
+          e_t(i, curp) = 4.0 * ljeps * invr6 * (invr6 - 1.0)             &
+                       * (1.0 - 10.0 * (swfac ** 3)                      &
+                              + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) )
        case(2)                        ! force switch
-          invr3=sqrt(invr6)
+          invr3 = sqrt(invr6)
           ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
           ljsgm3 = sqrt(ljsgm6)
-          vdwa = upljcut6 / (upljcut6 - lwljcut6) &
+          vdwa = upljcut6 / (upljcut6 - lwljcut6)          &
                * ( (invr6 - ljsgm6 / upljcut6) ** 2 )
-          vdwb = upljcut3 / (upljcut3 - lwljcut3) &
+          vdwb = upljcut3 / (upljcut3 - lwljcut3)          &
                * ( (invr3 - ljsgm3 / upljcut3) ** 2 )
-          e_t(i, curp) = 4.0e0 * ljeps * (vdwa - vdwb)
+          e_t(i, curp) = 4.0 * ljeps * (vdwa - vdwb)
        case default
           stop "Unknown ljswitch"
        end select
@@ -711,7 +712,7 @@ contains
     ! ewald electrostatic
     do i = 1, n_el
        r = sqrt(dist_el(i, curp))
-       e_t(i, curp) = charge_el(i, curp) * (1.0e0 - erf(screen * r)) / r
+       e_t(i, curp) = charge_el(i, curp) * (1.0 - erf(screen * r)) / r
     end do
     do i = 1, n_el
        energy_vec(belong_el(i, curp), curp) = energy_vec(belong_el(i, curp), curp) + e_t(i, curp)

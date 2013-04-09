@@ -187,21 +187,21 @@ contains
     select case(intprm)
     case(0)  ! on-the-fly reading from parent MD setup (currently ineffective)
       call OUTintprm
-      estype=OUTens ; boxshp=OUTbxs ; inptemp=OUTtemp
-      elecut=OUTelc ; lwljcut=OUTlwl ; upljcut=OUTupl
-      cmbrule=OUTcmb ; cltype=OUTclt ; screen=OUTscr ; splodr=OUTspo
-      ew1max=OUTew1 ; ew2max=OUTew2 ; ew3max=OUTew3
-      ms1max=OUTms1 ; ms2max=OUTms2 ; ms3max=OUTms3
+      estype = OUTens  ; boxshp = OUTbxs  ; inptemp = OUTtemp
+      elecut = OUTelc  ; lwljcut = OUTlwl ; upljcut = OUTupl
+      cmbrule = OUTcmb ; cltype = OUTclt  ; screen = OUTscr  ; splodr = OUTspo
+      ew1max = OUTew1  ; ew2max = OUTew2  ; ew3max = OUTew3
+      ms1max = OUTms1  ; ms2max = OUTms2  ; ms3max = OUTms3
     case(1)  ! default settings for trajectory reading
-      estype=ES_NPT                              ! constant pressure
-      boxshp=SYS_PERIODIC                        ! periodic boundary
-      cltype=EL_PME ; ms1max=64                  ! PME
-      inptemp=300.0e0                            ! Kelvin
-      engdiv=1                                   ! number of divisions
-      screen=0.0e0 ; ewtoler=0.0e0
-      ewtoler=1.0e-6 ; elecut=12.0e0
-      splodr=4 ; scrtype='dis'
-      upljcut=elecut ; lwljcut=upljcut-2.0e0
+      estype = ES_NPT                            ! constant pressure
+      boxshp = SYS_PERIODIC                      ! periodic boundary
+      cltype = EL_PME  ; ms1max = 64             ! PME
+      inptemp = 300.0                            ! Kelvin
+      engdiv = 1                                 ! number of divisions
+      screen = 0.0     ; ewtoler = 0.0  
+      ewtoler = 1.0e-6 ; elecut = 12.0
+      splodr = 4       ; scrtype = 'dis'
+      upljcut = elecut ; lwljcut = upljcut - 2.0
     case default
        stop "Unknown intprm"
     end select
@@ -221,25 +221,25 @@ contains
     call init_params()
 
     ! default settings
-    skpcnf=1                     ! no skip for trajectory reading
+    skpcnf = 1                     ! no skip for trajectory reading
     
-    selfcal=0                    ! no construction of self-energy distribution
-    wgtslf=0 ; wgtins=0 ; wgtsys=0
+    selfcal = 0                    ! no construction of self-energy distribution
+    wgtslf = 0 ; wgtins = 0 ; wgtsys = 0
     select case(slttype)
     case(CAL_SOLN)
-       corrcal=0                 ! no calculation of correlation matrix
+       corrcal = 0                 ! no calculation of correlation matrix
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
-       corrcal=1                 ! calculation of correlation matrix
-       if(cltype /= 0) wgtslf=1  ! Ewald and PME
+       corrcal = 1                 ! calculation of correlation matrix
+       if(cltype /= 0) wgtslf = 1  ! Ewald and PME
     case default
        stop "Unknown slttype"
     end select
-    sltpick=0 ; hostspec=1 ; ljformat=1 ; ljswitch=0
-    maxins=1000 ; lwreg=0.0e0 ; upreg=5.0e0 ; lwstr=0.0e0 ; upstr=2.0e0
+    sltpick = 1 ; hostspec = 1 ; ljformat = 1 ; ljswitch = 0
+    maxins = 1000 ; lwreg = 0.0 ; upreg = 5.0 ; lwstr = 0.0 ; upstr = 2.0
     if(intprm /= 0) then
-      cmbrule=0                 ! arithmetic mean of LJ sigma
-      ew2max=ew1max ; ew3max=ew1max
-      ms2max=ms1max ; ms3max=ms1max
+      cmbrule = 0                  ! arithmetic mean of LJ sigma
+      ew2max = ew1max ; ew3max = ew1max
+      ms2max = ms1max ; ms3max = ms1max
     endif
 
     select case(inscnd)
@@ -283,7 +283,7 @@ contains
     ! get the screening parameter in Ewald and PME
     if((screen <= tiny).and.(cltype /= 0)) then
        if(ewtoler <= tiny) call halt_with_error('set_ewa')
-       screen=getscrn(ewtoler,elecut,scrtype)
+       screen = getscrn(ewtoler, elecut, scrtype)
     endif
     ! check Ewald parameters, not effective in the current version
     if(cltype == 1) then
@@ -350,21 +350,25 @@ contains
     return
   end subroutine iniparam
 
-  real function getscrn(ewtoler,elecut,scrtype)
+  real function getscrn(ewtoler, elecut, scrtype)
     implicit none
-    character*3 scrtype
-    real ewtoler,elecut,ewasml,ewalrg,scrfac,factor
+    character(len=3), intent(in) :: scrtype
+    real, intent(in) :: ewtoler, elecut
+    real :: ewasml, ewalrg, scrfac, factor
     real, parameter :: error=1.0e-20
-    factor=error+1.0e0 ; ewasml=0.0e0 ; ewalrg=1.0e3
-    do while(factor.gt.error)
-       scrfac=(ewasml+ewalrg)/2.0e0
-       factor=erfc(scrfac*elecut)
-       if(scrtype.eq.'dis') factor=factor/elecut
-       if(factor.gt.ewtoler) ewasml=scrfac
-       if(factor.le.ewtoler) ewalrg=scrfac
-       factor=abs(factor-ewtoler)
+    factor = error + 1.0 ; ewasml = 0.0 ; ewalrg = 1.0e3
+    do while(factor > error)
+       scrfac = (ewasml + ewalrg) / 2.0
+       factor = erfc(scrfac * elecut)
+       if(scrtype == 'dis') factor = factor / elecut
+       if(factor > ewtoler) then
+          ewasml=scrfac
+       else
+          ewalrg=scrfac
+       endif
+       factor = abs(factor - ewtoler)
     end do
-    getscrn=scrfac
+    getscrn = scrfac
     return
   end function getscrn
 
@@ -385,37 +389,37 @@ contains
     use utility, only: itoa
     implicit none
     ! only integer power is allowed as the initialization expression (7.1.6.1)
-    real, parameter :: sgmcnv=1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
-    real, parameter :: lencnv=1.0e1                ! from nm to Angstrom
-    real, parameter :: engcnv=1.0e0/4.184e0        ! from kJ/mol to kcal/mol
-    integer pti,stmax,maxsite,uvtype,cmin,cmax,sid,i,ati,m
+    real, parameter :: sgmcnv = 1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
+    real, parameter :: lencnv = 1.0e1                ! from nm to Angstrom
+    real, parameter :: engcnv = 1.0e0/4.184e0        ! from kJ/mol to kcal/mol
+    integer :: pti, stmax, maxsite, uvtype, cmin, cmax, sid, i, ati, m
     integer :: solute_index, cur_solvent, prev_solvent_type, cur_atom
-    real factor,xst(3)
-    real, allocatable :: ljlen_temp(:), ljene_temp(:), sitemass_temp(:), charge_temp(:)
-    real, allocatable :: ljlen_temp_table(:), ljene_temp_table(:)
+    real :: factor, xst(3)
+    real, dimension(:), allocatable :: sitemass_temp, charge_temp
     integer, allocatable :: ljtype_temp(:)
+    real, dimension(:), allocatable :: ljlen_temp, ljene_temp
+    real, dimension(:), allocatable :: ljlen_temp_table, ljene_temp_table
     integer :: ljtype_found
     logical :: lj_is_new
-    integer, allocatable :: pttype(:), ptcnt(:), ptsite(:)
+    integer, dimension(:), allocatable :: pttype, ptcnt, ptsite
     real, dimension(:,:), allocatable :: psite
-    character*8 atmtype
-    character*23 molfile
-    character(*), parameter :: sltfile='SltInfo'
-    character(*), parameter :: prmfile='MolPrm'
-    character(len=*), parameter :: ljtablefile='LJTable'
-    integer, parameter :: sltio=71                 ! IO for sltfile
-    integer, parameter :: molio=72                 ! IO for molfile
-    integer, parameter :: ljtableio=70             ! IO for LJ table
+    character(len=5) :: atmtype
+    character(len=80) :: molfile
+    character(len=*), parameter :: sltfile = 'SltInfo'
+    character(len=*), parameter :: prmfile = 'MolPrm'
+    character(len=*), parameter :: ljtablefile = 'LJTable'
+    integer, parameter :: molio = 71                 ! IO for molfile
+    integer, parameter :: ljtableio = 70             ! IO for LJ table
 
     call OUTinitial                ! initialization of OUTname module
     call iniparam                  ! initialization of parameters
     call OUTrename                 ! matching with outside variables
 
-    maxcnf=OUTnrun                                     ! from outside
+    maxcnf=OUTnrun                                   ! from outside
     if(slttype == CAL_SOLN) then
-       numtype=OUTntype                  ! from outside
+       numtype=OUTntype                              ! from outside
     else
-       numtype=OUTntype+1                ! from outside
+       numtype=OUTntype+1                            ! from outside
     end if
 
     ! pttype is particle type for each molecule group
@@ -435,14 +439,14 @@ contains
        ! Test particle information will be defined outside
        ptcnt(numtype) = 1          ! Test particle can only be one molecule
 
-       open(unit=sltio,file=sltfile,status='old')
+       open(unit = molio, file = sltfile, status='old')
        ! here only counts no. of lines
        stmax = 0
        do
-          read(sltio, *, end = 99) m
-          stmax = stmax+1
+          read(molio, *, end = 99) m
+          stmax = stmax + 1
        end do
-99     close(sltio)
+99     close(molio)
        ptsite(numtype) = stmax
        pttype(numtype) = slttype   ! Test particle is the last (for insertion)       
        solute_index = numtype
@@ -514,15 +518,13 @@ contains
     end do
 
     ! large enough LJ table size
-    allocate(ljlen_temp_table(1:sum(ptsite(:))), &
-             ljene_temp_table(1:sum(ptsite(:))))
+    allocate( ljlen_temp_table(1:sum(ptsite(:))), &
+              ljene_temp_table(1:sum(ptsite(:))) )
 
     ! temporary set of LJ & coordinates
     maxsite = maxval(ptsite(1:numtype))
-    allocate(psite(3,maxsite), &
-         ljlen_temp(maxsite), ljene_temp(maxsite), ljtype_temp(maxsite), &
-         sitemass_temp(maxsite), &
-         charge_temp(maxsite))
+    allocate( psite(3,maxsite), sitemass_temp(maxsite), charge_temp(maxsite), &
+              ljtype_temp(maxsite), ljlen_temp(maxsite), ljene_temp(maxsite) )
 
     cur_solvent = 0
     cur_atom = 1
@@ -535,7 +537,7 @@ contains
           cur_solvent = cur_solvent + 1
           molfile = prmfile//trim(adjustl(itoa(cur_solvent)))
        else
-          if(ptcnt(pti).gt.1) cur_solvent = cur_solvent + 1
+          if(ptcnt(pti) > 1) cur_solvent = cur_solvent + 1
           molfile = sltfile            ! solute / test particle
        endif
        stmax = ptsite(pti)
@@ -552,13 +554,17 @@ contains
           call getmass(sitemass_temp(sid), atmtype)
 
           charge_temp(sid) = xst(1)
-          if(ljformat.eq.1) xst(3) = sgmcnv * xst(3)
-          if((ljformat.eq.3).or.(ljformat.eq.4).and.(xst(3).ne.0.0)) then
-             factor = (xst(2)/xst(3))**(1.0e0/6.0e0)
-             xst(2) = xst(3)/(4.0e0*(factor**6.0e0))
-             xst(3) = factor
+          if(ljformat == 1) xst(3) = sgmcnv * xst(3)
+          if((ljformat == 3).or.(ljformat == 4)) then
+             if(xst(3) /= 0.0) then
+                factor = (xst(2)/xst(3))**(1.0/6.0)
+                xst(2) = xst(3)/(4.0*(factor**6.0))
+                xst(3) = factor
+             else
+                xst(2) = 0.0
+             endif
           endif
-          if((ljformat.eq.2).or.(ljformat.eq.4)) then
+          if((ljformat == 2).or.(ljformat == 4)) then
              xst(2) = engcnv * xst(2)
              xst(3) = lencnv * xst(3)
           endif
@@ -578,8 +584,8 @@ contains
              lj_is_new = .true.
              do i = 1, ljtype_max
                 ! linear search LJ table
-                if(ljlen_temp_table(i) == ljlen_temp(sid) .and. &
-                     ljene_temp_table(i) == ljene_temp(sid)) then
+                if((ljlen_temp_table(i) == ljlen_temp(sid)) .and. &
+                   (ljene_temp_table(i) == ljene_temp(sid))) then
                    ljtype_found = i
                    lj_is_new = .false.
                    exit
@@ -606,33 +612,41 @@ contains
        if(uvtype == CAL_REFS_RIGID) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
     end do
 
-    deallocate(psite, ljlen_temp, ljene_temp, ljtype_temp, charge_temp, sitemass_temp)
+    deallocate( psite, sitemass_temp, charge_temp, &
+                ljlen_temp, ljene_temp, ljtype_temp )
 
     ! Fill LJ table
     if(ljformat == 5) then
        ! From table (directly)
        open(unit = ljtableio, file = ljtablefile, status = 'old', action = 'read')
        read(ljtableio, *) ljtype_max
-       allocate(ljlensq_mat(ljtype_max, ljtype_max), ljene_mat(ljtype_max, ljtype_max))
+       allocate( ljlensq_mat(ljtype_max, ljtype_max), &
+                 ljene_mat(ljtype_max, ljtype_max) )
        do i = 1, ljtype_max
-          read (ljtableio, *) ljlensq_mat(i, :)
-          ljlensq_mat(i, :) = ljlensq_mat(i, :) ** 2
+          read (ljtableio, *) ljlensq_mat(i, 1:ljtype_max)
+          ljlensq_mat(i, 1:ljtype_max) = ljlensq_mat(i, 1:ljtype_max) ** 2
        end do
        do i = 1, ljtype_max
-          read (ljtableio, *) ljene_mat(i, :)
+          read (ljtableio, *) ljene_mat(i, 1:ljtype_max)
        end do
        close(ljtableio)
     else
        ! From LJ data
-       allocate(ljlensq_mat(ljtype_max, ljtype_max), ljene_mat(ljtype_max, ljtype_max))
+       allocate( ljlensq_mat(ljtype_max, ljtype_max), &
+                 ljene_mat(ljtype_max, ljtype_max) )
        do i = 1, ljtype_max
           select case(cmbrule)
           case(0) ! arithmetic mean
-             ljlensq_mat(:, i) = ((ljlen_temp_table(1:ljtype_max) + ljlen_temp_table(i)) * 0.5) ** 2
+             ljlensq_mat(1:ljtype_max, i) = (( ljlen_temp_table(1:ljtype_max) &
+                                             + ljlen_temp_table(i) ) / 2.0) ** 2
           case(1) ! geometric mean
-             ljlensq_mat(:, i) = ljlen_temp_table(1:ljtype_max) * ljlen_temp_table(i)
+             ljlensq_mat(1:ljtype_max, i) = ljlen_temp_table(1:ljtype_max) &
+                                          * ljlen_temp_table(i)
+          case default
+             stop "Incorrect cmbrule"
           end select
-          ljene_mat(:, i) = sqrt(ljene_temp_table(1:ljtype_max) * ljene_temp_table(i))
+          ljene_mat(1:ljtype_max, i) = sqrt( ljene_temp_table(1:ljtype_max)  &
+                                           * ljene_temp_table(i) )
        end do
     endif
     deallocate(ljlen_temp_table, ljene_temp_table)
@@ -815,11 +829,11 @@ contains
     real, parameter :: massFe=55.845e0          ! mass number (iron)
     real, parameter :: massCu=63.546e0          ! mass number (copper)
 
-    real stmass
-    character*5 atmtype
-    character*1 eltp1
-    character*2 eltp2
-    character*3 eltp3
+    real, intent(out) :: stmass
+    character(len=5), intent(in) :: atmtype
+    character(len=1) :: eltp1
+    character(len=2) :: eltp2
+    character(len=3) :: eltp3
 
     eltp1=atmtype(1:1)
     if(eltp1.eq.'H') stmass=massH

@@ -41,6 +41,7 @@
 !   sltpick : specifying the solute species
 !               1 <= sltpick <= numtype (default = 1) if slttype = 1
 !               sltpick = numtype if slttype >= 2
+!             This parameter is effective as an input only in soln calculation.
 !   wgtslf : weighting by the self-energy  --- 0 : no  1 : yes
 !   wgtins : weight of the solute intramolecular configuration
 !               0 : no  1 : yes (can be = 1 only when slttype = 3)
@@ -193,6 +194,7 @@
 !   uvsoft : number of discretization in soft interaction region
 !   esmax : number of discretization of the solute self-energy
 !   maxins : maximum number of insertions for test solute particle
+!             This parameter is effective as an input only in refs calculation.
 !   uvspec : assignment to the number representing the solvent species
 !   numslt : number of solute molecules
 !   sltlist : list of solute molecules
@@ -252,22 +254,22 @@ module engmain
   real, dimension(:,:),    allocatable :: bfcoord
   real, dimension(:),      allocatable :: sitemass, charge, ljene, ljlen
 
-  integer :: ljtype_max
-  integer, allocatable :: ljtype(:)
-  real, allocatable :: ljlensq_mat(:, :), ljene_mat(:, :)
+  integer                            :: ljtype_max
+  integer, dimension(:), allocatable :: ljtype
+  real, dimension(:,:),  allocatable :: ljlensq_mat, ljene_mat
   
   real, dimension(:,:),    allocatable :: sitepos
-  real, allocatable :: mol_charge(:)
-  integer, allocatable :: mol_begin_index(:), belong_to(:)
-  real, dimension(3,3)                 :: cell,invcl
-  real :: celllen(3)
-  real :: volume
+  real, dimension(:),      allocatable :: mol_charge
+  integer, dimension(:),   allocatable :: mol_begin_index, belong_to
+  real, dimension(3,3)                 :: cell, invcl
+  real, dimension(3)                   :: celllen
+  real                                 :: volume
 
-  real :: elecut, lwljcut, upljcut, screen, ewtoler
+  real    :: elecut, lwljcut, upljcut, screen, ewtoler
   integer :: intprm, cmbrule, cltype, splodr, plmode
   integer :: ew1max, ew2max, ew3max, ms1max, ms2max, ms3max
   
-  integer :: ermax,numslv,esmax,maxins
+  integer :: ermax, numslv, esmax, maxins
   integer, dimension(:),   allocatable :: uvmax, uvsoft, uvspec
   real, dimension(:),      allocatable :: uvcrd, edens
   real, dimension(:,:),    allocatable :: ecorr
@@ -275,9 +277,9 @@ module engmain
   real, dimension(:,:),    allocatable :: aveuv
   real, dimension(:),      allocatable :: slnuv
   real, dimension(:,:),    allocatable :: avediv
-  real :: avslf
-  real, allocatable :: minuv(:), maxuv(:)
-  integer :: numslt
+  real                            :: avslf
+  real, dimension(:), allocatable :: minuv(:), maxuv(:)
+  integer              :: numslt
   integer, allocatable :: sltlist(:)
   real :: stat_weight_system
   real :: engnorm, engsmpl, voffset
