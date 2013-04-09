@@ -12,7 +12,7 @@ Without stating ljlrc = 'yes' in parameters_fe, the modified slvfe works just as
 By setting ljlrc = 'yes' in parameters_fe, user is required to prepare a file contaning the average volume of the reference solvent, read, for example, as
 
 $ cat volumedata
-3010.64
+30106.4
 
 The volumedata file simpy has the average volume of the reference solvent in the Angstrom^3 unit; note that it not be given in nm^3.
 If the volumedata file is not present, user is asked

@@ -1,5 +1,5 @@
---- slvfe.F90	2013-04-09 16:28:01.871985274 +0900
-+++ extensions/slvfe.F90	2013-04-09 16:28:07.296111369 +0900
+--- slvfe.F90	2013-04-09 16:44:44.116109863 +0900
++++ extensions/slvfe.F90	2013-04-09 19:55:13.729986320 +0900
 @@ -26,7 +26,7 @@
    integer :: numsln=10,numref=5,numdiv=-1
  
@@ -65,7 +65,7 @@
 +    if(first_time) then
 +       call set_keyparam
 +       write(6,550) lwljcut, upljcut
-+550    format('  Be sure that the solvent distribution is homegeneous (radial distribution function is unity) when the solvent is separated by distances of',f8.3,' or ',f8.3,' Angstrom in any direction from any atom within solute')
++550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated by distance of',f8.3,' or ',f8.3,' Angstrom in any direction from any atom within the solute molecule')
 +       write(6,*)
 +       call get_ljtable
 +       allocate( ljcorr(numslv) )
