@@ -11,6 +11,7 @@ dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 bestfit.F90
 
 EXTRA_DIST = parameters_er.example parameters_fe.example
+EXTRA_DIST += extensions/*
 EXTRA_DIST += trajectory-formats/*
 EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
