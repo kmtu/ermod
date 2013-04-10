@@ -33,9 +33,6 @@ module ptinsrt
   !  file for reference structure
   character(*), parameter :: refstr_file='RefInfo'
   integer, parameter :: refstr_io=71
-  !  file to store the info specifiying each atom is used as the reference
-  character(*), parameter :: refuse_file='RefUseIndex'
-  integer, parameter :: refuse_io=72
   !  variables for reference structure
   integer                            :: refhost_natom,   refslt_natom
   integer, dimension(:), allocatable :: refhost_specatm, refslt_specatm
@@ -620,7 +617,7 @@ contains
     implicit none
     integer :: sltmol, atom_count, i, sid, stat
     real :: crd(3), wgt
-    logical :: refuse_read
+    character(len=6) :: header
 
     refhost_natom = sum( numsite, mask = (moltype == hostspec) )
     if(refhost_natom > 0) then
@@ -646,22 +643,15 @@ contains
        refslt_specatm(sid) = mol_begin_index(sltmol) + sid - 1
     end do
 
-    ! reading the coordinate data from file
-    open(unit=refstr_io, file=refstr_file, status='old')
-    ! reading the info specifiying each atom is used as the reference
-    refuse_read = .false.
-    open(unit = refuse_io, file = refuse_file, status = 'old', iostat = stat)
-    if(stat == 0) then ! file exists and is successfully opened
-       refuse_read = .true.
-       atom_count = 0      ! counts the number of lines with ATOM/HETATM header
-       do
-          call searchATOM  ! skip until ATOM/HETATM lines
-          read(refuse_io, *, end = 99) i
-          atom_count = atom_count + 1
-       end do
-99     rewind(refuse_io)
-       if(atom_count /= refhost_natom + refslt_natom) call halt_with_error('ins_rus')
-    endif
+    open(unit = refstr_io, file = refstr_file, status = 'old', iostat = stat)
+    if(stat /= 0) call halt_with_error('ins_ref')
+    atom_count = 0    ! counts the number of lines with ATOM/HETATM header
+    do
+       read(refstr_io, '(A6)', end = 99) header
+       if(header == 'ATOM  ' .or. header == 'HETATM') atom_count = atom_count + 1
+    end do
+99  rewind(refstr_io)
+    if(atom_count /= refhost_natom + refslt_natom) call halt_with_error('ins_str')
 
     if(refhost_natom > 0) then
        do i = 1, refhost_natom
@@ -675,7 +665,6 @@ contains
        refslt_crd(1:3, i) = crd(1:3)
        refslt_weight(i) = wgt
     end do
-    if(refuse_read) close(refuse_io)
     close(refstr_io)
     return
 
@@ -685,49 +674,37 @@ contains
       implicit none
       integer, intent(in) :: ati
       real, intent(out) :: crd(3), wgt
-      integer :: dumint, intval
-      logical :: setval
-      setval = .true.
-      if(refuse_read) then
-         read(refuse_io, *) dumint, intval
-         if(intval == 0) setval = .false.
-      endif
-      if(setval) then         ! read the coordinate and use it as reference
-         call searchATOM      ! skip until ATOM/HETATM lines
-         read(refstr_io, '(24X, 3F8.3)') crd(1:3)
+      real :: refindex
+      character(len=6) :: header
+      do                       ! skip until ATOM/HETATM lines
+         read(refstr_io, '(A6)', advance='no') header
+         if(header == 'ATOM  ' .or. header == 'HETATM') exit
+         read(refstr_io, *)
+      end do
+      read(refstr_io, '(24X, 3F8.3, F6.2)') crd(1:3), refindex
+      if(refindex == 0.0) then ! not counted as an atom in reference structure
+         wgt = 0.0
+      else                     ! atom in reference with a weight given below
          ! initialize the weight as the atomic mass
          wgt = sitemass(ati)
          !
          ! user can implement his own special selection rule to mask fitting
          ! (e.g. by using B-factor, etc.)
          ! default: hydrogen is masked and the others have the same weight
-         if(wgt > 1.2) then   ! non-hydrogen
+         if(wgt > 1.2) then    ! non-hydrogen
             ! wgt > massH, actually, where the massH value is listed
             ! in the getmass subroutine within the setconf.F90 program
             wgt = 1.0
-         else                 ! hydrogen
+         else                  ! hydrogen
             wgt = 0.0
          endif
          !
          ! when mass weight is to be used, comment out the following line
 !        wgt = sitemass(ati)
          !
-      else                    ! skip the atom and do not use it as reference
-         crd(1:3) = 0.0
-         wgt = 0.0
       endif
       return
     end subroutine read_refPDF_weight
-
-    subroutine searchATOM
-      character(len=6) :: header
-      do
-         read(refstr_io, '(A6)', advance='no') header
-         if(header == 'ATOM  ' .or. header == 'HETATM') exit
-         read(refstr_io, *)
-      end do
-      return
-    end subroutine searchATOM
   end subroutine load_refstructure
 
 

@@ -220,7 +220,8 @@ contains
     if(errtype.eq.'ins_set') write(stdout,"(A)") " The solute specification is incorrectly set"
     if(errtype.eq.'ins_siz') write(stdout,"(A)") " Inconsistency is present in the setting of the size of bfcoord"
     if(errtype.eq.'ins_geo') write(stdout,"(A)") " The system geometry is incorrectly set"
-    if(errtype.eq.'ins_rus') write(stdout,"(A)") " Incorrect size for RefUseIndenx file"
+    if(errtype.eq.'ins_ref') write(stdout,"(A)") " RefInfo file is missing"
+    if(errtype.eq.'ins_str') write(stdout,"(A)") " Incorrect size for RefInfo file"
     if(errtype.eq.'ins_bug') write(stdout,"(A)") " Critical failure in the insertion program detected"
 
     if(errtype.eq.'set_slt') write(stdout,"(A)") " The solute type is incorrectly set"

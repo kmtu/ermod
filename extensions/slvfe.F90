@@ -519,7 +519,7 @@ contains
     if(first_time) then
        call set_keyparam
        write(6,550) lwljcut, upljcut
-550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated by distance of',f8.3,' or ',f8.3,' Angstrom in any direction from any atom within the solute molecule')
+550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f8.3,' or ',f8.3,' Angstrom in any direction from any atom within the solute molecule')
        write(6,*)
        call get_ljtable
        allocate( ljcorr(numslv) )
