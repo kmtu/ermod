@@ -13,8 +13,9 @@ $ make install
 Without stating ljlrc = 'yes' in parameters_fe,
 the modified slvfe works just as in the same way as the original slvfe.
 
-By setting ljlrc = 'yes' in parameters_fe, user is required to prepare a file
-contaning the average volume of the reference solvent, read, for example, as
+By setting ljlrc = 'yes' in parameters_fe, user is required to prepare
+a file contaning the average volume of the reference solvent,
+which is read, for example, as
 
 $ cat volumedata
 30106.4
@@ -23,7 +24,7 @@ The volumedata file simpy has the average volume of the reference solvent
 in Angstrom^3 unit; note that it not be given in nm^3.
 If the volumedata file is not present, user is asked
 
-write(6, *) " What is the average volume of reference solvent? (in Angstrom^3)"
+  What is the average volume of reference solvent? (in Angstrom^3)
 
 and is to type the average volume in Angstrom^3 directly on terminal.
 
@@ -36,7 +37,7 @@ can be used only when the solvent distribution function is homogeneous
 when the solvent molecule is separated beyond the Lennard-Jones cutoff distance
 in any direction from any atom in the solute molecule.
 The correction scheme may not be applied
-when the solute/solvent molecule is comparable in size to or larger
-than the cutoff radius, which is typically ~10 Angstrom,
+when the solute and/or solvent molecule is comparable in size to
+or larger than the cutoff radius, which is typically ~10 Angstrom,
 or when the solvent is inhomogeneous in nanoscale
 and, for example, is micelle or lipid membrane.

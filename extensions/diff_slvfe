@@ -1,5 +1,5 @@
---- slvfe.F90	2013-04-09 20:05:23.191984945 +0900
-+++ extensions/slvfe.F90	2013-04-10 09:25:09.868736753 +0900
+--- slvfe.F90	2013-04-10 14:56:11.473109952 +0900
++++ extensions/slvfe.F90	2013-04-10 14:43:31.490008151 +0900
 @@ -26,7 +26,7 @@
    integer :: numsln=10,numref=5,numdiv=-1
  
@@ -17,7 +17,7 @@
         refmerge, extsln, extthres_soln, extthres_refs, &
         wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
         inptemp, pickgr, msemin, msemax, mesherr, &
-@@ -474,6 +475,356 @@
+@@ -474,6 +475,363 @@
    end subroutine datread
  end module
  
@@ -65,7 +65,7 @@
 +    if(first_time) then
 +       call set_keyparam
 +       write(6,550) lwljcut, upljcut
-+550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f8.3,' or ',f8.3,' Angstrom in any direction from any atom within the solute molecule')
++550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f7.1,' or ',f7.1,' Angstrom in any direction from any atom within the solute molecule')
 +       write(6,*)
 +       call get_ljtable
 +       allocate( ljcorr(numslv) )
@@ -90,6 +90,7 @@
 +    implicit none
 +    character(len=80) :: keyfile
 +    integer, parameter :: iounit = 555
++    real, parameter :: volm_min = 3.0e3
 +    integer :: stat
 +    logical :: found
 +    ljformat = 1 ; ljswitch = 0 ; cmbrule = 0     ! default setting
@@ -109,7 +110,13 @@
 +       read(iounit, *) volm
 +       close(iounit)
 +    else
-+       write(6, *) " What is the average volume of reference solvent? (in Angstrom^3)"
++       write(6, '(A)') "  What is the average volume of reference solvent? (in Angstrom^3)"
++       read(5, *) volm
++    endif
++    if(volm < volm_min) then
++       write(6, '(A)') "  Warning: your input volume seems too small"
++       write(6, '(A, F8.1)') "           This warning appears when your input is less than ",volm_min
++       write(6, '(A)') "  Re-type the volume in Angstrom^3 (NOT in nm^3)"
 +       read(5, *) volm
 +    endif
 +  end subroutine set_keyparam
@@ -374,7 +381,7 @@
  module sfecalc
    use sysvars, only: zerosft,wgtfnform,slncor, &
                       numslv,ermax,nummol,kT,itrmax,zero,error, &
-@@ -538,8 +889,10 @@
+@@ -538,8 +896,10 @@
    subroutine chmpot(prmcnt,cntrun)
      !
      use sysvars, only: uvread,slfslt,normalize,showdst,wrtzrsft, &
@@ -385,7 +392,7 @@
      !
      implicit none
      integer prmcnt,cntrun,group,inft
-@@ -640,6 +993,7 @@
+@@ -640,6 +1000,7 @@
               aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
            end do
         endif

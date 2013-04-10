@@ -519,7 +519,7 @@ contains
     if(first_time) then
        call set_keyparam
        write(6,550) lwljcut, upljcut
-550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f8.3,' or ',f8.3,' Angstrom in any direction from any atom within the solute molecule')
+550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f7.1,' or ',f7.1,' Angstrom in any direction from any atom within the solute molecule')
        write(6,*)
        call get_ljtable
        allocate( ljcorr(numslv) )
@@ -544,6 +544,7 @@ contains
     implicit none
     character(len=80) :: keyfile
     integer, parameter :: iounit = 555
+    real, parameter :: volm_min = 3.0e3
     integer :: stat
     logical :: found
     ljformat = 1 ; ljswitch = 0 ; cmbrule = 0     ! default setting
@@ -563,7 +564,13 @@ contains
        read(iounit, *) volm
        close(iounit)
     else
-       write(6, *) " What is the average volume of reference solvent? (in Angstrom^3)"
+       write(6, '(A)') "  What is the average volume of reference solvent? (in Angstrom^3)"
+       read(5, *) volm
+    endif
+    if(volm < volm_min) then
+       write(6, '(A)') "  Warning: your input volume seems too small"
+       write(6, '(A, F8.1)') "           This warning appears when your input is less than ",volm_min
+       write(6, '(A)') "  Re-type the volume in Angstrom^3 (NOT in nm^3)"
        read(5, *) volm
     endif
   end subroutine set_keyparam

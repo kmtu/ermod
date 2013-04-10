@@ -1,6 +1,7 @@
 version 0.3.alpha8 (04/10/2013)
 * Solvation Free Energy:
-    * Added dispersion correction on Lennard-Jones interaction.
+    * Added dispersion correction on Lennard-Jones interaction in a modified
+    slvfe.F90 program prepared in the extensions directory.
 
 version 0.3.alpha7 (04/08/2013)
 * Energy Histogram Computation:
