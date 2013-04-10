@@ -1,7 +1,12 @@
+version 0.3.alpha8 (04/10/2013
+* Solvation Free Energy:
+    * Added dispersion correction on Lennard-Jones interaction.
+
 version 0.3.alpha7 (04/08/2013)
-* Misc:
+* Energy Histogram Computation:
     * The gromacs-type potential switch and the force switch for the LJ
     interaction is implemented with a new key of ljswitch.
+* Misc:
     * A key of insstructure is introduced to select some solute structures
     according to its RMSD relative to the reference structure.
     * A procedure is defined which conducts a best-fit of
