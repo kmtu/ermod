@@ -339,21 +339,21 @@ contains
     check_ins = .true.
     ! when restrained relative to aggregate
     if(insorigin == INSORG_AGGCEN) then
-       if(slttype == CAL_SOLN) then
+       select case(slttype)
+       case (CAL_SOLN)
           if((hostspec < 1) .or. (hostspec > numtype)) check_ins = .false.
-       endif
-       if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
           if((hostspec < 1) .or. (hostspec > numtype - 1)) check_ins = .false.
-       endif
+       end select
     endif
     ! when restrained against reference
     if(insorigin == INSORG_REFSTR) then
-       if(slttype == CAL_SOLN) then
+       select case(slttype)
+       case (CAL_SOLN)
           if((refspec < 1) .or. (refspec > numtype)) check_ins = .false.
-       endif
-       if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
           if((refspec < 1) .or. (refspec > numtype - 1)) check_ins = .false.
-       endif
+       end select
     endif
     ! when fit to reference
     if((insposition == INSPOS_RMSD) .or. (insposition == INSPOS_GAUSS)) then

@@ -61,8 +61,8 @@ contains
     integer :: param_err
     logical :: check_ok
     namelist /hist/ ecdmin, ecfmns, ecmns0, ecdcen, &
-                    ecpls0, ecfpls, eccore, ecdmax,&
-                    eclbin, ecfbin, ec0bin, finfac, ectmvl,&
+                    ecpls0, ecfpls, eccore, ecdmax, &
+                    eclbin, ecfbin, ec0bin, finfac, ectmvl, &
                     peread, pemax, pesoft, pecore
     !
     allocate( tplst(nummol) )
@@ -147,9 +147,12 @@ contains
 3109      continue
           close(ecdio)
        end if
-       ectmvl = finfac * ecfbin ; ecdmin = ecdmin - ectmvl
-       ecfmns = ecfmns - ectmvl ; ecmns0 = ecdcen - ectmvl
-       ecpls0 = 2.0 * ecdcen - ecmns0 ; ecfpls = 2.0 * ecdcen - ecfmns
+       ectmvl = finfac * ecfbin
+       ecdmin = ecdmin - ectmvl
+       ecfmns = ecfmns - ectmvl
+       ecmns0 = ecdcen - ectmvl
+       ecpls0 = 2.0 * ecdcen - ecmns0
+       ecfpls = 2.0 * ecdcen - ecfmns
        eccore = eccore + ecfpls - ecdcen
 
        cdrgvl(0) = ecdmin
@@ -194,10 +197,10 @@ contains
              incre = factor * real(iduv - minrg)
              if(regn <= rglmax) then
                 ercrd(iduv, pti) = ercrd(minrg, pti) + incre
-             end if
+             endif
              if(regn == (rglmax + 1)) then
                 ercrd(iduv, pti) = ercrd(minrg, pti) * exp(incre)
-             end if
+             endif
           end do
        end do
 
@@ -555,11 +558,12 @@ contains
           open(unit = wgt_io, file = 'weight_refs', action = 'write')
        end select
        do k = 1, engdiv
-          if(wgtslf == 0) then
-             write(wgt_io, '(i5,e15.8)') k, avediv(k,1)
-          else
-             write(wgt_io, '(i5,e15.8,e15.7)') k, avediv(k,1), avediv(k,2)
-          endif
+          select case(wgtslf)
+          case(0)
+             write(wgt_io, '(i5,e20.8)') k, avediv(k,1)
+          case(1)
+             write(wgt_io, '(i5,e20.8,e20.7)') k, avediv(k,1), avediv(k,2)
+          end select
        end do
        endfile(wgt_io)
        close(wgt_io)
