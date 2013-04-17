@@ -219,8 +219,8 @@ def parse_log():
         carryover = pickle.load(ifh)
         ifh.close()
 
-        if mode == "solution" and "sltpick" in carryover:
-            params["sltpick"] = carryover["sltpick"]
+        if mode == "solution" and "sltspec" in carryover:
+            params["sltspec"] = carryover["sltspec"]
     except OSError:
         pass
     except IOError:

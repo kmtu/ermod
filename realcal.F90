@@ -494,7 +494,7 @@ contains
     ! calculate for each subcell
     ! cut-off by subcell distance
     implicit none
-    real, intent(out) :: energy_vec(:, :)
+    real, intent(inout) :: energy_vec(:, :)
     integer :: u1, u2, u3
     integer :: vbs(3)
     integer :: i, upos, vpos_base, vpos_line_end, vpos_begin, vpos_end
@@ -555,7 +555,7 @@ contains
     !$ use omp_lib, only: omp_get_thread_num
     implicit none
     integer, intent(in) :: upos, vpos_b, vpos_e
-    real, intent(out) :: energy_vec(:, :)
+    real, intent(inout) :: energy_vec(:, :)
     integer :: ui, vi, ua, va
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
     real :: crdu(3), crdv(3), d(3), dist, r, dist_next, invr2, invr3, invr6

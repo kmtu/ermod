@@ -28,7 +28,7 @@ module ptinsrt
   !
   !  insertion against reference structure
   !    insorigin = INSORG_REFSTR: solvent species as superposition reference
-  !       hostspec: solvent species used as the reference
+  !       refspec: solvent species used as the reference
   !    insstructure = INSSTR_RMSD: solute itself as superposition reference
   !  file for reference structure
   character(*), parameter :: refstr_file='RefInfo'
@@ -114,6 +114,7 @@ contains
        call set_solute_origin(insml)
        call set_shift_com(insml, stat_weight_solute)
        call apply_orientation(insml)
+       reject = .false.
        call check_solute_configuration(insml, reject)
        ! user-defined scheme to apply change / reject the solute configuration
        call insscheme(insml,reject)
@@ -149,7 +150,7 @@ contains
     case(INSORG_REFSTR)
        call reffit
     case default
-       stop "Unknown insorigin"
+       stop "Unknown insorigin in set_solute_origin"
     end select
   end subroutine set_solute_origin
 
@@ -159,7 +160,9 @@ contains
                        sitemass, sitepos, &
                        cell, celllen, boxshp, SYS_NONPERIODIC, &
                        INSPOS_RANDOM, INSPOS_NOCHANGE, &
-                       INSPOS_SPHERE, INSPOS_SLAB, INSPOS_RMSD, INSPOS_GAUSS
+                       INSPOS_SPHERE, &
+                       INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
+                       INSPOS_RMSD, INSPOS_GAUSS
     use mpiproc, only: halt_with_error
     use bestfit, only: center_of_mass
     implicit none
@@ -200,7 +203,7 @@ contains
        com(:) = r(:) * upreg
        call shift_solute_com(insml, com)
        return
-    case(INSPOS_SLAB)
+    case(INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)
        ! slab random position
        if(boxshp == SYS_NONPERIODIC) then    ! system has to be periodic
           call halt_with_error('ins_geo')
@@ -209,12 +212,14 @@ contains
        call urand(r(2))
        
        call urand(t)
-       call urand(dir)
-       
        t = t * (upreg - lwreg) + lwreg
-       if(dir > 0.5) t = -t
+
+       if(insposition == INSPOS_SLAB_SYMMETRIC) then  ! symmetric bilayer
+          call urand(dir)
+          if(dir > 0.5) t = -t
+       endif
+
        r(3) = t / celllen(3)
-       
        com(:) = matmul(cell(:, :), r(:))
        call shift_solute_com(insml, com)
        return
@@ -247,7 +252,7 @@ contains
        call shift_solute_com(insml, com)
        return
     case default
-       stop "Unknown insposition"
+       stop "Unknown insposition in set_shift_com"
     end select
 
   contains
@@ -270,7 +275,8 @@ contains
       use mpiproc, only: myrank
       use engmain, only: PI, celllen, upreg
       implicit none
-      real, intent(inout) :: com(3), weight
+      real, intent(out) :: com(3)
+      real, intent(inout) :: weight
 
       real, parameter :: uniform_ratio = 0.5
 
@@ -377,7 +383,7 @@ contains
     case(INSROT_NOCHANGE)   ! no orientational change
        return
     case default
-       stop "Unknown insorient"
+       stop "Unknown insorient in apply_orientation"
     end select
   end subroutine apply_orientation
   !
@@ -385,14 +391,14 @@ contains
   ! user may reject snapshot by specifying out_of_range to .true.
   ! or set coordinate in sitepos manually
   subroutine insscheme(insml, out_of_range)
-    use engmain, only: nummol, numsite, specatm, sitepos, cell
+    use engmain, only: hostspec, refspec, &
+                       numsite, mol_begin_index, mol_end_index, &
+                       specatm, sitemass, sitepos, cell
     use bestfit, only: center_of_mass
     implicit none
     integer, intent(in) :: insml
-    logical, intent(out) :: out_of_range
-    integer :: stmax, sid, ati
-    out_of_range = .false.
-    stmax = numsite(insml)
+    logical, intent(inout) :: out_of_range
+    if(out_of_range) return
     return
   end subroutine insscheme
 
@@ -560,10 +566,10 @@ contains
     use bestfit, only: rmsd_nofit
     implicit none
     integer, intent(in) :: insml
-    logical, intent(out) :: out_of_range
+    logical, intent(inout) :: out_of_range
     integer :: ptb, pte
     real :: rmsd
-    out_of_range = .false.
+    if(out_of_range) return
     if(insorigin == INSORG_REFSTR) then
        if((insposition /= INSPOS_RMSD) .and. (insposition /= INSPOS_GAUSS)) then
           call halt_with_error('ins_bug')
@@ -596,7 +602,7 @@ contains
     do i = 1, refhost_natom
        hostcrd(1:3, i) = sitepos(1:3, refhost_specatm(i))
     end do
-    ! 1) fit the reference solvent (specified by hostspec) structure from file
+    ! 1) fit the reference solvent (specified by refspec) structure from file
     !    onto the current solvent structure from MD
     !    in order to get the best-fit "reference solute configuration"
     call fit_a_rotate_b(refhost_natom, hostcrd, &
@@ -612,20 +618,20 @@ contains
 !
 ! loading the reference structure
   subroutine load_refstructure
-    use engmain, only: nummol, moltype, numsite, sltlist, hostspec, mol_begin_index
+    use engmain, only: nummol, moltype, numsite, sltlist, refspec, mol_begin_index
     use mpiproc, only: halt_with_error
     implicit none
     integer :: sltmol, atom_count, i, sid, stat
     real :: crd(3), wgt
     character(len=6) :: header
 
-    refhost_natom = sum( numsite, mask = (moltype == hostspec) )
+    refhost_natom = sum( numsite, mask = (moltype == refspec) )
     if(refhost_natom > 0) then
        allocate( refhost_crd(3, refhost_natom), refhost_weight(refhost_natom) )
        allocate( refhost_specatm(refhost_natom) )
        atom_count = 0
        do i = 1, nummol
-          if(moltype(i) == hostspec) then
+          if(moltype(i) == refspec) then
              do sid = 1, numsite(i)
                 refhost_specatm(atom_count + sid) = mol_begin_index(i) + sid - 1
              end do
@@ -756,9 +762,8 @@ contains
 !
 !
 ! sltpstn: identifying the solute position according to the inscnd value
-  ! FIXME: cleanup
   subroutine sltpstn(sltstat,pcom,type,tagslt)
-    use engmain, only: nummol,numatm,boxshp,inscnd,inscfg,hostspec,&
+    use engmain, only: nummol,numatm,boxshp,inscnd,inscfg,refspec,&
          moltype,numsite,specatm,sitepos,cell,invcl,lwreg,upreg
     use mpiproc, only: halt_with_error
     use bestfit, only: com_aggregate
@@ -889,7 +894,7 @@ contains
 ! refmc: subroutine to generate an insertion configuration at inscnd = 3
   subroutine refmc
     use engmain, only: nummol,numatm,slttype,numsite,moltype,sluvid,&
-         hostspec,lwreg,upreg,bfcoord,specatm,sitepos
+         refspec,lwreg,upreg,bfcoord,specatm,sitepos
     use bestfit
     integer i,k,m,q,ati,rfi,sid,stmax
     real xst(3),centg(3),cenrf(3)
@@ -908,19 +913,19 @@ contains
        open(unit=refstr_io,file=refstr_file,status='old')
        do i=1,nummol
           rfi=0
-          if(moltype(i).eq.hostspec) then
+          if(moltype(i).eq.refspec) then
              rfi=1
              if(sluvid(i).ne.0) stop "Bug in particle specification"
           endif
           if(sluvid(i).ne.0) then
              rfi=2
-             if(moltype(i).eq.hostspec) stop "Bug in particle specification"
+             if(moltype(i).eq.refspec) stop "Bug in particle specification"
           endif
           if(rfi.ne.0) then
              stmax=numsite(i)
              do sid=1,stmax
                 read(refstr_io, '(12X, A4, 14X, 3F8.3)') atmtype, xst(1:3)
-                ! FIXME: this element selection looks very ugly
+                ! this element selection looks very ugly
                 atmtype = trim(atmtype)
                 eletype = atmtype(1:1)
                 ! atom name can be like "1HG"
@@ -1225,12 +1230,12 @@ contains
 ! getrfyn: judging whether the molecules is employed for reference calculation,
 !          used only in refmc, dispref, and refsdev
   subroutine getrfyn(i,rfi,rfyn,refmol)
-    use engmain, only: nummol,moltype,sluvid,hostspec
+    use engmain, only: nummol,moltype,sluvid,refspec
     use mpiproc, only: halt_with_error
     implicit none
     integer i,rfi,rfyn,refmol
     rfi=0
-    if(moltype(i).eq.hostspec) rfi=1
+    if(moltype(i).eq.refspec) rfi=1
     if(sluvid(i).ne.0) rfi=2
     rfyn=0
     select case(refmol)

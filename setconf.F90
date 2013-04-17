@@ -150,10 +150,11 @@ contains
   subroutine iniparam
     use engmain, only: init_params, &
          iseed, &
-         numtype, skpcnf, corrcal, selfcal, &
-         slttype, sltpick, wgtslf, wgtins, wgtsys, &
-         estype, boxshp, hostspec, ljformat, ljswitch, &
-         insorigin, insposition, insorient, insstructure, inscnd, inscfg, &
+         skpcnf, corrcal, selfcal, &
+         slttype, wgtslf, wgtins, wgtsys, estype, boxshp, &
+         sltspec, hostspec, refspec, ljformat, ljswitch, &
+         insorigin, insposition, insorient, insstructure, &
+         sltpick, refpick, inscnd, inscfg, &     ! deprecated   
          lwreg, upreg, lwstr, upstr, &
          inptemp, temp, &
          engdiv, maxins, &
@@ -166,21 +167,21 @@ contains
          CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
          INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR, &
          INSPOS_RANDOM, INSPOS_NOCHANGE, &
-         INSPOS_SPHERE, INSPOS_SLAB, INSPOS_RMSD, INSPOS_GAUSS, &
+         INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
+         INSPOS_RMSD, INSPOS_GAUSS, &
          INSROT_RANDOM, INSROT_NOCHANGE, &
          INSSTR_NOREJECT, INSSTR_RMSD
-    use OUTname, only: OUTintprm,&               ! from outside
-         OUTens,OUTbxs,OUTtemp,&                 ! from outside
-         OUTelc,OUTlwl,OUTupl,&                  ! from outside
-         OUTcmb,OUTclt,OUTscr,OUTspo,&           ! from outside
-         OUTew1,OUTew2,OUTew3,&                  ! from outside
-         OUTms1,OUTms2,OUTms3                    ! from outside
-    use mpiproc                                                      ! MPI
+    use OUTname, only: OUTintprm, &              ! from outside
+         OUTens, OUTbxs, OUTtemp, &              ! from outside
+         OUTelc, OUTlwl, OUTupl, &               ! from outside
+         OUTcmb, OUTclt, OUTscr, OUTspo, &       ! from outside
+         OUTew1, OUTew2, OUTew3, &               ! from outside
+         OUTms1, OUTms2, OUTms3                  ! from outside
+    use mpiproc, only: mpi_info, halt_with_error                     ! MPI
     implicit none
-    real, parameter :: tiny=1.0e-20
+    real, parameter :: tiny = 1.0e-20
     real :: real_seed
     character(len=3) :: scrtype
-    logical :: check_ins
     call mpi_info                                                    ! MPI
 
     intprm=1                                     ! trajectory reading
@@ -206,7 +207,7 @@ contains
        stop "Unknown intprm"
     end select
     
-    inscnd = 0 ; inscfg = 0                      ! deprecated
+    sltpick = 0 ; refpick = 0 ; inscnd = 0 ; inscfg = 0    ! deprecated
     insorigin = INSORG_ORIGIN
     insposition = INSPOS_RANDOM
     insorient = INSROT_RANDOM
@@ -234,7 +235,7 @@ contains
     case default
        stop "Unknown slttype"
     end select
-    sltpick = 1 ; hostspec = 1 ; ljformat = 1 ; ljswitch = 0
+    sltspec = 1 ; hostspec = 1 ; refspec = 0 ; ljformat = 1 ; ljswitch = 0
     maxins = 1000 ; lwreg = 0.0 ; upreg = 5.0 ; lwstr = 0.0 ; upstr = 2.0
     if(intprm /= 0) then
       cmbrule = 0                  ! arithmetic mean of LJ sigma
@@ -242,13 +243,16 @@ contains
       ms2max = ms1max ; ms3max = ms1max
     endif
 
+    if(sltpick > 0) sltspec = sltpick                      ! deprecated
+    if(refpick > 0) refspec = refpick                      ! deprecated
+
     select case(inscnd)
     case(0)    ! random
        insorigin = INSORG_ORIGIN ; insposition = INSPOS_RANDOM
     case(1)    ! spherical
        insorigin = INSORG_AGGCEN ; insposition = INSPOS_SPHERE
-    case(2)    ! slab
-       insorigin = INSORG_AGGCEN ; insposition = INSPOS_SLAB
+    case(2)    ! slab (symmetric bilayer)
+       insorigin = INSORG_AGGCEN ; insposition = INSPOS_SLAB_SYMMETRIC
     case(3)    ! reference
        insorigin = INSORG_REFSTR ; insposition = INSPOS_RMSD
     case default
@@ -307,19 +311,48 @@ contains
     if(wgtins == 1) then
        if(slttype /= 3) call halt_with_error('set_ins')
     endif
+
+    plmode=2                    ! energy calculation parallelization mode
+
+    return
+  end subroutine iniparam
+
+  subroutine check_insparam
+    use engmain, only: numtype, maxins, slttype, hostspec, refspec, &
+         insorigin, insposition, insorient, &
+         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+         INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR, &
+         INSPOS_RANDOM, INSPOS_NOCHANGE, &
+         INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
+         INSPOS_RMSD, INSPOS_GAUSS, &
+         INSROT_RANDOM, INSROT_NOCHANGE
+    use mpiproc, only: halt_with_error, warning
+    implicit none
+    integer :: valmin, valmax
+    logical :: check_ins
+
     ! insorigin and insorient is effective only for insertion
     if(slttype == CAL_SOLN) then
        insorigin = INSORG_ORIGIN ; insorient = INSROT_RANDOM
     endif
 
     check_ins = .true.
-    ! when restrained relative to aggregate or against reference
-    if((insorigin == INSORG_AGGCEN) .or. (insorigin == INSORG_REFSTR)) then
+    ! when restrained relative to aggregate
+    if(insorigin == INSORG_AGGCEN) then
        if(slttype == CAL_SOLN) then
           if((hostspec < 1) .or. (hostspec > numtype)) check_ins = .false.
        endif
        if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
           if((hostspec < 1) .or. (hostspec > numtype - 1)) check_ins = .false.
+       endif
+    endif
+    ! when restrained against reference
+    if(insorigin == INSORG_REFSTR) then
+       if(slttype == CAL_SOLN) then
+          if((refspec < 1) .or. (refspec > numtype)) check_ins = .false.
+       endif
+       if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+          if((refspec < 1) .or. (refspec > numtype - 1)) check_ins = .false.
        endif
     endif
     ! when fit to reference
@@ -328,10 +361,24 @@ contains
     else  ! insposition /= INSPOS_RMSD .and. insposition /= INSPOS_GAUSS
        if(insorigin == INSORG_REFSTR) check_ins = .false.
     endif
+
     ! check the consistency for insorigin, insposition, and insorient
-    if((insorigin < 0) .or. (insorigin > 3)) check_ins = .false.
-    if((insposition < 0) .or. (insposition > 5)) check_ins = .false.
-    if((insorient < 0) .or. (insorient > 1)) check_ins = .false.
+    valmin = min(INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR)
+    valmax = max(INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR)
+    if((insorigin < valmin) .or. (insorigin > valmax)) check_ins = .false.
+
+    valmin = min(INSPOS_RANDOM, INSPOS_NOCHANGE, &
+                 INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
+                 INSPOS_RMSD, INSPOS_GAUSS)
+    valmax = max(INSPOS_RANDOM, INSPOS_NOCHANGE, &
+                 INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
+                 INSPOS_RMSD, INSPOS_GAUSS)
+    if((insposition < valmin) .or. (insposition > valmax)) check_ins = .false.
+
+    valmin = min(INSROT_RANDOM, INSROT_NOCHANGE)
+    valmax = max(INSROT_RANDOM, INSROT_NOCHANGE)
+    if((insorient < valmin) .or. (insorient > valmax)) check_ins = .false.
+
     if((insorigin == INSORG_NOCHANGE .and. insposition /= INSPOS_NOCHANGE).or.&
        (insorigin /= INSORG_NOCHANGE .and. insposition == INSPOS_NOCHANGE)) then
        check_ins = .false.
@@ -344,11 +391,10 @@ contains
        maxins /= 1) then
        call warning('insu')
     endif
-         
-    plmode=2                    ! energy calculation parallelization mode
 
     return
-  end subroutine iniparam
+  end subroutine check_insparam
+
 
   real function getscrn(ewtoler, elecut, scrtype)
     implicit none
@@ -375,7 +421,7 @@ contains
   ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
   subroutine setparam
     use engmain, only: numtype, nummol, numatm, maxcnf, &
-         slttype, sltpick, ljformat, hostspec, &
+         slttype, sltspec, ljformat, &
          moltype, numsite, sluvid, &
          bfcoord, sitemass, charge, &
          ljene_mat, ljlensq_mat, ljtype, ljtype_max, cmbrule, &
@@ -433,7 +479,7 @@ contains
     if(slttype == CAL_SOLN) then
        ! Determine which molecule is solute?
        solute_index = 1            ! default for soln
-       if((1 <= sltpick).and.(sltpick <= numtype)) solute_index = sltpick
+       if((1 <= sltspec).and.(sltspec <= numtype)) solute_index = sltspec
        pttype(solute_index) = PT_SOLUTE
     else
        ! Test particle information will be defined outside
@@ -451,8 +497,6 @@ contains
        pttype(numtype) = slttype   ! Test particle is the last (for insertion)       
        solute_index = numtype
     endif
-
-    if((slttype /= CAL_SOLN).and.(hostspec == numtype)) call halt_with_error("set_hst")
 
     ! count up number of mols, 
     ! set max and total no. of atoms 
@@ -491,6 +535,10 @@ contains
     end do
 
     if(numatm /= sum(numsite(1:nummol))) stop "something is wrong in setconf::setparam, numatm"
+
+
+    ! check the insertion parameters
+    call check_insparam
 
     allocate(bfcoord(3,stmax), sitemass(numatm))
     allocate(charge(numatm), ljtype(numatm))

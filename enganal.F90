@@ -33,11 +33,11 @@ subroutine enganal_init()
   implicit none
 
   call setparam
+  call enginit
   ! getting the reference structure from file
   if((insorigin == INSORG_REFSTR) .or. (insstructure == INSSTR_RMSD)) then
      call load_refstructure
   endif
-  call enginit
 end subroutine enganal_init
 
 ! FIXME: recover routine which runs as "combined with MD program"

@@ -209,6 +209,7 @@ contains
     if(errtype.eq.'eng_par') write(stdout,"(A)") " The input parameter is incorrectly set"
     if(errtype.eq.'eng_siz') write(stdout,"(A)") " The number of energy-coordinate meshes is too large"
     if(errtype.eq.'eng_min') write(stdout,"(A)") " The minimum of the energy coordinate is too large"
+    if(errtype.eq.'eng_pcr') write(stdout,"(A)") " The pecore parameter is incorrectly set"
     if(errtype.eq.'eng_ecd') write(stdout,"(A)") " The energy-coordinate system is inconsistent"
     if(errtype.eq.'eng_cns') write(stdout,"(A)") " Inconsistency is present in the engproc program"
     if(errtype.eq.'eng_slb') write(stdout,"(A)") " Slab condition can only used in periodic system"
@@ -226,7 +227,6 @@ contains
 
     if(errtype.eq.'set_slt') write(stdout,"(A)") " The solute type is incorrectly set"
     if(errtype.eq.'set_num') write(stdout,"(A)") " The number of molecules or atoms is incorrectly set"
-    if(errtype.eq.'set_hst') write(stdout,"(A)") " The solvent species acting as the host is incorrectly set"
     if(errtype.eq.'set_prs') write(stdout,"(A)") " The system parameters are incorrectly set"
     if(errtype.eq.'set_ins') write(stdout,"(A)") " The insertion parameters are incorrectly set"
     if(errtype.eq.'set_ewa') write(stdout,"(A)") " The Ewald parameters are incorrectly set"
