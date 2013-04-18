@@ -28,14 +28,14 @@ module OUTname
   integer, parameter :: mdinf=89                 ! MD info file IO
   character(*), parameter :: inffile='MDinfo'    ! MD info filename
 
-  integer OUTens,OUTbxs,OUTcmb,OUTclt,OUTspo
-  real OUTtemp,OUTelc,OUTlwl,OUTupl,OUTscr
-  integer OUTew1,OUTew2,OUTew3,OUTms1,OUTms2,OUTms3
+  integer OUTens, OUTbxs, OUTcmb, OUTclt, OUTspo
+  real OUTtemp, OUTelc, OUTlwl, OUTupl, OUTscr
+  integer OUTew1, OUTew2, OUTew3, OUTms1, OUTms2, OUTms3
 
-  integer OUTnrun,OUTntype
-  integer, dimension(:), allocatable :: OUTnmol,OUTsite
-  real, dimension(:), allocatable :: OUTstmass,OUTcharge
-  real, dimension(:), allocatable :: OUTljene,OUTljlen
+  integer OUTnrun, OUTntype
+  integer, dimension(:), allocatable :: OUTnmol, OUTsite
+  real, dimension(:), allocatable    :: OUTstmass, OUTcharge
+  real, dimension(:), allocatable    :: OUTljene, OUTljlen
   logical :: use_mdlib
 
   type(handle) :: history_trajectory
@@ -44,11 +44,11 @@ module OUTname
 contains
 
   subroutine OUTinitial
-    real, save :: sgmcnv,chgcnv,engcnv,lencnv    ! unit conversion factor
-    sgmcnv=2.0e0**(5.0e0/6.0e0)                  ! from Rmin/2 to sigma
-    chgcnv=1.0e0/1.60217653e-19                  ! from C to elementary
-    engcnv=6.0221415e23/4.184e3                  ! from J to kcal/mol
-    lencnv=1.0e1                                 ! from nm to Angstrom
+    real, save :: sgmcnv, chgcnv, engcnv, lencnv ! unit conversion factor
+    sgmcnv = 2.0 ** (5.0 / 6.0)                  ! from Rmin/2 to sigma
+    chgcnv = 1.0 / 1.60217653e-19                ! from C to elementary
+    engcnv = 6.0221415e23 / 4.184e3              ! from J to kcal/mol
+    lencnv = 10.0                                ! from nm to Angstrom
   end subroutine OUTinitial
 
   subroutine opentrj
@@ -73,14 +73,14 @@ contains
   subroutine OUTrename
     implicit none
     integer TotAtm
-    open(unit=mdinf,file=inffile,status='old')
-    read(mdinf,*) OUTnrun,OUTntype
-    allocate( OUTnmol(OUTntype),OUTsite(OUTntype) )
+    open(unit = mdinf, file = inffile, status = 'old')
+    read(mdinf,*) OUTnrun, OUTntype
+    allocate( OUTnmol(OUTntype), OUTsite(OUTntype) )
     read(mdinf,*) OUTnmol(1:OUTntype)
     read(mdinf,*) OUTsite(1:OUTntype)
     TotAtm = sum(OUTnmol(1:OUTntype) * OUTsite(1:OUTntype))
-    allocate( OUTstmass(TotAtm),OUTcharge(TotAtm) )
-    allocate( OUTljene(TotAtm),OUTljlen(TotAtm) )
+    allocate( OUTstmass(TotAtm), OUTcharge(TotAtm) )
+    allocate( OUTljene(TotAtm), OUTljlen(TotAtm) )
     close(mdinf)
     return
   end subroutine OUTrename
@@ -91,7 +91,7 @@ contains
   end subroutine OUTintprm
 
   ! Get molecular configuration
-  subroutine OUTconfig(OUTpos,OUTcell,OUTatm,OUTbox,particle_type,calc_type)
+  subroutine OUTconfig(OUTpos, OUTcell, OUTatm, OUTbox, particle_type, calc_type)
     use mpiproc, only: halt_with_error
     use trajectory, only: read_trajectory, open_trajectory, close_trajectory
     implicit none
@@ -110,7 +110,7 @@ contains
        stop "Unknown calc_type in OUTconfig"
     end select
     !
-    OUTcell(:, :) = 0.0e0
+    OUTcell(:, :) = 0.0
     !
     select case(particle_type)
     case('system')                  ! reading the HISTORY file
@@ -283,7 +283,7 @@ contains
     endif
     
     ! temperature converted into the unit of kcal/mol
-    temp=inptemp*8.314510e-3/4.184e0
+    temp = inptemp * 8.314510e-3 / 4.184
     ! get the screening parameter in Ewald and PME
     if((screen <= tiny).and.(cltype /= 0)) then
        if(ewtoler <= tiny) call halt_with_error('set_ewa')
@@ -291,11 +291,11 @@ contains
     endif
     ! check Ewald parameters, not effective in the current version
     if(cltype == 1) then
-       if(ew1max*ew2max*ew3max == 0) call halt_with_error('set_ewa')
+       if(ew1max * ew2max * ew3max == 0) call halt_with_error('set_ewa')
     endif
     ! check PME parameters
     if(cltype == EL_PME) then
-       if(ms1max*ms2max*ms3max == 0) call halt_with_error('set_ewa')
+       if(ms1max * ms2max * ms3max == 0) call halt_with_error('set_ewa')
     endif
     ! ljswitch parameter
     if((ljswitch < 0).or.(ljswitch > 2)) call halt_with_error('set_prs')
@@ -331,12 +331,8 @@ contains
     integer :: valmin, valmax
     logical :: check_ins
 
-    ! insorigin and insorient is effective only for insertion
-    if(slttype == CAL_SOLN) then
-       insorigin = INSORG_ORIGIN ; insorient = INSROT_RANDOM
-    endif
-
     check_ins = .true.
+
     ! when restrained relative to aggregate
     if(insorigin == INSORG_AGGCEN) then
        select case(slttype)
@@ -346,6 +342,7 @@ contains
           if((hostspec < 1) .or. (hostspec > numtype - 1)) check_ins = .false.
        end select
     endif
+
     ! when restrained against reference
     if(insorigin == INSORG_REFSTR) then
        select case(slttype)
@@ -355,6 +352,7 @@ contains
           if((refspec < 1) .or. (refspec > numtype - 1)) check_ins = .false.
        end select
     endif
+
     ! when fit to reference
     if((insposition == INSPOS_RMSD) .or. (insposition == INSPOS_GAUSS)) then
        if(insorigin /= INSORG_REFSTR) check_ins = .false.
@@ -383,6 +381,7 @@ contains
        (insorigin /= INSORG_NOCHANGE .and. insposition == INSPOS_NOCHANGE)) then
        check_ins = .false.
     endif
+
     if(.not. check_ins) call halt_with_error('set_ins')
 
     ! maxins > 1 in insertion makes no sense if coordinate is used as is read
@@ -435,9 +434,9 @@ contains
     use utility, only: itoa
     implicit none
     ! only integer power is allowed as the initialization expression (7.1.6.1)
-    real, parameter :: sgmcnv = 1.7817974362806784e0 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
-    real, parameter :: lencnv = 1.0e1                ! from nm to Angstrom
-    real, parameter :: engcnv = 1.0e0/4.184e0        ! from kJ/mol to kcal/mol
+    real, parameter :: sgmcnv = 1.7817974362806784 ! from Rmin/2 to sigma, 2.0**(5.0/6.0)
+    real, parameter :: lencnv = 10.0               ! from nm to Angstrom
+    real, parameter :: engcnv = 1.0 / 4.184        ! from kJ/mol to kcal/mol
     integer :: pti, stmax, maxsite, uvtype, cmin, cmax, sid, i, ati, m
     integer :: solute_index, cur_solvent, prev_solvent_type, cur_atom
     real :: factor, xst(3)
@@ -461,12 +460,13 @@ contains
     call iniparam                  ! initialization of parameters
     call OUTrename                 ! matching with outside variables
 
-    maxcnf=OUTnrun                                   ! from outside
-    if(slttype == CAL_SOLN) then
-       numtype=OUTntype                              ! from outside
-    else
-       numtype=OUTntype+1                            ! from outside
-    end if
+    maxcnf = OUTnrun                                 ! from outside
+    select case(slttype)
+    case (CAL_SOLN)
+       numtype = OUTntype                            ! from outside
+    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       numtype = OUTntype + 1                        ! from outside
+    end select
 
     ! pttype is particle type for each molecule group
     allocate(pttype(numtype), ptcnt(numtype), ptsite(numtype))
@@ -506,12 +506,12 @@ contains
     allocate( moltype(nummol), numsite(nummol), sluvid(nummol) )
 
     ! make mapping from molecule no. [1..nummol] to particle type [1..numtype]
-    cmin=1
-    cmax=0
+    cmin = 1
+    cmax = 0
     do pti = 1, numtype
-       cmax=cmax+ptcnt(pti)
+       cmax = cmax + ptcnt(pti)
        moltype(cmin:cmax) = pti ! sequential identification
-       cmin=cmax+1
+       cmin = cmax + 1
     end do
     if(cmax /= nummol) call halt_with_error("set_num")
 
@@ -544,13 +544,13 @@ contains
     allocate(charge(numatm), ljtype(numatm))
     allocate(sitepos(3, numatm))
     allocate(mol_begin_index(nummol + 1))
-    allocate(mol_charge(nummol))
     allocate(belong_to(numatm))
+    allocate(mol_charge(nummol))
 
     ! initial setting to zero
-    bfcoord(:,:) = 0.0e0
-    sitemass(:) = 0.0e0
-    charge(:) = 0.0e0
+    bfcoord(:,:) = 0.0
+    sitemass(:) = 0.0
+    charge(:) = 0.0
 
     ! initialize mol_begin_index
     ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
@@ -702,7 +702,7 @@ contains
 
     ! conversion to (kcal/mol angstrom)^(1/2)
     ! == sqrt(e^2 * coulomb const * avogadro / (kcal / mol angstrom))
-    charge(1:numatm) = 18.22261721e0 * charge(1:numatm)
+    charge(1:numatm) = 18.22261721 * charge(1:numatm)
 
     ! get molecule-wise charges
     do i = 1, nummol
@@ -779,7 +779,8 @@ contains
           do iproc = 1, nread
              ! get configuration and store in OUTpos / OUTcell
              do i = 1, skpcnf
-                call OUTconfig(readpos,readcell,OUTatm,boxshp,'system','trjfl_read')
+                call OUTconfig(readpos, readcell, OUTatm, boxshp, &
+                                                  'system','trjfl_read')
                 call read_weight(readweight)
              end do
              
@@ -821,7 +822,7 @@ contains
     endif
 
     if(myrank == 0) deallocate(readpos)
-    deallocate( OUTpos,OUTcell )
+    deallocate( OUTpos, OUTcell )
     actual_read = nread
 
   end subroutine getconf_parallel
@@ -860,22 +861,22 @@ contains
 
   subroutine getmass(stmass,atmtype)
     implicit none
-    real, parameter :: massH=1.00794e0          ! mass number (hydrogen)
-    real, parameter :: massC=12.0107e0          ! mass number (carbon)
-    real, parameter :: massO=15.9994e0          ! mass number (oxygen)
-    real, parameter :: massN=14.00674e0         ! mass number (nitrogen)
-    real, parameter :: massS=32.066e0           ! mass number (sulfur)
-    real, parameter :: massP=30.973761e0        ! mass number (phosphorus)
-    real, parameter :: massLi=6.941e0           ! mass number (lithium)
-    real, parameter :: massNa=22.989770e0       ! mass number (sodium)
-    real, parameter :: massK=39.0983e0          ! mass number (potassium)
-    real, parameter :: massF=18.9984032e0       ! mass number (fluorine)
-    real, parameter :: massCl=35.4527e0         ! mass number (chlorine)
-    real, parameter :: massBr=79.904e0          ! mass number (bromine)
-    real, parameter :: massCa=40.078e0          ! mass number (calcium)
-    real, parameter :: massZn=65.409e0          ! mass number (zinc)
-    real, parameter :: massFe=55.845e0          ! mass number (iron)
-    real, parameter :: massCu=63.546e0          ! mass number (copper)
+    real, parameter :: massH = 1.00794          ! mass number (hydrogen)
+    real, parameter :: massC = 12.0107          ! mass number (carbon)
+    real, parameter :: massO = 15.9994          ! mass number (oxygen)
+    real, parameter :: massN = 14.00674         ! mass number (nitrogen)
+    real, parameter :: massS = 32.066           ! mass number (sulfur)
+    real, parameter :: massP = 30.973761        ! mass number (phosphorus)
+    real, parameter :: massLi = 6.941           ! mass number (lithium)
+    real, parameter :: massNa = 22.989770       ! mass number (sodium)
+    real, parameter :: massK = 39.0983          ! mass number (potassium)
+    real, parameter :: massF = 18.9984032       ! mass number (fluorine)
+    real, parameter :: massCl = 35.4527         ! mass number (chlorine)
+    real, parameter :: massBr = 79.904          ! mass number (bromine)
+    real, parameter :: massCa = 40.078          ! mass number (calcium)
+    real, parameter :: massZn = 65.409          ! mass number (zinc)
+    real, parameter :: massFe = 55.845          ! mass number (iron)
+    real, parameter :: massCu = 63.546          ! mass number (copper)
 
     real, intent(out) :: stmass
     character(len=5), intent(in) :: atmtype
@@ -883,28 +884,28 @@ contains
     character(len=2) :: eltp2
     character(len=3) :: eltp3
 
-    eltp1=atmtype(1:1)
-    if(eltp1.eq.'H') stmass=massH
-    if(eltp1.eq.'C') stmass=massC
-    if(eltp1.eq.'O') stmass=massO
-    if(eltp1.eq.'N') stmass=massN
-    if(eltp1.eq.'S') stmass=massS
-    if(eltp1.eq.'P') stmass=massP
-    if(eltp1.eq.'K') stmass=massK
-    if(eltp1.eq.'F') stmass=massF
-    eltp2=atmtype(1:2)
-    if(eltp2.eq.'Li') stmass=massLi
-    if(eltp2.eq.'Na') stmass=massNa
-    if(eltp2.eq.'Cl') stmass=massCl
-    if(eltp2.eq.'Br') stmass=massBr
-    if(eltp2.eq.'Ca') stmass=massCa
-    if(eltp2.eq.'Zn') stmass=massZn
-    if(eltp2.eq.'Fe') stmass=massFe
-    if(eltp2.eq.'Cu') stmass=massCu
-    if(eltp2.eq.'CH') stmass=massC+massH
-    eltp3=atmtype(1:3)
-    if(eltp3.eq.'CH2') stmass=massC+2.0e0*massH
-    if(eltp3.eq.'CH3') stmass=massC+3.0e0*massH
+    eltp1 = atmtype(1:1)
+    if(eltp1 == 'H') stmass = massH
+    if(eltp1 == 'C') stmass = massC
+    if(eltp1 == 'O') stmass = massO
+    if(eltp1 == 'N') stmass = massN
+    if(eltp1 == 'S') stmass = massS
+    if(eltp1 == 'P') stmass = massP
+    if(eltp1 == 'K') stmass = massK
+    if(eltp1 == 'F') stmass = massF
+    eltp2 = atmtype(1:2)
+    if(eltp2 == 'Li') stmass = massLi
+    if(eltp2 == 'Na') stmass = massNa
+    if(eltp2 == 'Cl') stmass = massCl
+    if(eltp2 == 'Br') stmass = massBr
+    if(eltp2 == 'Ca') stmass = massCa
+    if(eltp2 == 'Zn') stmass = massZn
+    if(eltp2 == 'Fe') stmass = massFe
+    if(eltp2 == 'Cu') stmass = massCu
+    if(eltp2 == 'CH') stmass = massC + massH
+    eltp3 = atmtype(1:3)
+    if(eltp3 == 'CH2') stmass = massC + 2.0 * massH
+    if(eltp3 == 'CH3') stmass = massC + 3.0 * massH
     return
   end subroutine getmass
 end module

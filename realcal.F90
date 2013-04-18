@@ -114,7 +114,7 @@ contains
     ! if (.not. all(belong_solu(:) == target_solu)) stop "realcal_blk: target_solu bugged after sorting"
 
     allocate(eng(1:slvmax, npar))
-    eng(:, :) = 0
+    eng(:, :) = 0.0
     call get_pair_energy(eng)
 
     uvengy(1:slvmax) = sum(eng(1:slvmax, 1:npar), 2)
@@ -239,7 +239,7 @@ contains
              end select
           endif
           if(rst >= reelcut) then
-             epcl = 0.0e0
+             epcl = 0.0
           else
              epcl = charge(ati) * charge(atj) / rst
           endif
@@ -257,10 +257,10 @@ contains
     implicit none
     integer, intent(in) :: i
     real, intent(inout) :: pairep
-    integer :: is,js,ismax,ati,atj
-    real :: rst,dis2,epcl,xst(3),half_cell(3)
+    integer :: is, js, ismax, ati, atj
+    real :: rst, dis2, epcl, xst(3), half_cell(3)
 
-    pairep=0.0e0
+    pairep=0.0
     if(cltype == EL_COULOMB) return
 
     half_cell(:) = 0.5 * cell_len_normal(:) 
@@ -268,25 +268,25 @@ contains
     ismax=numsite(i)
 
     !$omp parallel do private(is,js,ati,atj,epcl,rst,dis2,xst) reduction(+:pairep)
-    do is=1,ismax
-       ati=specatm(is,i)
+    do is = 1, ismax
+       ati = specatm(is, i)
 
        ! Atom residual
        ! self (the same ati arguments for two charge variables below)
        epcl = - charge(ati) * charge(ati) * screen / sqrt(PI)
        pairep = pairep + epcl
 
-       do js=is+1,ismax
-          atj=specatm(js,i)
+       do js = is + 1, ismax
+          atj = specatm(js, i)
  
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
           xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
 
-          dis2=xst(1)*xst(1)+xst(2)*xst(2)+xst(3)*xst(3)
+          dis2 = sum(xst(1:3) ** 2)
+          rst = sqrt(dis2)
 
-          rst=sqrt(dis2)
           ! distinct (different ati and atj arguments for two charge variables)
-          epcl = - charge(ati) * charge(atj) * erf(screen*rst) / rst
+          epcl = - charge(ati) * charge(atj) * erf(screen * rst) / rst
           pairep = pairep + epcl
        enddo
     enddo

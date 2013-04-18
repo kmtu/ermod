@@ -260,23 +260,22 @@ contains
   end subroutine enginit
 
   subroutine engclear
-    use engmain, only: corrcal,selfcal,slttype,ermax,numslv,esmax,&
-                       edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl, &
-                       CAL_SOLN
+    use engmain, only: corrcal, selfcal, slttype, CAL_SOLN, &
+                       edens, ecorr, eself, slnuv, avslf, engnorm, engsmpl
     implicit none
-    edens(1:ermax)=0.0e0
-    if(corrcal.eq.1) ecorr(1:ermax,1:ermax)=0.0e0
-    if(selfcal.eq.1) eself(1:esmax)=0.0e0
-    if(slttype == CAL_SOLN) slnuv(1:numslv)=0.0e0
-    avslf=0.0e0
-    engnorm=0.0e0
-    engsmpl=0.0e0
+    edens(:) = 0.0
+    if(corrcal == 1) ecorr(:,:) = 0.0
+    if(selfcal == 1) eself(:) = 0.0
+    if(slttype == CAL_SOLN) slnuv(:) = 0.0
+    avslf = 0.0
+    engnorm = 0.0
+    engsmpl = 0.0
     return
   end subroutine engclear
 
   subroutine engproc_cleanup
-    use engmain, only: slttype, CAL_SOLN, io_flcuv
-    use mpiproc
+    use engmain, only: io_flcuv
+    use mpiproc, only: myrank
     implicit none
     if(myrank == 0) then
        endfile(io_flcuv)
@@ -299,12 +298,12 @@ contains
     implicit none
     integer, intent(in) :: stnum
     integer :: i, k, irank
-    real :: engnmfc,pairep,stat_weight_solute,factor
-    integer, dimension(:), allocatable :: insdst,engdst,tplst
-    real, dimension(:),    allocatable :: uvengy,svfl
+    real :: engnmfc, pairep, stat_weight_solute, factor
+    integer, dimension(:), allocatable :: insdst, engdst, tplst
+    real, dimension(:),    allocatable :: uvengy, svfl
     logical, allocatable :: flceng_stored_g(:,:)
     real, allocatable :: flceng_g(:,:,:)
-    real, save :: prevcl(3, 3)
+    real, save :: prevcl(3,3)
     real, parameter :: tiny = 1.0e-20
     logical :: skipcond
     logical, save :: pme_initialized = .false.
@@ -338,13 +337,13 @@ contains
     allocate(flceng_stored(maxdst))
     allocate(flceng(numslv, maxdst))
     flceng_stored(:) = .false.
-    flceng(:, :) = 0
+    flceng(:,:) = 0
 
     if(myrank < nactiveproc) then
        ! Initialize reciprocal space - grid and charges
        call get_inverted_cell
        if(cltype == EL_PME) then
-          if(.not. pme_initialized) call recpcal_init(slvmax,tagpt)
+          if(.not. pme_initialized) call recpcal_init(slvmax, tagpt)
           
           ! check whether cell size changes
           ! recpcal is called only when cell size differ
@@ -352,7 +351,7 @@ contains
           if((.not. pme_initialized) .or. &
              (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
           call perf_time()
-          prevcl(:, :) = cell(:, :)
+          prevcl(:,:) = cell(:,:)
           
           pme_initialized = .true.
 
@@ -374,8 +373,8 @@ contains
           call update_histogram(stnum, stat_weight_solute, uvengy(0:slvmax))
        end do
 
-       if(slttype == CAL_SOLN) then
-          ! for soln only: need to output flceng
+       select case(slttype)
+       case(CAL_SOLN)                           ! for soln: output flceng
           
           allocate(flceng_stored_g(maxdst, nactiveproc))
           allocate(flceng_g(numslv, maxdst, nactiveproc))
@@ -397,10 +396,14 @@ contains
              do irank = 1, nactiveproc
                 do cntdst = 1, maxdst
                    if(flceng_stored_g(maxdst, irank)) then
-                      if(maxdst.eq.1) then
-                         write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, flceng_g(1:numslv, cntdst, irank)
+                      if(maxdst == 1) then
+                         write(io_flcuv, 911) &
+                                        (stnum + irank - 1) * skpcnf, &
+                                        flceng_g(1:numslv, cntdst, irank)
                       else
-                         write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, flceng_g(1:numslv, cntdst, irank)
+                         write(io_flcuv, 912) cntdst, &
+                                        (stnum + irank - 1) * skpcnf, &
+                                        flceng_g(1:numslv, cntdst, irank)
                       endif
 911                   format(i9,999f15.5)
 912                   format(2i9,999f15.5)
@@ -409,12 +412,11 @@ contains
              enddo
           endif
           deallocate(flceng_g, flceng_stored_g)
-       else
-          ! for refs: output progress
-          if(myrank == 0) then
-             write(io_flcuv, *) ((stnum + irank - 1) * skpcnf, irank = 1, nactiveproc)
-          endif
-       endif
+       case(CAL_REFS_RIGID, CAL_REFS_FLEX)      ! for refs: output progress
+          if(myrank == 0) write(io_flcuv, *) ( &
+                                        (stnum + irank - 1) * skpcnf, &
+                                             irank = 1, nactiveproc)
+       end select
     endif
 
     deallocate( tagpt,uvengy )
@@ -581,11 +583,11 @@ contains
        close(uvr_io)
     endif
 
-    j = division / 10
-    k = division - 10 * j
     if(engdiv == 1) then
        suffeng='.tt'
     else
+       j = division / 10
+       k = mod(division, 10)
        suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
     endif
     !
@@ -646,7 +648,7 @@ contains
     use mpiproc                                                      ! MPI
     implicit none
     integer, intent(in) :: stnum
-    real, intent(inout) :: uvengy(0:slvmax), stat_weight_solute
+    real, intent(out) :: uvengy(0:slvmax), stat_weight_solute
     logical, intent(out) :: out_of_range
 
     integer :: i, k
@@ -661,6 +663,7 @@ contains
     select case(slttype) 
     case(CAL_SOLN)
        tagslt = sltlist(cntdst)
+       stat_weight_solute = 1.0
        call check_mol_configuration(out_of_range)
        if(out_of_range) return
     case(CAL_REFS_RIGID, CAL_REFS_FLEX)
@@ -746,7 +749,7 @@ contains
     real, allocatable :: svfl(:)
 
     integer :: i, k, q, iduv, iduvp, pti
-    real :: factor, engnmfc, pairep
+    real :: factor, engnmfc, pairep, total_weight
 
     allocate(insdst(ermax), engdst(ermax))
 
@@ -754,37 +757,27 @@ contains
     case(0)
        engnmfc=1.0
     case(1)
-       factor = uvengy(0)
        if(.not. voffset_initialized) then
-          voffset = factor
+          voffset = uvengy(0)
           voffset_initialized = .true.
        endif
-       factor = factor - voffset               ! shifted by offset
+       factor = uvengy(0) - voffset  ! shifted by offset
        select case(slttype)
        case (CAL_SOLN)
           engnmfc = exp(factor / temp)
        case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          engnmfc = exp(-factor / temp)
+          engnmfc = exp(- factor / temp)
        end select
     case default
        stop "Unknown wgtslf"
     end select
-    engnmfc = engnmfc * stat_weight_system
-    if(estype == ES_NPT) call volcorrect(engnmfc)
-    if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc = engnmfc * stat_weight_solute
+    total_weight = stat_weight_system * stat_weight_solute
+    if(estype == ES_NPT) call volcorrect(total_weight)
+    engnmfc = engnmfc * total_weight
     !
-    engnorm = engnorm + engnmfc                ! normalization factor
-    engsmpl = engsmpl + 1.0                    ! number of sampling
-
-    select case(estype)
-    case (ES_NVT)
-       avslf = avslf + stat_weight_solute
-    case (ES_NPT)
-       avslf = avslf + stat_weight_solute * volume
-    case default
-       stop "Unknown estype"
-    end select
-
+    engnorm = engnorm + engnmfc      ! normalization factor
+    engsmpl = engsmpl + 1.0          ! number of sampling
+    avslf = avslf + total_weight     ! normalization without solute self-energy
 
     ! self energy histogram
     if(selfcal == 1) then
@@ -850,22 +843,23 @@ contains
     real :: epcl
     if(cltype == EL_COULOMB) return
     epcl = PI * mol_charge(i) * mol_charge(j) / screen / screen / volume
-    if(i == j) epcl = epcl / 2.0e0 ! self-interaction
+    if(i == j) epcl = epcl / 2.0   ! self-interaction
     pairep = pairep - epcl
   end subroutine residual_ene
   !
-  subroutine volcorrect(engnmfc)
+  subroutine volcorrect(weight)
     use engmain, only:  sluvid, cltype, screen, mol_charge, volume, temp, &
                         EL_COULOMB, PT_SOLVENT, PT_SOLUTE, PI
     implicit none
-    real total_charge,factor,engnmfc
-    engnmfc=volume*engnmfc
+    real, intent(inout) :: weight
+    real :: total_charge, factor
+    weight = weight * volume
     if(cltype /= EL_COULOMB) then  ! Ewald and PME
        ! sum of charges over physical particles
        total_charge = sum( mol_charge, mask = ((sluvid == PT_SOLVENT) &
                                           .or. (sluvid == PT_SOLUTE)) )
-       factor=PI*total_charge*total_charge/screen/screen/volume/2.0e0
-       engnmfc=engnmfc*exp(factor/temp)
+       factor = PI * (total_charge ** 2)  / (screen ** 2 ) / volume / 2.0
+       weight = weight * exp(factor / temp)
     endif
     return
   end subroutine volcorrect
@@ -1106,7 +1100,8 @@ contains
     subroutine relative_com(tagpt, dx)
       use engmain, only: numsite, mol_begin_index, mol_end_index, &
                          sitemass, sitepos
-      use bestfit, only: center_of_mass, com_aggregate
+      use ptinsrt, only: com_aggregate
+      use bestfit, only: center_of_mass
       implicit none
       integer, intent(in) :: tagpt
       real, intent(out) :: dx(3)

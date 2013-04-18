@@ -106,7 +106,7 @@ contains
        call getsolute(caltype, insml, stat_weight_solute)
     else
        ! no structure-specific weight when the solute is rigid
-       stat_weight_solute = 1.0e0
+       stat_weight_solute = 1.0
     endif
 
     reject = .true.
@@ -127,7 +127,6 @@ contains
     use engmain, only: insorigin, numsite, mol_begin_index, mol_end_index, &
                    bfcoord, sitepos, &
                    INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR
-    use bestfit, only: com_aggregate
     implicit none
     integer, intent(in) :: insml
     integer :: molb, mole, nsite
@@ -475,7 +474,7 @@ contains
                       endif
                    endif
                 else                     ! no structure-specific weight
-                   weight = 1.0e0
+                   weight = 1.0
                 endif
 
                 select case(insstructure)
@@ -556,6 +555,33 @@ contains
     call random_seed(put = seedarray)
     deallocate(seedarray)
   end subroutine urand_init
+
+
+  subroutine com_aggregate(aggregate_center)
+    use engmain, only: nummol, numsite, hostspec, moltype, &
+                       mol_begin_index, mol_end_index, sitemass, sitepos
+    use bestfit, only: center_of_mass
+    implicit none
+    real, intent(out) :: aggregate_center(3)
+    real, dimension(:), allocatable   :: agg_mass
+    real, dimension(:,:), allocatable :: agg_site
+    integer :: num_aggsite, molb, mole, nsite, cnt, i
+    num_aggsite = sum( numsite, mask = (moltype == hostspec) )
+    allocate( agg_mass(num_aggsite), agg_site(3,num_aggsite) )
+    cnt = 0
+    do i = 1, nummol
+       if(moltype(i) == hostspec) then
+          nsite = numsite(i)
+          molb = mol_begin_index(i)
+          mole = mol_end_index(i)
+          agg_mass(cnt+1:cnt+nsite) = sitemass(molb:mole)
+          agg_site(1:3, cnt+1:cnt+nsite) = sitepos(1:3, molb:mole)
+          cnt = cnt + nsite
+       endif
+    enddo
+    call center_of_mass(num_aggsite, agg_site, agg_mass, aggregate_center)
+    deallocate( agg_mass, agg_site )
+  end subroutine com_aggregate
    
 
   subroutine check_solute_configuration(insml, out_of_range)
@@ -766,7 +792,6 @@ contains
     use engmain, only: nummol,numatm,boxshp,inscnd,inscfg,refspec,&
          moltype,numsite,specatm,sitepos,cell,invcl,lwreg,upreg
     use mpiproc, only: halt_with_error
-    use bestfit, only: com_aggregate
     implicit none
     integer sltstat,tagslt,stmax,sid,ati,pti,i,m,k,centag(numatm)
     real rdum,clm(3),pcom(3),qrtn(0:3),rst,dis,syscen(3),elen

@@ -54,8 +54,6 @@
 !             This parameter is effective as an input only in soln calculation.
 !   hostspec : solvent spcies to act as a host and bind the guest solute
 !              (micelle, membrane or protein)
-!              active only when insorigin = 2 (micelle or membrane)
-!              or when insorigin = 3 (protein)
 !               1 <= hostspec <= numtype      when slttype = 1
 !               1 <= hostspec <= numtype - 1  when slttype >= 2
 !   refspec : specifying the mixed solvent species for superposition reference
@@ -247,7 +245,7 @@ module engmain
   ! Note for optimization: any major compilers shall inline expand "parameter"s
   ! mathematical & physical constants
   real, parameter :: PI = 3.1415926535897932
-  real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
+  real, parameter :: cal_per_joule = 4.1840   ! thermochemical cal / J
 !
   integer :: numtype, nummol, numatm, maxcnf, engdiv, skpcnf, corrcal, selfcal
   integer :: slttype, wgtslf, wgtins, wgtsys, estype, boxshp
