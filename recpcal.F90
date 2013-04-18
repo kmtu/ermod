@@ -132,7 +132,7 @@ contains
                 endif
              end do
              do m = 1, 3
-                xst(m)=dot_product(invcl(:, m), inm(:))
+                xst(m) = dot_product(invcl(:, m), inm(:))
              end do
              rtp2 = sum(xst(1:3) ** 2)
              chr = (PI ** 2) * rtp2 / (screen ** 2 )
@@ -247,7 +247,7 @@ contains
        do k = 1, 3
           factor = dot_product(invcl(k,:), xst(:))
           factor = factor - floor(factor)
-          inm(k)=factor
+          inm(k) = factor
        end do
        do m = 1, 3
           if(m == 1) rcimax = ms1max

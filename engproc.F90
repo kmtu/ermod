@@ -455,8 +455,9 @@ contains
     if(wgtslf == 1) then
        voffset_local = voffset
 #ifndef noMPI
+    ! MPI part starts here
        call mpi_allreduce(voffset_local, voffset, 1, &
-            mpi_double_precision, mpi_max, mpi_comm_world, ierror)   ! MPI
+            mpi_double_precision, mpi_max, mpi_comm_world, ierror)
 
        ! if uninitialized, use voffset so as not to pollute results with NaN
        if(.not. voffset_initialized) voffset_local = voffset
@@ -474,62 +475,67 @@ contains
        if(slttype == CAL_SOLN) slnuv(:) = slnuv(:) * voffset_scale
        edens(:) = edens(:) * voffset_scale
        if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
+    ! MPI part ends here
 #endif
     endif
 
     ! Gather all information to Master node
 #ifndef noMPI
-    if(plmode == 2) then                                              ! MPI
-       call mpi_reduce(avslf,factor,1,&
-            mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
-       avslf=factor                                                   ! MPI
-       call mpi_reduce(engnorm,factor,1,&
-            mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
-       engnorm=factor                                                 ! MPI
-       call mpi_reduce(engsmpl,factor,1,&
-            mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
-       engsmpl=factor                                                 ! MPI
-       if(selfcal == 1) then                                          ! MPI
-         allocate( sve1(esmax) )                                      ! MPI
-         sve1(1:esmax)=eself(1:esmax)                                 ! MPI
-         call mpi_reduce(sve1,eself,esmax,&
-              mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)   ! MPI
-         deallocate( sve1 )                                           ! MPI
-       endif                                                          ! MPI
+    ! MPI part starts here
+    if(plmode == 2) then
+       call mpi_reduce(avslf, factor, 1, &
+            mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+       avslf = factor
+       call mpi_reduce(engnorm, factor, 1, &
+            mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+       engnorm = factor
+       call mpi_reduce(engsmpl, factor, 1, &
+            mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+       engsmpl = factor
+       if(selfcal == 1) then
+         allocate( sve1(esmax) )
+         sve1(1:esmax) = eself(1:esmax)
+         call mpi_reduce(sve1, eself, esmax, &
+              mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+         deallocate( sve1 )
+       endif
        if(slttype == CAL_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
-    endif                                                             ! MPI
-    allocate( sve1(0:numslv),sve2(0:numslv) )                         ! MPI
-    sve1(0:numslv)=minuv(0:numslv)                                    ! MPI
-    sve2(0:numslv)=maxuv(0:numslv)                                    ! MPI
-    call mpi_reduce(sve1,minuv,numslv+1,&                             ! MPI
-         mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)        ! MPI
-    call mpi_reduce(sve2,maxuv,numslv+1,&                             ! MPI
-         mpi_double_precision,mpi_max,0,mpi_comm_world,ierror)        ! MPI
-    deallocate( sve1,sve2 )                                           ! MPI
-    allocate( sve1(ermax) )                                           ! MPI
-    sve1(1:ermax)=edens(1:ermax)                                      ! MPI
-    call mpi_reduce(sve1,edens,ermax,&                                ! MPI
-         mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)        ! MPI
-    deallocate( sve1 )                                                ! MPI
+    endif
+    allocate( sve1(0:numslv), sve2(0:numslv) )
+    sve1(0:numslv) = minuv(0:numslv)
+    sve2(0:numslv) = maxuv(0:numslv)
+    call mpi_reduce(sve1, minuv, (numslv + 1), &
+         mpi_double_precision, mpi_min, 0, mpi_comm_world, ierror)
+    call mpi_reduce(sve2, maxuv, (numslv + 1), &
+         mpi_double_precision, mpi_max, 0, mpi_comm_world, ierror)
+    deallocate( sve1, sve2 )
+    allocate( sve1(ermax) )
+    sve1(1:ermax) = edens(1:ermax)
+    call mpi_reduce(sve1, edens, ermax, &
+         mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+    deallocate( sve1 )
+    ! MPI part ends here
 #endif
-    edens(1:ermax)=edens(1:ermax)/engnorm
+    edens(1:ermax) = edens(1:ermax) / engnorm
     if(corrcal == 1) then
        do iduv=1,ermax
 #ifndef noMPI
-          allocate( sve1(ermax),sve2(ermax) )                         ! MPI
-          sve1(1:ermax)=ecorr(1:ermax,iduv)                           ! MPI
-          call mpi_reduce(sve1,sve2,ermax,&                           ! MPI
-               mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)  ! MPI
-          ecorr(1:ermax,iduv)=sve2(1:ermax)                           ! MPI
-          deallocate( sve1,sve2 )                                     ! MPI
+    ! MPI part starts here
+          allocate( sve1(ermax), sve2(ermax) )
+          sve1(1:ermax) = ecorr(1:ermax, iduv)
+          call mpi_reduce(sve1, sve2, ermax, &
+               mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+          ecorr(1:ermax, iduv) = sve2(1:ermax)
+          deallocate( sve1, sve2 )
+    ! MPI part ends here
 #endif
-          ecorr(1:ermax,iduv)=ecorr(1:ermax,iduv)/engnorm
+          ecorr(1:ermax, iduv) = ecorr(1:ermax, iduv) / engnorm
        end do
     endif
-    if(selfcal == 1) eself(1:esmax)=eself(1:esmax)/engnorm
-    avslf=avslf/engnorm
+    if(selfcal == 1) eself(1:esmax) = eself(1:esmax) / engnorm
+    avslf = avslf / engnorm
     !
-    if(myrank.ne.0) return                                           ! MPI
+    if(myrank /= 0) return                                            ! MPI
     !
     division = stnum / (maxcnf / skpcnf / engdiv)
     !
@@ -588,15 +594,15 @@ contains
     else
        j = division / 10
        k = mod(division, 10)
-       suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
+       suffeng = '.' // numbers(j+1:j+1) // numbers(k+1:k+1)
     endif
     !
     ! storing the solute-solvent pair-energy distribution function
     select case(slttype)
     case (CAL_SOLN)
-       engfile = 'engsln'//suffeng
+       engfile = 'engsln' // suffeng
     case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-       engfile = 'engref'//suffeng
+       engfile = 'engref' // suffeng
     end select
     open(unit = eng_io, file = engfile, form = "FORMATTED", action = 'write')
     do iduv = 1, ermax
@@ -610,9 +616,9 @@ contains
     if(corrcal == 1) then
        select case(slttype)
        case (CAL_SOLN)
-          engfile = 'corsln'//suffeng
+          engfile = 'corsln' // suffeng
        case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          engfile = 'corref'//suffeng
+          engfile = 'corref' // suffeng
        end select
        open(unit = cor_io, file = engfile, form = "UNFORMATTED", action = 'write')
        write(cor_io) ecorr
@@ -622,7 +628,7 @@ contains
     !
     ! storing the distribution function of the self-energy of solute
     if(selfcal == 1) then
-       engfile = 'slfeng'//suffeng
+       engfile = 'slfeng' // suffeng
        open(unit = slf_io, file = engfile, form = "FORMATTED", action = 'write')
        do iduv = 1, esmax
           call repval('self', iduv, factor)
@@ -874,23 +880,25 @@ contains
   end subroutine update_cell_info
 
   subroutine get_inverted_cell
-    use engmain, only:  cell,invcl,volume
+    use engmain, only:  cell, invcl, volume
     implicit none
-    volume=cell(1,1)*cell(2,2)*cell(3,3)&
-          +cell(1,2)*cell(2,3)*cell(3,1)+cell(1,3)*cell(2,1)*cell(3,2)&
-          -cell(1,3)*cell(2,2)*cell(3,1)&
-          -cell(1,2)*cell(2,1)*cell(3,3)-cell(1,1)*cell(2,3)*cell(3,2)
-    invcl(1,1)=cell(2,2)*cell(3,3)-cell(2,3)*cell(3,2)
-    invcl(1,2)=cell(1,3)*cell(3,2)-cell(1,2)*cell(3,3)
-    invcl(1,3)=cell(1,2)*cell(2,3)-cell(1,3)*cell(2,2)
-    invcl(2,1)=cell(2,3)*cell(3,1)-cell(2,1)*cell(3,3)
-    invcl(2,2)=cell(1,1)*cell(3,3)-cell(1,3)*cell(3,1)
-    invcl(2,3)=cell(1,3)*cell(2,1)-cell(1,1)*cell(2,3)
-    invcl(3,1)=cell(2,1)*cell(3,2)-cell(2,2)*cell(3,1)
-    invcl(3,2)=cell(1,2)*cell(3,1)-cell(1,1)*cell(3,2)
-    invcl(3,3)=cell(1,1)*cell(2,2)-cell(1,2)*cell(2,1)
+    volume = cell(1,1) * cell(2,2) * cell(3,3) &
+           + cell(1,2) * cell(2,3) * cell(3,1) &
+           + cell(1,3) * cell(2,1) * cell(3,2) &
+           - cell(1,3) * cell(2,2) * cell(3,1) &
+           - cell(1,2) * cell(2,1) * cell(3,3) &
+           - cell(1,1) * cell(2,3) * cell(3,2)
+    invcl(1,1) = cell(2,2) * cell(3,3) - cell(2,3) * cell(3,2)
+    invcl(1,2) = cell(1,3) * cell(3,2) - cell(1,2) * cell(3,3)
+    invcl(1,3) = cell(1,2) * cell(2,3) - cell(1,3) * cell(2,2)
+    invcl(2,1) = cell(2,3) * cell(3,1) - cell(2,1) * cell(3,3)
+    invcl(2,2) = cell(1,1) * cell(3,3) - cell(1,3) * cell(3,1)
+    invcl(2,3) = cell(1,3) * cell(2,1) - cell(1,1) * cell(2,3)
+    invcl(3,1) = cell(2,1) * cell(3,2) - cell(2,2) * cell(3,1)
+    invcl(3,2) = cell(1,2) * cell(3,1) - cell(1,1) * cell(3,2)
+    invcl(3,3) = cell(1,1) * cell(2,2) - cell(1,2) * cell(2,1)
 
-    invcl(1:3,1:3)=invcl(1:3,1:3)/volume
+    invcl(1:3, 1:3) = invcl(1:3, 1:3) / volume
     call update_cell_info
   end subroutine get_inverted_cell
 
