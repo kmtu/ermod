@@ -153,7 +153,8 @@ contains
     use engmain, only:  boxshp, numsite, &
          elecut, lwljcut, upljcut, cltype, screen, charge, specatm, &
          ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat, &
-         SYS_NONPERIODIC, SYS_PERIODIC, EL_COULOMB
+         SYS_NONPERIODIC, SYS_PERIODIC, EL_COULOMB, &
+         LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE
     implicit none
     integer :: i, j, is, js, ismax, jsmax, ati, atj
     real :: reelcut, pairep, rst, dis2, invr2, invr3, invr6
@@ -197,17 +198,17 @@ contains
              invr2 = ljsgm2 / dis2
              invr6 = invr2 * invr2 * invr2
              select case(ljswitch)
-             case(0,1)                      ! potential switch
+             case(LJSWT_POT_CHM, LJSWT_POT_GMX)         ! potential switch
                 eplj = 4.0 * ljeps * invr6 * (invr6 - 1.0)
                 if(rst > lwljcut) then
                    select case(ljswitch)
-                   case(0)                  ! CHARMM type
+                   case(LJSWT_POT_CHM)                  ! CHARMM type
                       lwljcut2 = lwljcut ** 2
                       upljcut2 = upljcut ** 2
                       swth = (2.0 * dis2 + upljcut2 - 3.0 * lwljcut2)      &
                            * ((dis2 - upljcut2) ** 2)                      &
                            / ((upljcut2 - lwljcut2) ** 3)
-                   case(1)                  ! GROMACS type
+                   case(LJSWT_POT_GMX)                  ! GROMACS type
                       swfac = (rst - lwljcut) / (upljcut - lwljcut)
                       swth = 1.0 - 10.0 * (swfac ** 3)                     &
                                  + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) 
@@ -216,7 +217,7 @@ contains
                    end select
                    eplj = swth * eplj
                 endif
-             case(2)                        ! force switch
+             case(LJSWT_FORCE)                          ! force switch
                 lwljcut3 = lwljcut ** 3
                 upljcut3 = upljcut ** 3
                 lwljcut6 = lwljcut3 * lwljcut3
@@ -551,7 +552,9 @@ contains
   subroutine get_pair_energy_block(upos, vpos_b, vpos_e, energy_vec)
     use engmain, only: cltype, boxshp, &
          upljcut, lwljcut, elecut, screen, charge,&
-         ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat
+         ljswitch, ljtype, ljtype_max, ljene_mat, ljlensq_mat, &
+         SYS_NONPERIODIC, EL_COULOMB, &
+         LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE
     !$ use omp_lib, only: omp_get_thread_num
     implicit none
     integer, intent(in) :: upos, vpos_b, vpos_e
@@ -565,8 +568,8 @@ contains
     integer :: n_lowlj, n_switch, n_el
     integer :: i, curp
     
-    if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
-    if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
+    if(cltype == EL_COULOMB) stop "realcal%get_pair_energy_block: cltype assertion failure"
+    if(boxshp == SYS_NONPERIODIC) stop "realcal%get_pair_energy_block: boxshp assertion failure"
 
     curp = 1
     !$ curp = omp_get_thread_num() + 1
@@ -579,7 +582,7 @@ contains
 
     lwljcut2 = lwljcut ** 2
     upljcut2 = upljcut ** 2
-    if(ljswitch == 2) then            ! force switch
+    if(ljswitch == LJSWT_FORCE) then          ! force switch
        lwljcut3 = lwljcut2 * lwljcut
        lwljcut6 = lwljcut3 * lwljcut3
        upljcut3 = upljcut2 * upljcut
@@ -659,9 +662,9 @@ contains
        invr2 = ljsgm2 / dist_lowlj(i, curp)
        invr6 = invr2 * invr2 * invr2
        select case(ljswitch)
-       case(0,1)                      ! potential switch
+       case(LJSWT_POT_CHM, LJSWT_POT_GMX)    ! potential switch
           e_t(i, curp) = 4.0 * ljeps * invr6 * (invr6 - 1.0)
-       case(2)                        ! force switch
+       case(LJSWT_FORCE)                     ! force switch
           ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
           vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 / (lwljcut6 * upljcut6)
           vdwb = invr6 - ljsgm6 / (lwljcut3 * upljcut3)
@@ -682,17 +685,17 @@ contains
        invr2 = ljsgm2 / dist
        invr6 = invr2 * invr2 * invr2
        select case(ljswitch)
-       case(0)                        ! potential switch (CHRAMM form)
+       case(LJSWT_POT_CHM)                   ! potential switch (CHRAMM form)
           e_t(i, curp) = 4.0 * ljeps * invr6 * (invr6 - 1.0)             &
                        * (2.0 * dist + upljcut2 - 3.0 * lwljcut2)        &
                        * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
-       case(1)                        ! potential switch (GROMACS form)
+       case(LJSWT_POT_GMX)                   ! potential switch (GROMACS form)
           r = sqrt(dist)
           swfac = (r - lwljcut) / (upljcut - lwljcut)
           e_t(i, curp) = 4.0 * ljeps * invr6 * (invr6 - 1.0)             &
                        * (1.0 - 10.0 * (swfac ** 3)                      &
                               + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) )
-       case(2)                        ! force switch
+       case(LJSWT_FORCE)                     ! force switch
           invr3 = sqrt(invr6)
           ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
           ljsgm3 = sqrt(ljsgm6)

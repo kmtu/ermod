@@ -40,7 +40,7 @@ contains
          voffset, &
          aveuv, slnuv, avediv, minuv, maxuv, numslt, sltlist, &
          ene_confname, &
-         io_flcuv, CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, PT_SOLVENT
+         io_flcuv, SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, PT_SOLVENT, YES
     use mpiproc, only: halt_with_error, warning, myrank
     implicit none
     real ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax
@@ -50,7 +50,7 @@ contains
     integer, parameter :: ecdio = 51       ! IO for ecdfile
     real, parameter :: infty = 1.0e50      ! essentially equal to infinity
     !
-    integer, parameter :: rglmax = 5, large = 10000
+    integer, parameter :: rglmax = 5, large = 10000, too_large_ermax = 15000
     real, parameter :: tiny = 1.0e-30
     integer iduv, i, q, pti, regn, minrg, maxrg, uprgcd(0:rglmax+1)
     real factor, incre, cdrgvl(0:rglmax+1), ecpmrd(large)
@@ -82,7 +82,7 @@ contains
     ! consistency check between slttype and numslt (number of solute molecules)
     check_ok = .true.
     if(numslt <= 0) check_ok = .false.
-    if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+    if((slttype == SLT_REFS_RIGID) .or. (slttype == SLT_REFS_FLEX)) then
        if(numslt /= 1) check_ok = .false.
     endif
     if(.not. check_ok) call halt_with_error('eng_num')
@@ -92,7 +92,7 @@ contains
     deallocate( tplst )
     !
     ! solute needs to be the last particle in reference system
-    if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+    if((slttype == SLT_REFS_RIGID) .or. (slttype == SLT_REFS_FLEX)) then
        if(sltlist(1) /= nummol) call halt_with_error('eng_ins')
     endif
     !
@@ -222,18 +222,18 @@ contains
        end do
     end do
 
-    if(corrcal == 1) then
-       if(ermax > 15000) call warning('emax')
+    if(corrcal == YES) then
+       if(ermax > too_large_ermax) call warning('emax')
        allocate( ecorr(ermax,ermax) )
     endif
 
-    if(selfcal == 1)  then
+    if(selfcal == YES)  then
       allocate( escrd(esmax), eself(esmax) )
       escrd(1:esmax) = ercrd(1:esmax,0)
     endif
     deallocate( ercrd )
 
-    if(slttype == CAL_SOLN) allocate( aveuv(engdiv,numslv), slnuv(numslv) )
+    if(slttype == SLT_SOLN) allocate( aveuv(engdiv,numslv), slnuv(numslv) )
     allocate( avediv(engdiv,2) )
     allocate( minuv(0:numslv), maxuv(0:numslv) )
      
@@ -247,7 +247,7 @@ contains
 
     ! Output for energy fluctuation
     if(myrank == 0) then
-       if(slttype == CAL_SOLN) then
+       if(slttype == SLT_SOLN) then
           ! open flcuv file
           open(unit=io_flcuv, file='flcuv.tt', status='new', action='write')
        else
@@ -260,13 +260,13 @@ contains
   end subroutine enginit
 
   subroutine engclear
-    use engmain, only: corrcal, selfcal, slttype, CAL_SOLN, &
+    use engmain, only: corrcal, selfcal, slttype, SLT_SOLN, YES, &
                        edens, ecorr, eself, slnuv, avslf, engnorm, engsmpl
     implicit none
     edens(:) = 0.0
-    if(corrcal == 1) ecorr(:,:) = 0.0
-    if(selfcal == 1) eself(:) = 0.0
-    if(slttype == CAL_SOLN) slnuv(:) = 0.0
+    if(corrcal == YES) ecorr(:,:) = 0.0
+    if(selfcal == YES) eself(:) = 0.0
+    if(slttype == SLT_SOLN) slnuv(:) = 0.0
     avslf = 0.0
     engnorm = 0.0
     engsmpl = 0.0
@@ -290,7 +290,7 @@ contains
                        io_flcuv, &
                        SYS_NONPERIODIC, SYS_PERIODIC, &
                        EL_COULOMB, EL_PME, ES_NVT, ES_NPT, &
-                       CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+                       SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
                        PT_SOLVENT, PT_SOLUTE
     use reciprocal, only: recpcal_init, recpcal_spline_greenfunc, &
                           recpcal_prepare_solvent
@@ -314,9 +314,9 @@ contains
     ! for soln: maxdst is number of solutes (multiple solute)
     ! for refs: maxdst is number of insertions
     select case(slttype)
-    case(CAL_SOLN)
+    case(SLT_SOLN)
        maxdst = numslt
-    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        maxdst = maxins
     end select
 
@@ -374,8 +374,7 @@ contains
        end do
 
        select case(slttype)
-       case(CAL_SOLN)                           ! for soln: output flceng
-          
+       case(SLT_SOLN)                           ! for soln: output flceng
           allocate(flceng_stored_g(maxdst, nactiveproc))
           allocate(flceng_g(numslv, maxdst, nactiveproc))
           
@@ -412,7 +411,7 @@ contains
              enddo
           endif
           deallocate(flceng_g, flceng_stored_g)
-       case(CAL_REFS_RIGID, CAL_REFS_FLEX)      ! for refs: output progress
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)      ! for refs: output progress
           if(myrank == 0) write(io_flcuv, *) ( &
                                         (stnum + irank - 1) * skpcnf, &
                                              irank = 1, nactiveproc)
@@ -435,7 +434,7 @@ contains
          edens, ecorr, eself, &
          aveuv, slnuv, avediv, avslf, minuv, maxuv, &
          engnorm, engsmpl, voffset, voffset_initialized, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+         SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, NO, YES
     use mpiproc                                                      ! MPI
     implicit none
     integer :: stnum, pti, j, k, iduv, division
@@ -452,7 +451,7 @@ contains
     !
 
     ! synchronize voffset
-    if(wgtslf == 1) then
+    if(wgtslf == YES) then
        voffset_local = voffset
 #ifndef noMPI
     ! MPI part starts here
@@ -464,17 +463,17 @@ contains
 
        ! scale histograms accoording to the maximum voffset
        select case(slttype)
-       case (CAL_SOLN)
+       case(SLT_SOLN)
           voffset_scale = exp((voffset_local - voffset)/temp)
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
           voffset_scale = exp(-(voffset_local - voffset)/temp)
        end select
 
        engnorm = engnorm * voffset_scale
-       if(selfcal == 1) eself(:) = eself(:) * voffset_scale
-       if(slttype == CAL_SOLN) slnuv(:) = slnuv(:) * voffset_scale
+       if(selfcal == YES) eself(:) = eself(:) * voffset_scale
+       if(slttype == SLT_SOLN) slnuv(:) = slnuv(:) * voffset_scale
        edens(:) = edens(:) * voffset_scale
-       if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
+       if(corrcal == YES) ecorr(:, :) = ecorr(:, :) * voffset_scale
     ! MPI part ends here
 #endif
     endif
@@ -492,14 +491,14 @@ contains
        call mpi_reduce(engsmpl, factor, 1, &
             mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
        engsmpl = factor
-       if(selfcal == 1) then
+       if(selfcal == YES) then
          allocate( sve1(esmax) )
          sve1(1:esmax) = eself(1:esmax)
          call mpi_reduce(sve1, eself, esmax, &
               mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
          deallocate( sve1 )
        endif
-       if(slttype == CAL_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
+       if(slttype == SLT_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
     endif
     allocate( sve1(0:numslv), sve2(0:numslv) )
     sve1(0:numslv) = minuv(0:numslv)
@@ -517,7 +516,7 @@ contains
     ! MPI part ends here
 #endif
     edens(1:ermax) = edens(1:ermax) / engnorm
-    if(corrcal == 1) then
+    if(corrcal == YES) then
        do iduv=1,ermax
 #ifndef noMPI
     ! MPI part starts here
@@ -532,7 +531,7 @@ contains
           ecorr(1:ermax, iduv) = ecorr(1:ermax, iduv) / engnorm
        end do
     endif
-    if(selfcal == 1) eself(1:esmax) = eself(1:esmax) / engnorm
+    if(selfcal == YES) eself(1:esmax) = eself(1:esmax) / engnorm
     avslf = avslf / engnorm
     !
     if(myrank /= 0) return                                            ! MPI
@@ -541,15 +540,15 @@ contains
     !
     avediv(division, 1) = engnorm / engsmpl
     select case(slttype)
-    case (CAL_SOLN)
+    case(SLT_SOLN)
        aveuv(division, 1:numslv) = slnuv(1:numslv) / engnorm
        avediv(division, 2) = voffset - temp * log(avslf)
-    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        avediv(division, 2) = voffset + temp * log(avslf)
     end select
     !
     if(division == engdiv) then
-       if(slttype == CAL_SOLN) then
+       if(slttype == SLT_SOLN) then
           open(unit = ave_io, file = 'aveuv.tt', action = 'write')
           do k = 1, engdiv
              write(ave_io,751) k, aveuv(k, 1:numslv)
@@ -560,16 +559,16 @@ contains
        endif
 
        select case(slttype)
-       case (CAL_SOLN)
+       case(SLT_SOLN)
           open(unit = wgt_io, file = 'weight_soln', action = 'write')
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
           open(unit = wgt_io, file = 'weight_refs', action = 'write')
        end select
        do k = 1, engdiv
           select case(wgtslf)
-          case(0)
+          case(NO)
              write(wgt_io, '(i5,e20.8)') k, avediv(k,1)
-          case(1)
+          case(YES)
              write(wgt_io, '(i5,e20.8,e20.7)') k, avediv(k,1), avediv(k,2)
           end select
        end do
@@ -599,9 +598,9 @@ contains
     !
     ! storing the solute-solvent pair-energy distribution function
     select case(slttype)
-    case (CAL_SOLN)
+    case(SLT_SOLN)
        engfile = 'engsln' // suffeng
-    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        engfile = 'engref' // suffeng
     end select
     open(unit = eng_io, file = engfile, form = "FORMATTED", action = 'write')
@@ -613,11 +612,11 @@ contains
     close(eng_io)
     !
     ! storing the solvent-solvent correlation matrix in energy representation
-    if(corrcal == 1) then
+    if(corrcal == YES) then
        select case(slttype)
-       case (CAL_SOLN)
+       case(SLT_SOLN)
           engfile = 'corsln' // suffeng
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
           engfile = 'corref' // suffeng
        end select
        open(unit = cor_io, file = engfile, form = "UNFORMATTED", action = 'write')
@@ -627,7 +626,7 @@ contains
     endif
     !
     ! storing the distribution function of the self-energy of solute
-    if(selfcal == 1) then
+    if(selfcal == YES) then
        engfile = 'slfeng' // suffeng
        open(unit = slf_io, file = engfile, form = "FORMATTED", action = 'write')
        do iduv = 1, esmax
@@ -645,7 +644,7 @@ contains
   subroutine get_uv_energy(stnum, stat_weight_solute, uvengy, out_of_range)
     use engmain, only: maxcnf, skpcnf, slttype, sltlist, cltype, &
                        EL_COULOMB, EL_PME, &
-                       CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+                       SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX
     use ptinsrt, only: instslt
     use realcal, only: realcal_prepare, realcal_proc, realcal_self, &
                        realcal_bare, realcal_cleanup
@@ -667,12 +666,12 @@ contains
     out_of_range = .false.
     ! determine / pick solute structure
     select case(slttype) 
-    case(CAL_SOLN)
+    case(SLT_SOLN)
        tagslt = sltlist(cntdst)
        stat_weight_solute = 1.0
        call check_mol_configuration(out_of_range)
        if(out_of_range) return
-    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        tagslt = sltlist(1)
        if(.not. initialized) call instslt('init')
        initialized = .true.
@@ -700,7 +699,7 @@ contains
     residual = 0.0
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
     if(current_solute_hash == solute_hash .or. &
-       (slttype == CAL_REFS_RIGID .and. solute_hash /= 0)) then 
+       (slttype == SLT_REFS_RIGID .and. solute_hash /= 0)) then 
        ! For refs calculation, the configuration of solute may change with
        ! random translation and/or rotation upon insertion, 
        ! though the self energy will not change.
@@ -744,8 +743,8 @@ contains
                        edens, ecorr, eself, &
                        stat_weight_system, engnorm, engsmpl, &
                        voffset, voffset_initialized, &
-                       CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
-                       ES_NVT, ES_NPT
+                       SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
+                       ES_NVT, ES_NPT, NO, YES
     use mpiproc
     implicit none
     integer, intent(in) :: stnum
@@ -760,18 +759,18 @@ contains
     allocate(insdst(ermax), engdst(ermax))
 
     select case(wgtslf)
-    case(0)
+    case(NO)
        engnmfc=1.0
-    case(1)
+    case(YES)
        if(.not. voffset_initialized) then
           voffset = uvengy(0)
           voffset_initialized = .true.
        endif
        factor = uvengy(0) - voffset  ! shifted by offset
        select case(slttype)
-       case (CAL_SOLN)
+       case(SLT_SOLN)
           engnmfc = exp(factor / temp)
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
           engnmfc = exp(- factor / temp)
        end select
     case default
@@ -786,7 +785,7 @@ contains
     avslf = avslf + total_weight     ! normalization without solute self-energy
 
     ! self energy histogram
-    if(selfcal == 1) then
+    if(selfcal == YES) then
       call getiduv(0, uvengy(0), iduv)
       eself(iduv) = eself(iduv) + engnmfc
     endif
@@ -815,7 +814,7 @@ contains
        maxuv(pti) = max(maxuv(pti), pairep)
     end do
 
-    if(slttype == CAL_SOLN) then
+    if(slttype == SLT_SOLN) then
        slnuv(:) = slnuv(:) + flceng(:, cntdst) * engnmfc
     endif
 
@@ -823,7 +822,7 @@ contains
        k = insdst(iduv)
        if(k > 0) edens(iduv) = edens(iduv) + engnmfc * real(k)
     enddo
-    if(corrcal == 1) then
+    if(corrcal == YES) then
        do iduv = 1, ermax
           k = insdst(iduv)
           if(k == 0) cycle
@@ -855,12 +854,12 @@ contains
   !
   subroutine volcorrect(weight)
     use engmain, only:  sluvid, cltype, screen, mol_charge, volume, temp, &
-                        EL_COULOMB, PT_SOLVENT, PT_SOLUTE, PI
+                        EL_EWALD, EL_PME, PT_SOLVENT, PT_SOLUTE, PI
     implicit none
     real, intent(inout) :: weight
     real :: total_charge, factor
     weight = weight * volume
-    if(cltype /= EL_COULOMB) then  ! Ewald and PME
+    if((cltype == EL_EWALD) .or. (cltype == EL_PME)) then  ! Ewald and PME
        ! sum of charges over physical particles
        total_charge = sum( mol_charge, mask = ((sluvid == PT_SOLVENT) &
                                           .or. (sluvid == PT_SOLUTE)) )
@@ -989,17 +988,17 @@ contains
 
   ! Check system consistency: either test particle or solvent must exist
   subroutine sanity_check_sluvid()
-    use engmain, only: slttype, nummol, sluvid, CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+    use engmain, only: slttype, nummol, sluvid, SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX
     use mpiproc, only: halt_with_error
     implicit none
 
     ! sanity check
     if(any(sluvid(:) < 0) .or. any(sluvid(:) > 3)) call halt_with_error('eng_bug')
     select case(slttype)
-    case(CAL_SOLN)
+    case(SLT_SOLN)
        ! sluvid should be 0 (solvent) or 1 (solute)
        if(any(sluvid(:) >= 2)) call halt_with_error('eng_par')
-    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        ! sluvid should be 0 (solvent), 2, 3 (test particles)
        if(any(sluvid(:) == 1)) call halt_with_error('eng_par')
        ! solvent must exist
@@ -1014,7 +1013,8 @@ contains
   subroutine check_mol_configuration(out_of_range)
     use engmain, only: insposition, insstructure, lwreg, upreg, lwstr, upstr, &
                        numsite, mol_begin_index, mol_end_index, &
-                       sitepos, boxshp, invcl, celllen, SYS_NONPERIODIC, &
+                       sitepos, boxshp, invcl, celllen, &
+                       SYS_NONPERIODIC, &
                        INSPOS_RANDOM, INSPOS_NOCHANGE, &
                        INSPOS_SPHERE, &
                        INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &

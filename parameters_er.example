@@ -6,8 +6,8 @@
       slttype = 1,
 !     slttype = 2,
 
-      estype = 2,   !  1 : constant volume  2 : constant pressure
       boxshp = 1,   !  0 : non-periodic  1 : periodic
+      estype = 2,   !  1 : constant volume  2 : constant pressure
 
       inscnd = 0,   !  0 : random  1 : spherical  2 : slab  3 : reference
       lwreg = 0.0, upreg = 5.0,
@@ -16,7 +16,6 @@
       elecut = 12.0,                                        ! coulomb cutoff
       upljcut = 10.0, lwljcut = 9.0,                        ! LJ tapering
 !     cltype = 0,                                           ! bare Coulomb
-!     cltype = 1, screen = 0.238, ew1max = 9,               ! Ewald
       cltype = 2, screen = 0.35,  splodr = 6, ms1max = 96,  ! PME
 
       block_threshold = 7.0,

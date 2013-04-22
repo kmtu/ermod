@@ -21,7 +21,7 @@ module ptinsrt
   !  test particle insertion of the solute
   implicit none
   real, save :: unrn
-  !  single-solute trajectrory file used only when slttype = CAL_REFS_FLEX
+  !  single-solute trajectrory file used only when slttype = SLT_REFS_FLEX
   character(len=*), parameter :: slttrj = 'SltConf'  ! solute filename
   character(len=*), parameter :: sltwgt = 'SltWght'  ! solute weight filename
   integer, parameter :: sltwgt_io = 31               ! solute weight ID
@@ -65,7 +65,7 @@ module ptinsrt
   !
 contains
   subroutine instslt(caltype, stat_weight_solute)
-    use engmain, only: nummol, slttype, numslt, sltlist, iseed, CAL_REFS_FLEX
+    use engmain, only: nummol, slttype, numslt, sltlist, iseed, SLT_REFS_FLEX
     use mpiproc, only: halt_with_error
     implicit none
     character(len=4), intent(in) :: caltype
@@ -86,11 +86,11 @@ contains
           ! initialize the random number used for solute insertion
           call urand_init(iseed)
           ! opening the file for coordinate of flexible solute
-          if(slttype == CAL_REFS_FLEX) call getsolute(caltype)
+          if(slttype == SLT_REFS_FLEX) call getsolute(caltype)
           return
        case('last')
           ! closing the file for coordinate of flexible solute
-          if(slttype == CAL_REFS_FLEX) call getsolute(caltype)
+          if(slttype == SLT_REFS_FLEX) call getsolute(caltype)
           return
        case('proc')
           call halt_with_error('ins_bug')
@@ -101,7 +101,7 @@ contains
 
     if(.not. present(stat_weight_solute)) call halt_with_error('ins_bug')
 
-    if(slttype == CAL_REFS_FLEX) then
+    if(slttype == SLT_REFS_FLEX) then
        ! get the configuration and structure-specific weight of flexible solute
        call getsolute(caltype, insml, stat_weight_solute)
     else
@@ -406,7 +406,7 @@ contains
     use trajectory, only: open_trajectory, close_trajectory
     use engmain, only: slttype, wgtins, numsite, bfcoord, stdout, &
                        insstructure, lwstr, upstr, &
-                       CAL_REFS_FLEX, INSSTR_NOREJECT, INSSTR_RMSD
+                       SLT_REFS_FLEX, INSSTR_NOREJECT, INSSTR_RMSD, YES
     use OUTname, only: OUTconfig, solute_trajectory
     use mpiproc
     use bestfit, only: rmsd_bestfit
@@ -420,25 +420,25 @@ contains
     real, dimension(:,:), allocatable :: psite
     logical :: reject
 !
-    if(slttype /= CAL_REFS_FLEX) call halt_with_error('ins_bug')
+    if(slttype /= SLT_REFS_FLEX) call halt_with_error('ins_bug')
 !
     if((.not. present(insml)) .and. &
        (.not. present(stat_weight))) then
        select case(caltype)
        case('init')
-          if(wgtins == 1) then
+          if(wgtins == YES) then
              read_weight = .true.
           else
              read_weight = .false.
           endif
           if(myrank /= 0) return
           call open_trajectory(solute_trajectory, slttrj)
-          if(read_weight) open(unit=sltwgt_io, file=sltwgt, status='old')
+          if(read_weight) open(unit = sltwgt_io, file = sltwgt, status = 'old')
           return
        case('last')
           if(myrank /= 0) return
           call close_trajectory(solute_trajectory)
-          if(read_weight) close(unit=sltwgt_io)
+          if(read_weight) close(unit = sltwgt_io)
           return
        case('proc')
           call halt_with_error('ins_bug')

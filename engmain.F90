@@ -43,10 +43,10 @@
 !               0 : no  1 : yes (can be = 1 only when slttype = 3)
 !   wgtsys : weight of the solution / solvent configuration
 !               0 : no  1 : yes
-!   estype : type of system
-!               1 : constant volume  2 : constant pressure
 !   boxshp : shape of the unit cell box
 !               0 : non-periodic  1 : periodic and parallelepiped
+!   estype : type of system
+!               1 : constant volume  2 : constant pressure
 !
 !   sltspec : specifying the solute species
 !               1 <= sltspec <= numtype (default = 1) when slttype = 1
@@ -166,7 +166,7 @@
 !   ljlen : length parameter for Lennard-Jones potential in a molecule
 !   intprm : whether the intereaction paramters given below
 !                    (from elecut to ms1max,ms2max,ms3max)
-!                    and estype, boxshp, and inptemp
+!                    and boxshp, estype, and inptemp
 !                    are read from the parent MD program
 !      default = 0 in the case of on-the-fly calculation
 !      default = 1 in the case of trajectory reading
@@ -248,7 +248,7 @@ module engmain
   real, parameter :: cal_per_joule = 4.1840   ! thermochemical cal / J
 !
   integer :: numtype, nummol, numatm, maxcnf, engdiv, skpcnf, corrcal, selfcal
-  integer :: slttype, wgtslf, wgtins, wgtsys, estype, boxshp
+  integer :: slttype, wgtslf, wgtins, wgtsys, boxshp, estype
   integer :: sltspec, hostspec, refspec
   integer :: insorigin, insposition, insorient, insstructure
   integer :: sltpick, refpick, inscnd, inscfg           ! deprecated
@@ -299,14 +299,20 @@ module engmain
 
 
   ! numeric constants reference
+  integer, parameter :: NO = 0, YES = 1
   integer, parameter :: SYS_NONPERIODIC = 0, SYS_PERIODIC = 1
-  integer, parameter :: EL_COULOMB = 0, EL_PME = 2
   integer, parameter :: ES_NVT = 1, ES_NPT = 2
-  integer, parameter :: CAL_SOLN = 1, CAL_REFS_RIGID = 2, CAL_REFS_FLEX = 3
+  integer, parameter :: LJFMT_EPS_cal_SGM_nm = 0, LJFMT_EPS_Rminh = 1, &
+                        LJFMT_EPS_J_SGM_A = 2, LJFMT_A_C = 3, &
+                        LJFMT_C12_C6 = 4, LJFMT_TABLE = 5
+  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, LJSWT_FORCE = 2
+  integer, parameter :: LJCMB_ARITH = 0, LJCMB_GEOM = 1
+  integer, parameter :: EL_COULOMB = 0, EL_EWALD = 1, EL_PME = 2
+  integer, parameter :: SLT_SOLN = 1, SLT_REFS_RIGID = 2, SLT_REFS_FLEX = 3
   integer, parameter :: PT_SOLVENT = 0, &
-                        PT_SOLUTE = CAL_SOLN, PT_TEST_RIGID = CAL_REFS_RIGID, &
-                                              PT_TEST_FLEX = CAL_REFS_FLEX
-  ! PT_SOLUTE to PT_TEST_FLEX should correspond to CAL_SOLN to CAL_REFS_FLEX
+                        PT_SOLUTE = SLT_SOLN, PT_TEST_RIGID = SLT_REFS_RIGID, &
+                                              PT_TEST_FLEX = SLT_REFS_FLEX
+  ! PT_SOLUTE to PT_TEST_FLEX should correspond to SLT_SOLN to SLT_REFS_FLEX
   integer, parameter :: INSORG_ORIGIN = 0, INSORG_NOCHANGE= 1, &
                         INSORG_AGGCEN = 2, INSORG_REFSTR = 3
   integer, parameter :: INSPOS_RANDOM = 0, INSPOS_NOCHANGE= 1, &
@@ -320,7 +326,7 @@ module engmain
 
   namelist /ene_param/ iseed, &
        skpcnf, corrcal, selfcal, &
-       slttype, wgtslf, wgtins, wgtsys, estype, boxshp, &
+       slttype, wgtslf, wgtins, wgtsys, boxshp, estype, &
        sltspec, hostspec, refspec, lwreg, upreg, lwstr, upstr, &
        insorigin, insposition, insorient, insstructure, &
        sltpick, refpick, inscnd, inscfg, &                  ! deprecated

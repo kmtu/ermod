@@ -34,8 +34,6 @@ module OUTname
 
   integer OUTnrun, OUTntype
   integer, dimension(:), allocatable :: OUTnmol, OUTsite
-  real, dimension(:), allocatable    :: OUTstmass, OUTcharge
-  real, dimension(:), allocatable    :: OUTljene, OUTljlen
   logical :: use_mdlib
 
   type(handle) :: history_trajectory
@@ -67,23 +65,19 @@ contains
 
   subroutine finiconf
   end subroutine finiconf
-!
-  ! Initialization 2nd phase - read MDinfo
+ 
+  ! Initialization - read MDinfo
   ! when ermod is built into MD program, read topologies from mother MD program
-  subroutine OUTrename
+  subroutine OUT_MDinfo
     implicit none
-    integer TotAtm
     open(unit = mdinf, file = inffile, status = 'old')
     read(mdinf,*) OUTnrun, OUTntype
     allocate( OUTnmol(OUTntype), OUTsite(OUTntype) )
     read(mdinf,*) OUTnmol(1:OUTntype)
     read(mdinf,*) OUTsite(1:OUTntype)
-    TotAtm = sum(OUTnmol(1:OUTntype) * OUTsite(1:OUTntype))
-    allocate( OUTstmass(TotAtm), OUTcharge(TotAtm) )
-    allocate( OUTljene(TotAtm), OUTljlen(TotAtm) )
     close(mdinf)
     return
-  end subroutine OUTrename
+  end subroutine OUT_MDinfo
 
   ! read system setup (coulomb rule, LJ, etc..)
   ! used when the ermod program is built into MD program and runs on-the-fly
@@ -151,7 +145,7 @@ contains
     use engmain, only: init_params, &
          iseed, &
          skpcnf, corrcal, selfcal, &
-         slttype, wgtslf, wgtins, wgtsys, estype, boxshp, &
+         slttype, wgtslf, wgtins, wgtsys, boxshp, estype, &
          sltspec, hostspec, refspec, ljformat, ljswitch, &
          insorigin, insposition, insorient, insstructure, &
          sltpick, refpick, inscnd, inscfg, &     ! deprecated   
@@ -163,8 +157,15 @@ contains
          ew1max, ew2max, ew3max, ms1max, ms2max, ms3max, &
          block_threshold, &
          force_calculation, &
-         SYS_NONPERIODIC, SYS_PERIODIC, EL_PME, ES_NPT, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+         NO, YES, &
+         SYS_NONPERIODIC, SYS_PERIODIC, &
+         ES_NVT, ES_NPT, &
+         LJFMT_EPS_cal_SGM_nm, LJFMT_EPS_Rminh, LJFMT_EPS_J_SGM_A, &
+         LJFMT_A_C, LJFMT_C12_C6, LJFMT_TABLE, &
+         LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE, &
+         LJCMB_ARITH, LJCMB_GEOM, &
+         EL_COULOMB, EL_EWALD, EL_PME, &
+         SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
          INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR, &
          INSPOS_RANDOM, INSPOS_NOCHANGE, &
          INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
@@ -181,6 +182,7 @@ contains
     implicit none
     real, parameter :: tiny = 1.0e-20
     real :: real_seed
+    logical :: check_refins
     character(len=3) :: scrtype
     call mpi_info                                                    ! MPI
 
@@ -188,14 +190,14 @@ contains
     select case(intprm)
     case(0)  ! on-the-fly reading from parent MD setup (currently ineffective)
       call OUTintprm
-      estype = OUTens  ; boxshp = OUTbxs  ; inptemp = OUTtemp
+      boxshp = OUTbxs  ; estype = OUTens  ; inptemp = OUTtemp
       elecut = OUTelc  ; lwljcut = OUTlwl ; upljcut = OUTupl
       cmbrule = OUTcmb ; cltype = OUTclt  ; screen = OUTscr  ; splodr = OUTspo
       ew1max = OUTew1  ; ew2max = OUTew2  ; ew3max = OUTew3
       ms1max = OUTms1  ; ms2max = OUTms2  ; ms3max = OUTms3
     case(1)  ! default settings for trajectory reading
-      estype = ES_NPT                            ! constant pressure
       boxshp = SYS_PERIODIC                      ! periodic boundary
+      estype = ES_NPT                            ! constant pressure
       cltype = EL_PME  ; ms1max = 64             ! PME
       inptemp = 300.0                            ! Kelvin
       engdiv = 1                                 ! number of divisions
@@ -208,6 +210,7 @@ contains
     end select
     
     sltpick = 0 ; refpick = 0 ; inscnd = 0 ; inscfg = 0    ! deprecated
+
     insorigin = INSORG_ORIGIN
     insposition = INSPOS_RANDOM
     insorient = INSROT_RANDOM
@@ -224,21 +227,38 @@ contains
     ! default settings
     skpcnf = 1                     ! no skip for trajectory reading
     
-    selfcal = 0                    ! no construction of self-energy distribution
-    wgtslf = 0 ; wgtins = 0 ; wgtsys = 0
+    wgtslf = NO
+    wgtins = NO
+    wgtsys = NO
+
+    selfcal = NO                   ! no construction of self-energy distribution
+
     select case(slttype)
-    case(CAL_SOLN)
-       corrcal = 0                 ! no calculation of correlation matrix
-    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
-       corrcal = 1                 ! calculation of correlation matrix
-       if(cltype /= 0) wgtslf = 1  ! Ewald and PME
+    case(SLT_SOLN)
+       corrcal = NO                ! no calculation of correlation matrix
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+       corrcal = YES               ! calculation of correlation matrix
+       if((cltype == EL_EWALD) .or. (cltype == EL_PME)) then  ! Ewald and PME
+          wgtslf = YES
+       endif
     case default
        stop "Unknown slttype"
     end select
-    sltspec = 1 ; hostspec = 1 ; refspec = 0 ; ljformat = 1 ; ljswitch = 0
-    maxins = 1000 ; lwreg = 0.0 ; upreg = 5.0 ; lwstr = 0.0 ; upstr = 2.0
+
+    sltspec = 1
+    hostspec = 0
+    refspec = 0
+
+    ljformat = LJFMT_EPS_Rminh
+    ljswitch = LJSWT_POT_CHM
+
+    maxins = 1000
+
+    lwreg = 0.0 ; upreg = 5.0
+    lwstr = 0.0 ; upstr = 2.0
+
     if(intprm /= 0) then
-      cmbrule = 0                  ! arithmetic mean of LJ sigma
+      cmbrule = LJCMB_ARITH        ! arithmetic mean of LJ sigma
       ew2max = ew1max ; ew3max = ew1max
       ms2max = ms1max ; ms3max = ms1max
     endif
@@ -284,115 +304,173 @@ contains
     
     ! temperature converted into the unit of kcal/mol
     temp = inptemp * 8.314510e-3 / 4.184
+
     ! get the screening parameter in Ewald and PME
-    if((screen <= tiny).and.(cltype /= 0)) then
-       if(ewtoler <= tiny) call halt_with_error('set_ewa')
-       screen = getscrn(ewtoler, elecut, scrtype)
-    endif
-    ! check Ewald parameters, not effective in the current version
-    if(cltype == 1) then
-       if(ew1max * ew2max * ew3max == 0) call halt_with_error('set_ewa')
-    endif
-    ! check PME parameters
-    if(cltype == EL_PME) then
-       if(ms1max * ms2max * ms3max == 0) call halt_with_error('set_ewa')
-    endif
-    ! ljswitch parameter
-    if((ljswitch < 0).or.(ljswitch > 2)) call halt_with_error('set_prs')
-    ! check slttype parameter
-    if((slttype < CAL_SOLN).or.(slttype > CAL_REFS_FLEX)) then
-       call halt_with_error('set_slt')
-    endif
-    ! check the consistency in parameters for non-periodic system
-    if(boxshp == SYS_NONPERIODIC) then
-       if((estype == 2).or.(cltype /= 0)) call halt_with_error('set_prs')
-    endif
-    ! check the consistency of insertion with structure-dependent weight
-    if(wgtins == 1) then
-       if(slttype /= 3) call halt_with_error('set_ins')
+    if((cltype == EL_EWALD) .or. (cltype == EL_PME)) then  ! Ewald and PME
+       if(screen <= tiny) then
+          if(ewtoler <= tiny) call halt_with_error('set_ewa')
+          screen = getscrn(ewtoler, elecut, scrtype)
+       endif
     endif
 
-    plmode=2                    ! energy calculation parallelization mode
+    plmode = 2                  ! energy calculation parallelization mode
+
+    ! check cltype and related parameters
+    select case(cltype)
+    case(EL_COULOMB)
+    case(EL_EWALD)   ! Ewald parameters, not effective in the current version
+       call halt_with_error('set_prs')
+       if(ew1max * ew2max * ew3max == 0) call halt_with_error('set_ewa')
+    case(EL_PME)     ! PME parameters
+       if(ms1max * ms2max * ms3max == 0) call halt_with_error('set_ewa')
+    case default
+       stop "Unknown cltype"
+    end select
+
+    ! check ljformat parameter
+    select case(ljformat)
+    case(LJFMT_EPS_cal_SGM_nm, LJFMT_EPS_Rminh, LJFMT_EPS_J_SGM_A, &
+         LJFMT_A_C, LJFMT_C12_C6, LJFMT_TABLE)
+    case default
+       stop "Unknown ljformat"
+    end select
+
+    ! check ljswitch parameter
+    select case(ljswitch)
+    case(LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE)
+    case default
+       stop "Unknown ljswitch"
+    end select
+
+    ! check slttype parameter
+    select case(slttype)
+    case(SLT_SOLN)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+       if(maxins <  1) call halt_with_error('set_ins')
+       ! maxins > 1 insertion makes no sense if coordinate is used as is read
+       if((insposition == INSPOS_NOCHANGE) .and. &
+          (insorient == INSROT_NOCHANGE) .and.   &
+          (maxins /= 1)) call halt_with_error('set_ins')
+    case default
+       stop "Unknown slttype"
+    end select
+
+    ! check the consistency in parameters for non-periodic system
+    if(boxshp == SYS_NONPERIODIC) then
+       if((estype == ES_NPT) .or. &
+          (cltype /= EL_COULOMB)) call halt_with_error('set_prs')
+    endif
+
+    ! check the consistency of insertion with structure-dependent weight
+    if(wgtins == YES) then
+       if(slttype /= SLT_REFS_FLEX) call halt_with_error('set_ins')
+    endif
+
+    ! check insorigin parameter
+    check_refins = .true.
+    select case(insorigin)
+    case(INSORG_ORIGIN)
+    case(INSORG_NOCHANGE)
+       if(insposition /= INSPOS_NOCHANGE) check_refins = .false.
+    case(INSORG_AGGCEN)
+       if((insposition /= INSPOS_SPHERE) .or. &
+          (insposition /= INSPOS_SLAB_GENERIC) .or. &
+          (insposition /= INSPOS_SLAB_SYMMETRIC)) check_refins = .false.
+    case(INSORG_REFSTR)
+       if((insposition /= INSPOS_RMSD) .and. &
+          (insposition /= INSPOS_GAUSS)) check_refins = .false.
+    case default
+       stop "Unknown insorigin"
+    end select
+    if((slttype == SLT_REFS_RIGID) .or. (slttype == SLT_REFS_FLEX)) then
+       if(.not. check_refins) call halt_with_error('set_ins')
+    endif
+
+    ! check insposition parameter
+    check_refins = .true.
+    select case(insposition)
+    case(INSPOS_RANDOM)
+       if(insorigin /= INSORG_ORIGIN) check_refins = .false.
+    case(INSPOS_NOCHANGE)
+       if(insorigin /= INSORG_NOCHANGE) check_refins = .false.
+    case(INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)
+       ! check lwreg and upreg parameters
+       if(lwreg >= upreg) call halt_with_error('set_ins')
+       if(insorigin /=INSORG_AGGCEN) check_refins = .false.
+    case(INSPOS_RMSD, INSPOS_GAUSS)
+       ! check lwreg and upreg parameters
+       if(lwreg >= upreg) call halt_with_error('set_ins')
+       if(insorigin /= INSORG_REFSTR) check_refins = .false.
+    case default
+       stop "Unknown insposition"
+    end select
+    if((slttype == SLT_REFS_RIGID) .or. (slttype == SLT_REFS_FLEX)) then
+       if(.not. check_refins) call halt_with_error('set_ins')
+    endif
+
+    ! check insorient parameter
+    select case(insorient)
+    case(INSROT_RANDOM, INSROT_NOCHANGE)
+    case default
+       stop "Unknown insorient"
+    end select
+
+    ! check insstructure parameter
+    select case(insstructure)
+    case(INSSTR_NOREJECT)
+    case(INSSTR_RMSD)
+       ! check lwstr and upstr parameters
+       if(lwstr >= upstr) call halt_with_error('set_ins')
+       ! check the solute type
+       if(slttype == SLT_REFS_RIGID) call halt_with_error('set_slt')
+    case default
+       stop "Unknown insstructure"
+    end select
 
     return
   end subroutine iniparam
 
-  subroutine check_insparam
-    use engmain, only: numtype, maxins, slttype, hostspec, refspec, &
-         insorigin, insposition, insorient, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
-         INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR, &
-         INSPOS_RANDOM, INSPOS_NOCHANGE, &
+  subroutine check_param
+  ! check the consistency between parameters read in the iniparam subroutine
+  !                           and those read in the OUT_MDinfo subroutine
+    use engmain, only: numtype, slttype, hostspec, refspec, &
+         insorigin, insposition, insstructure, &
+         SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
+         INSORG_AGGCEN, INSORG_REFSTR, &
          INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
-         INSPOS_RMSD, INSPOS_GAUSS, &
-         INSROT_RANDOM, INSROT_NOCHANGE
-    use mpiproc, only: halt_with_error, warning
+         INSSTR_RMSD
+    use mpiproc, only: halt_with_error
     implicit none
-    integer :: valmin, valmax
-    logical :: check_ins
-
-    check_ins = .true.
 
     ! when restrained relative to aggregate
-    if(insorigin == INSORG_AGGCEN) then
+    if((insorigin == INSORG_AGGCEN) .or. &
+       (insposition == INSPOS_SPHERE) .or. &
+       (insposition == INSPOS_SLAB_GENERIC) .or. &
+       (insposition == INSPOS_SLAB_SYMMETRIC)) then
        select case(slttype)
-       case (CAL_SOLN)
-          if((hostspec < 1) .or. (hostspec > numtype)) check_ins = .false.
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          if((hostspec < 1) .or. (hostspec > numtype - 1)) check_ins = .false.
+       case(SLT_SOLN)
+          if((hostspec < 1) .or. (hostspec > numtype)) call halt_with_error('set_ins')
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+          if((hostspec < 1) .or. (hostspec > numtype - 1)) call halt_with_error('set_ins')
        end select
+    else
+       hostspec = 0
     endif
 
     ! when restrained against reference
-    if(insorigin == INSORG_REFSTR) then
+    if((insorigin == INSORG_REFSTR) .or. (insstructure == INSSTR_RMSD)) then
        select case(slttype)
-       case (CAL_SOLN)
-          if((refspec < 1) .or. (refspec > numtype)) check_ins = .false.
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          if((refspec < 1) .or. (refspec > numtype - 1)) check_ins = .false.
+       case(SLT_SOLN)
+          if((refspec < 1) .or. (refspec > numtype)) call halt_with_error('set_ins')
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+          if((refspec < 1) .or. (refspec > numtype - 1)) call halt_with_error('set_ins')
        end select
-    endif
-
-    ! when fit to reference
-    if((insposition == INSPOS_RMSD) .or. (insposition == INSPOS_GAUSS)) then
-       if(insorigin /= INSORG_REFSTR) check_ins = .false.
-    else  ! insposition /= INSPOS_RMSD .and. insposition /= INSPOS_GAUSS
-       if(insorigin == INSORG_REFSTR) check_ins = .false.
-    endif
-
-    ! check the consistency for insorigin, insposition, and insorient
-    valmin = min(INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR)
-    valmax = max(INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR)
-    if((insorigin < valmin) .or. (insorigin > valmax)) check_ins = .false.
-
-    valmin = min(INSPOS_RANDOM, INSPOS_NOCHANGE, &
-                 INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
-                 INSPOS_RMSD, INSPOS_GAUSS)
-    valmax = max(INSPOS_RANDOM, INSPOS_NOCHANGE, &
-                 INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
-                 INSPOS_RMSD, INSPOS_GAUSS)
-    if((insposition < valmin) .or. (insposition > valmax)) check_ins = .false.
-
-    valmin = min(INSROT_RANDOM, INSROT_NOCHANGE)
-    valmax = max(INSROT_RANDOM, INSROT_NOCHANGE)
-    if((insorient < valmin) .or. (insorient > valmax)) check_ins = .false.
-
-    if((insorigin == INSORG_NOCHANGE .and. insposition /= INSPOS_NOCHANGE).or.&
-       (insorigin /= INSORG_NOCHANGE .and. insposition == INSPOS_NOCHANGE)) then
-       check_ins = .false.
-    endif
-
-    if(.not. check_ins) call halt_with_error('set_ins')
-
-    ! maxins > 1 in insertion makes no sense if coordinate is used as is read
-    if((slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) .and. &
-       insposition == INSPOS_NOCHANGE .and. insorient == INSROT_NOCHANGE .and. &
-       maxins /= 1) then
-       call warning('insu')
+    else
+       refspec = 0
     endif
 
     return
-  end subroutine check_insparam
+  end subroutine check_param
 
 
   real function getscrn(ewtoler, elecut, scrtype)
@@ -407,9 +485,9 @@ contains
        factor = erfc(scrfac * elecut)
        if(scrtype == 'dis') factor = factor / elecut
        if(factor > ewtoler) then
-          ewasml=scrfac
+          ewasml = scrfac
        else
-          ewalrg=scrfac
+          ewalrg = scrfac
        endif
        factor = abs(factor - ewtoler)
     end do
@@ -417,7 +495,7 @@ contains
     return
   end function getscrn
 
-  ! Calls OUTinitial / iniparam / OUTrename, and sets parameters
+  ! Calls OUTinitial / iniparam / OUT_MDinfo, and sets parameters
   subroutine setparam
     use engmain, only: numtype, nummol, numatm, maxcnf, &
          slttype, sltspec, ljformat, &
@@ -425,11 +503,13 @@ contains
          bfcoord, sitemass, charge, &
          ljene_mat, ljlensq_mat, ljtype, ljtype_max, cmbrule, &
          specatm, sitepos, mol_begin_index, belong_to, mol_charge, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
+         LJFMT_EPS_cal_SGM_nm, LJFMT_EPS_Rminh, LJFMT_EPS_J_SGM_A, &
+         LJFMT_A_C, LJFMT_C12_C6, LJFMT_TABLE, &
+         LJCMB_ARITH, LJCMB_GEOM, &
+         SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
          PT_SOLVENT, PT_SOLUTE, PT_TEST_RIGID, PT_TEST_FLEX
-    use OUTname, only: OUTinitial, OUTrename, &    ! from outside
-         OUTntype, OUTnmol, OUTsite, OUTnrun, &    ! from outside
-         OUTstmass, OUTcharge, OUTljene, OUTljlen  ! from outside
+    use OUTname, only: OUTinitial, OUT_MDinfo, &   ! from outside
+         OUTnrun, OUTntype, OUTnmol, OUTsite       ! from outside
     use mpiproc, only: halt_with_error
     use utility, only: itoa
     implicit none
@@ -458,15 +538,19 @@ contains
 
     call OUTinitial                ! initialization of OUTname module
     call iniparam                  ! initialization of parameters
-    call OUTrename                 ! matching with outside variables
+    call OUT_MDinfo                ! reading MDinfo
 
     maxcnf = OUTnrun                                 ! from outside
     select case(slttype)
-    case (CAL_SOLN)
+    case(SLT_SOLN)
        numtype = OUTntype                            ! from outside
-    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        numtype = OUTntype + 1                        ! from outside
     end select
+
+    ! check the consistency between the parameters
+    ! read in the iniparam and OUT_MDinfo subroutines
+    call check_param
 
     ! pttype is particle type for each molecule group
     allocate(pttype(numtype), ptcnt(numtype), ptsite(numtype))
@@ -476,10 +560,10 @@ contains
     ptcnt(1:OUTntype) = OUTnmol(1:OUTntype)
     ptsite(1:OUTntype) = OUTsite(1:OUTntype)
 
-    if(slttype == CAL_SOLN) then
+    if(slttype == SLT_SOLN) then
        ! Determine which molecule is solute?
        solute_index = 1            ! default for soln
-       if((1 <= sltspec).and.(sltspec <= numtype)) solute_index = sltspec
+       if((1 <= sltspec) .and. (sltspec <= numtype)) solute_index = sltspec
        pttype(solute_index) = PT_SOLUTE
     else
        ! Test particle information will be defined outside
@@ -537,15 +621,12 @@ contains
     if(numatm /= sum(numsite(1:nummol))) stop "something is wrong in setconf::setparam, numatm"
 
 
-    ! check the insertion parameters
-    call check_insparam
-
-    allocate(bfcoord(3,stmax), sitemass(numatm))
-    allocate(charge(numatm), ljtype(numatm))
-    allocate(sitepos(3, numatm))
-    allocate(mol_begin_index(nummol + 1))
-    allocate(belong_to(numatm))
-    allocate(mol_charge(nummol))
+    allocate( bfcoord(3, stmax), sitemass(numatm) )
+    allocate( charge(numatm), ljtype(numatm) )
+    allocate( sitepos(3, numatm))
+    allocate( mol_begin_index(nummol + 1) )
+    allocate( belong_to(numatm) )
+    allocate( mol_charge(nummol) )
 
     ! initial setting to zero
     bfcoord(:,:) = 0.0
@@ -594,7 +675,7 @@ contains
        ! for ljtype /= 5, read the table and make table by program
        open(unit = molio, file = molfile, status='old')
        do sid = 1, stmax
-          if(uvtype == CAL_REFS_RIGID) then
+          if(uvtype == SLT_REFS_RIGID) then
              read(molio,*) m, atmtype, xst(1:3), psite(1:3,sid)
           else
              read(molio,*) m, atmtype, xst(1:3)
@@ -602,17 +683,17 @@ contains
           call getmass(sitemass_temp(sid), atmtype)
 
           charge_temp(sid) = xst(1)
-          if(ljformat == 1) xst(3) = sgmcnv * xst(3)
-          if((ljformat == 3).or.(ljformat == 4)) then
+          if(ljformat == LJFMT_EPS_Rminh) xst(3) = sgmcnv * xst(3)
+          if((ljformat == LJFMT_A_C) .or. (ljformat == LJFMT_C12_C6)) then
              if(xst(3) /= 0.0) then
-                factor = (xst(2)/xst(3))**(1.0/6.0)
-                xst(2) = xst(3)/(4.0*(factor**6.0))
+                factor = (xst(2) / xst(3)) ** (1.0 / 6.0)
+                xst(2) = xst(3) / (4.0 * (factor ** 6))
                 xst(3) = factor
              else
                 xst(2) = 0.0
              endif
           endif
-          if((ljformat == 2).or.(ljformat == 4)) then
+          if((ljformat == LJFMT_EPS_J_SGM_A) .or. (ljformat == LJFMT_C12_C6)) then
              xst(2) = engcnv * xst(2)
              xst(3) = lencnv * xst(3)
           endif
@@ -621,7 +702,7 @@ contains
        end do
        close(molio)
 
-       if(ljformat == 5) then
+       if(ljformat == LJFMT_TABLE) then
           ! use numbers directly
           ! No sane system will have the problem with 
           ! string -> double -> int conversion ...
@@ -657,14 +738,14 @@ contains
           cur_atom = cur_atom + stmax
        end do
 
-       if(uvtype == CAL_REFS_RIGID) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
+       if(uvtype == SLT_REFS_RIGID) bfcoord(1:3, 1:stmax) = psite(1:3, 1:stmax)
     end do
 
     deallocate( psite, sitemass_temp, charge_temp, &
                 ljlen_temp, ljene_temp, ljtype_temp )
 
     ! Fill LJ table
-    if(ljformat == 5) then
+    if(ljformat == LJFMT_TABLE) then
        ! From table (directly)
        open(unit = ljtableio, file = ljtablefile, status = 'old', action = 'read')
        read(ljtableio, *) ljtype_max
@@ -684,10 +765,10 @@ contains
                  ljene_mat(ljtype_max, ljtype_max) )
        do i = 1, ljtype_max
           select case(cmbrule)
-          case(0) ! arithmetic mean
+          case(LJCMB_ARITH)    ! arithmetic mean
              ljlensq_mat(1:ljtype_max, i) = (( ljlen_temp_table(1:ljtype_max) &
                                              + ljlen_temp_table(i) ) / 2.0) ** 2
-          case(1) ! geometric mean
+          case(LJCMB_GEOM)     ! geometric mean
              ljlensq_mat(1:ljtype_max, i) = ljlen_temp_table(1:ljtype_max) &
                                           * ljlen_temp_table(i)
           case default
@@ -697,7 +778,7 @@ contains
                                            * ljene_temp_table(i) )
        end do
     endif
-    deallocate(ljlen_temp_table, ljene_temp_table)
+    deallocate( ljlen_temp_table, ljene_temp_table )
 
 
     ! conversion to (kcal/mol angstrom)^(1/2)
@@ -736,7 +817,7 @@ contains
     ! sum over solvent & solute in trajectory file (HISTORY); no test particle
     OUTatm = sum( numsite, &
                   mask = ((sluvid == PT_SOLVENT) .or. (sluvid == PT_SOLUTE)) )
-    if(myrank == 0) allocate(readpos(3, OUTatm))
+    if(myrank == 0) allocate( readpos(3, OUTatm) )
     allocate( OUTpos(3,OUTatm), OUTcell(3,3) )
 
     ! first time setup: read index permutation
@@ -745,7 +826,7 @@ contains
        open(file = perm_file, unit = perm_io, status = 'old', action = 'read', iostat = stat)
        if(stat == 0) then ! file exists and is successfully opened
           if(myrank == 0) write(stdout, *) "Reading permutation information"
-          allocate(permutation(OUTatm))
+          allocate( permutation(OUTatm) )
           do i = 1, OUTatm
              permutation(i) = i
           end do
@@ -821,21 +902,21 @@ contains
        stat_weight_system = weight
     endif
 
-    if(myrank == 0) deallocate(readpos)
+    if(myrank == 0) deallocate( readpos )
     deallocate( OUTpos, OUTcell )
     actual_read = nread
 
   end subroutine getconf_parallel
 
   subroutine read_weight(weight)
-    use engmain, only: wgtsys, stdout
+    use engmain, only: wgtsys, stdout, YES
     use mpiproc, only: mpi_setup
     implicit none
     real, intent(out) :: weight
     integer :: dummy, ioerr    
     logical, save :: file_opened = .false.
 
-    if(wgtsys /= 1) then
+    if(wgtsys /= YES) then
        weight = 1.0
        return
     endif
