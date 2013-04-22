@@ -70,7 +70,7 @@
 !               3 : fit to reference structure.
 !                   reference structure needs be given as RefInfo in PDB format.
 !                   RefInfo contains the structure of the host species
-!                   (species forming the aggregate is defined by refspec)
+!                   (species forming the reference host is defined by refspec)
 !                   and the solute structure, in order.
 !                   (error unless insposition = 5 or 6)
 !   insposition : position for the solute

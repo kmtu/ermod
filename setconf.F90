@@ -434,11 +434,10 @@ contains
   ! check the consistency between parameters read in the iniparam subroutine
   !                           and those read in the OUT_MDinfo subroutine
     use engmain, only: numtype, slttype, hostspec, refspec, &
-         insorigin, insposition, insstructure, &
+         insorigin, insposition, &
          SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
          INSORG_AGGCEN, INSORG_REFSTR, &
-         INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
-         INSSTR_RMSD
+         INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC
     use mpiproc, only: halt_with_error
     implicit none
 
@@ -458,7 +457,7 @@ contains
     endif
 
     ! when restrained against reference
-    if((insorigin == INSORG_REFSTR) .or. (insstructure == INSSTR_RMSD)) then
+    if(insorigin == INSORG_REFSTR) then
        select case(slttype)
        case(SLT_SOLN)
           if((refspec < 1) .or. (refspec > numtype)) call halt_with_error('set_ins')
