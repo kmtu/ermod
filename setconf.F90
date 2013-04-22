@@ -373,8 +373,8 @@ contains
     case(INSORG_NOCHANGE)
        if(insposition /= INSPOS_NOCHANGE) check_refins = .false.
     case(INSORG_AGGCEN)
-       if((insposition /= INSPOS_SPHERE) .or. &
-          (insposition /= INSPOS_SLAB_GENERIC) .or. &
+       if((insposition /= INSPOS_SPHERE) .and. &
+          (insposition /= INSPOS_SLAB_GENERIC) .and. &
           (insposition /= INSPOS_SLAB_SYMMETRIC)) check_refins = .false.
     case(INSORG_REFSTR)
        if((insposition /= INSPOS_RMSD) .and. &
