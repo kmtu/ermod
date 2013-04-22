@@ -378,7 +378,7 @@ contains
           (insposition /= INSPOS_SLAB_SYMMETRIC)) check_refins = .false.
     case(INSORG_REFSTR)
        if((insposition /= INSPOS_RMSD) .and. &
-          (insposition /= INSPOS_GAUSS)) check_refins = .false.
+          (insposition /= INSPOS_GAUSS)) call halt_with_error('set_ins')
     case default
        stop "Unknown insorigin"
     end select
@@ -400,7 +400,7 @@ contains
     case(INSPOS_RMSD, INSPOS_GAUSS)
        ! check lwreg and upreg parameters
        if(lwreg >= upreg) call halt_with_error('set_ins')
-       if(insorigin /= INSORG_REFSTR) check_refins = .false.
+       if(insorigin /= INSORG_REFSTR) call halt_with_error('set_ins')
     case default
        stop "Unknown insposition"
     end select
@@ -437,7 +437,8 @@ contains
          insorigin, insposition, &
          SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
          INSORG_AGGCEN, INSORG_REFSTR, &
-         INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC
+         INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
+         INSPOS_RMSD, INSPOS_GAUSS
     use mpiproc, only: halt_with_error
     implicit none
 
@@ -457,7 +458,9 @@ contains
     endif
 
     ! when restrained against reference
-    if(insorigin == INSORG_REFSTR) then
+    if((insorigin == INSORG_REFSTR) .or. &
+       (insposition == INSPOS_RMSD) .or. &
+       (insposition == INSPOS_GAUSS)) then
        select case(slttype)
        case(SLT_SOLN)
           if((refspec < 1) .or. (refspec > numtype)) call halt_with_error('set_ins')
