@@ -1,4 +1,4 @@
-slvfe.F90:
+Lennard-Jones long-range correction
 
 The slvfe.F90 program contained in the extensions directory has a key of ljlrc,
 which enables the Lennard-Jones long-range correction at ljlrc = 'yes'.

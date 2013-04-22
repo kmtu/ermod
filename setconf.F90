@@ -569,7 +569,7 @@ contains
        ! Test particle information will be defined outside
        ptcnt(numtype) = 1          ! Test particle can only be one molecule
 
-       open(unit = molio, file = sltfile, status='old')
+       open(unit = molio, file = sltfile, status = 'old')
        ! here only counts no. of lines
        stmax = 0
        do
@@ -673,7 +673,7 @@ contains
 
        ! This part is a bit complicated due to backward compatibility.
        ! for ljtype /= 5, read the table and make table by program
-       open(unit = molio, file = molfile, status='old')
+       open(unit = molio, file = molfile, status = 'old')
        do sid = 1, stmax
           if(uvtype == SLT_REFS_RIGID) then
              read(molio,*) m, atmtype, xst(1:3), psite(1:3,sid)

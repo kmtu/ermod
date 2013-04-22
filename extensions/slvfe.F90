@@ -483,6 +483,11 @@ module uvcorrect
   character(len=*), parameter :: ermodfname = 'parameters_er'
   integer :: ljformat, ljswitch, cmbrule
   real :: lwljcut, upljcut
+  integer, parameter :: LJFMT_EPS_cal_SGM_nm = 0, LJFMT_EPS_Rminh = 1, &
+                        LJFMT_EPS_J_SGM_A = 2, LJFMT_A_C = 3, &
+                        LJFMT_C12_C6 = 4, LJFMT_TABLE = 5
+  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, LJSWT_FORCE = 2
+  integer, parameter :: LJCMB_ARITH = 0, LJCMB_GEOM = 1
 
   character(len=*), parameter :: sltfile = 'SltInfo'
   character(len=*), parameter :: prmfile = 'MolPrm'
@@ -547,8 +552,11 @@ contains
     real, parameter :: volm_min = 3.0e3
     integer :: stat
     logical :: found
-    ljformat = 1 ; ljswitch = 0 ; cmbrule = 0     ! default setting
-    upljcut = 12.0 ; lwljcut = upljcut - 2.0      ! default setting
+    ljformat = LJFMT_EPS_Rminh                    ! default setting
+    ljswitch = LJSWT_POT_CHM                      ! default setting
+    cmbrule = LJCMB_ARITH                         ! default setting
+    upljcut = 12.0                                ! default setting
+    lwljcut = upljcut - 2.0                       ! default setting
     keyfile = trim(refsdirec)//'/'//ermodfname
     open(unit = iounit, file = keyfile, action='read', status='old', iostat=stat)
     if(stat == 0) then
@@ -630,20 +638,20 @@ contains
        endif
        molfile = trim(refsdirec)//'/'//molfile
        stmax = ptsite(pti)
-       open(unit = molio, file = molfile, status='old')
+       open(unit = molio, file = molfile, status = 'old')
        do sid = 1, stmax
           read(molio,*) m, atmtype, xst(1:3)
-          if(ljformat == 1) xst(3) = sgmcnv * xst(3)
-          if((ljformat == 3).or.(ljformat == 4)) then
+          if(ljformat == LJFMT_EPS_Rminh) xst(3) = sgmcnv * xst(3)
+          if((ljformat == LJFMT_A_C) .or. (ljformat == LJFMT_C12_C6)) then
              if(xst(3) /= 0.0) then
-                factor = (xst(2)/xst(3))**(1.0/6.0)
-                xst(2) = xst(3)/(4.0*(factor**6.0))
+                factor = (xst(2) / xst(3)) ** (1.0 / 6.0)
+                xst(2) = xst(3) / (4.0 * (factor ** 6))
                 xst(3) = factor
              else
                 xst(2) = 0.0
              endif
           endif
-          if((ljformat == 2).or.(ljformat == 4)) then
+          if((ljformat == LJFMT_EPS_J_SGM_A) .or. (ljformat == LJFMT_C12_C6)) then
              xst(2) = engcnv * xst(2)
              xst(3) = lencnv * xst(3)
           endif
@@ -652,7 +660,7 @@ contains
        end do
        close(molio)
 
-      if(ljformat == 5) then
+      if(ljformat == LJFMT_TABLE) then
           ljtype_temp(1:stmax) = ljene_temp(1:stmax)
        else
           do sid = 1, stmax
@@ -682,7 +690,7 @@ contains
     deallocate( ljlen_temp, ljene_temp, ljtype_temp )
 
     ! Fill LJ table
-    if(ljformat == 5) then
+    if(ljformat == LJFMT_TABLE) then
        ! From table (directly)
        open(unit = ljtableio, file = trim(refsdirec)//'/'//ljtablefile, status = 'old', action = 'read')
        read(ljtableio, *) ljtype_max
@@ -702,10 +710,10 @@ contains
                  ljene_mat(ljtype_max, ljtype_max) )
        do i = 1, ljtype_max
           select case(cmbrule)
-          case(0) ! arithmetic mean
+          case(LJCMB_ARITH)    ! arithmetic mean
              ljlensq_mat(1:ljtype_max, i) = (( ljlen_temp_table(1:ljtype_max) &
                                              + ljlen_temp_table(i) ) / 2.0) ** 2
-          case(1) ! geometric mean
+          case(LJCMB_GEOM)     ! geometric mean
              ljlensq_mat(1:ljtype_max, i) = ljlen_temp_table(1:ljtype_max) &
                                           * ljlen_temp_table(i)
           case default
@@ -781,9 +789,9 @@ contains
 
     ! r < lwljcut
     select case(ljswitch)
-    case(0,1)                            ! potential switch
+    case(LJSWT_POT_CHM, LJSWT_POT_GMX)    ! potential switch
        ! do nothing
-    case(2)                              ! force switch
+    case(LJSWT_FORCE)                     ! force switch
        vdwa = ljsgm6 * ljsgm6 / (lwljcut6 * upljcut6)
        vdwb = ljsgm6 / (lwljcut3 * upljcut3)
        edev = 4.0 * ljeps * (vdwa - vdwb)
@@ -800,16 +808,16 @@ contains
           invr2 = ljsgm2 / dist
           invr6 = invr2 * invr2 * invr2
           select case(ljswitch)
-          case(0)                        ! potential switch (CHRAMM form)
+          case(LJSWT_POT_CHM)             ! potential switch (CHRAMM form)
              swth = (2.0 * dist + upljcut2 - 3.0 * lwljcut2)        &
                   * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
              edev = 4.0 * ljeps * invr6 * (invr6 - 1.0) * (1.0 - swth)
-          case(1)                        ! potential switch (GROMACS form)
+          case(LJSWT_POT_GMX)             ! potential switch (GROMACS form)
              swfac = (r - lwljcut) / (upljcut - lwljcut)
              swth = 1.0 - 10.0 * (swfac ** 3)                      &
                         + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) 
              edev = 4.0 * ljeps * invr6 * (invr6 - 1.0) * (1.0 - swth)
-          case(2)                        ! force switch
+          case(LJSWT_FORCE)               ! force switch
              invr3 = sqrt(invr6)
              vdwa = upljcut6 / (upljcut6 - lwljcut6)          &
                   * ( (invr6 - ljsgm6 / upljcut6) ** 2 )
