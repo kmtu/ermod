@@ -1470,7 +1470,7 @@ contains
                         mask = (mshdif(msemin:msemax) > zero) )
        if(factor > mesherr) then
           write(6, *)
-          write(6, "(A,f8.3,A,g12.3)") " Warning: mesh error is ", factor, &
+          write(6, "(A,f8.3,A,g12.3,A)") " Warning: mesh error is ", factor, &
               " kcal/mol and is larger than the recommended value of ", &
               mesherr, " kcal/mol"
        endif
@@ -1676,7 +1676,7 @@ contains
           if(numslv == 1) then
              write(6, "(i3,2f11.4)") cntrun, shcp(1:2)
           else
-             write(6, 772) cntrun, shcp(1), shcp(1:2*numslv+2)
+             write(6, 772) cntrun, shcp(1:2*numslv+2)
 772          format(i3,9999f11.4)
           endif
        endif
