@@ -461,7 +461,7 @@ contains
              ! get the configuration and structure-specific weight
              reject = .true.
              do while(reject)
-                call OUTconfig(psite,dumcl,stmax,0,'solute','trjfl_read')
+                call OUTconfig(psite, dumcl, stmax, 0, 'solute', 'trjfl_read')
                 if(read_weight) then     ! weight read from a file
                    read(sltwgt_io, *, iostat = ioerr) dumint, weight
                    if(ioerr /= 0) then   ! wrap around
@@ -706,6 +706,7 @@ contains
       implicit none
       integer, intent(in) :: ati
       real, intent(out) :: crd(3), wgt
+      real, parameter :: massHe = 4.0026          ! atomic weight (helium)
       real :: refindex
       character(len=6) :: header
       do                       ! skip until ATOM/HETATM lines
@@ -723,11 +724,10 @@ contains
          ! user can implement his own special selection rule to mask fitting
          ! (e.g. by using B-factor, etc.)
          ! default: hydrogen is masked and the others have the same weight
-         if(wgt > 1.2) then    ! non-hydrogen
-            ! wgt > massH, actually, where the massH value is listed
-            ! in the getmass subroutine within the setconf.F90 program
+         if(wgt > 0.95 * massHe) then    ! non-hydrogen
+            ! wgt > massHe, actually, where massHe is the helium atomic weight
             wgt = 1.0
-         else                  ! hydrogen
+         else                            ! hydrogen
             wgt = 0.0
          endif
          !

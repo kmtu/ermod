@@ -162,7 +162,7 @@ contains
     real :: upljcut2, lwljcut2, upljcut3, lwljcut3, upljcut6, lwljcut6
     real :: ljeps, ljsgm2, ljsgm3, ljsgm6, vdwa, vdwb, swth, swfac
     integer :: ljtype_i, ljtype_j
-    real, parameter :: infty=1.0e50      ! essentially equal to infinity
+    real, parameter :: infty = 1.0e50      ! essentially equal to infinity
     !
     if(i == j) stop "cannot happen: two particle arguments should not be the same"
     if(cltype /= EL_COULOMB) stop "cannot happen: realcal_bare is called only when cltype is 'bare coulomb'."

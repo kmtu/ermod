@@ -1,14 +1,14 @@
---- slvfe.F90	2013-04-22 12:44:53.958984991 +0900
-+++ extensions/slvfe.F90	2013-04-22 15:03:15.119759874 +0900
+--- slvfe.F90	2013-04-25 14:20:18.632986142 +0900
++++ extensions/slvfe.F90	2013-04-25 14:35:56.566736343 +0900
 @@ -26,7 +26,7 @@
-   integer :: numsln=10,numref=5,numdiv=-1
+   integer :: numsln = 10,  numref = 5,  numdiv = -1
  
-   character*3 :: peread='not', uvread='yes'
--  character*3 :: slfslt='yes', infchk='not'
-+  character*3 :: slfslt='yes', infchk='not', ljlrc='not'
-   character*4 :: zerosft='orig',wgtfnform='harm'
-   character*3 :: refmerge='yes',extsln='lin'
-   character*3 :: wgtf2smpl='yes',slncor='not'
+   character(len=3) :: peread = 'not',    uvread = 'yes'
+-  character(len=3) :: slfslt = 'yes',    infchk = 'not'
++  character(len=3) :: slfslt = 'yes',    infchk = 'not',   ljlrc = 'not'
+   character(len=4) :: zerosft = 'orig',  wgtfnform = 'harm'
+   character(len=3) :: refmerge = 'yes',  extsln = 'lin'
+   character(len=3) :: wgtf2smpl = 'yes', slncor = 'not'
 @@ -71,6 +71,7 @@
    
    namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
@@ -17,7 +17,7 @@
         refmerge, extsln, extthres_soln, extthres_refs, &
         wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
         inptemp, pickgr, msemin, msemax, mesherr, &
-@@ -474,6 +475,371 @@
+@@ -507,6 +508,371 @@
    end subroutine datread
  end module
  
@@ -387,24 +387,24 @@
 +
 +
  module sfecalc
-   use sysvars, only: zerosft,wgtfnform,slncor, &
-                      numslv,ermax,nummol,kT,itrmax,zero,error, &
-@@ -538,8 +904,10 @@
-   subroutine chmpot(prmcnt,cntrun)
+   use sysvars, only: zerosft, wgtfnform, slncor, &
+                      numslv, ermax, nummol, kT, itrmax, zero, error, &
+@@ -571,8 +937,10 @@
+   subroutine chmpot(prmcnt, cntrun)
      !
-     use sysvars, only: uvread,slfslt,normalize,showdst,wrtzrsft, &
+     use sysvars, only: uvread, slfslt, normalize, showdst, wrtzrsft, &
 +                       ljlrc, &
-                        slfeng,chmpt,aveuv,svgrp,svinf, &
-                        pickgr,cumuint,cumuintfl
+                        slfeng, chmpt, aveuv, svgrp, svinf, &
+                        pickgr, cumuint, cumuintfl
 +    use uvcorrect, only: ljcorrect
      !
      implicit none
-     integer prmcnt,cntrun,group,inft
-@@ -640,6 +1008,7 @@
+     integer, intent(in) :: prmcnt, cntrun
+@@ -688,6 +1056,7 @@
               aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
            end do
         endif
 +       if(ljlrc == 'yes') call ljcorrect(cntrun)   ! LJ long-range correction
      endif
      !
-     if((cumuint == 'yes').and.(group == pickgr).and.(inft == 0)) then
+     if((cumuint == 'yes') .and. (group == pickgr) .and. (inft == 0)) then

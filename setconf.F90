@@ -933,7 +933,7 @@ contains
        rewind(weight_io)
        read(weight_io, *, iostat = ioerr) dummy, weight
        if(ioerr /= 0) then
-          write(stdout,*) " The weight file (", weight_file, ") is ill-formed"
+          write(stdout, *) " The weight file (", weight_file, ") is ill-formed"
           call mpi_setup('stop')
           stop
        endif
@@ -944,22 +944,23 @@ contains
 
   subroutine getmass(stmass,atmtype)
     implicit none
-    real, parameter :: massH = 1.00794          ! mass number (hydrogen)
-    real, parameter :: massC = 12.0107          ! mass number (carbon)
-    real, parameter :: massO = 15.9994          ! mass number (oxygen)
-    real, parameter :: massN = 14.00674         ! mass number (nitrogen)
-    real, parameter :: massS = 32.066           ! mass number (sulfur)
-    real, parameter :: massP = 30.973761        ! mass number (phosphorus)
-    real, parameter :: massLi = 6.941           ! mass number (lithium)
-    real, parameter :: massNa = 22.989770       ! mass number (sodium)
-    real, parameter :: massK = 39.0983          ! mass number (potassium)
-    real, parameter :: massF = 18.9984032       ! mass number (fluorine)
-    real, parameter :: massCl = 35.4527         ! mass number (chlorine)
-    real, parameter :: massBr = 79.904          ! mass number (bromine)
-    real, parameter :: massCa = 40.078          ! mass number (calcium)
-    real, parameter :: massZn = 65.409          ! mass number (zinc)
-    real, parameter :: massFe = 55.845          ! mass number (iron)
-    real, parameter :: massCu = 63.546          ! mass number (copper)
+    real, parameter :: massH = 1.00794          ! atomic weight (hydrogen)
+    real, parameter :: massC = 12.0107          ! atomic weight (carbon)
+    real, parameter :: massO = 15.9994          ! atomic weight (oxygen)
+    real, parameter :: massN = 14.00674         ! atomic weight (nitrogen)
+    real, parameter :: massS = 32.066           ! atomic weight (sulfur)
+    real, parameter :: massP = 30.973761        ! atomic weight (phosphorus)
+    real, parameter :: massHe = 4.0026          ! atomic weight (helium)
+    real, parameter :: massLi = 6.941           ! atomic weight (lithium)
+    real, parameter :: massNa = 22.989770       ! atomic weight (sodium)
+    real, parameter :: massK = 39.0983          ! atomic weight (potassium)
+    real, parameter :: massF = 18.9984032       ! atomic weight (fluorine)
+    real, parameter :: massCl = 35.4527         ! atomic weight (chlorine)
+    real, parameter :: massBr = 79.904          ! atomic weight (bromine)
+    real, parameter :: massCa = 40.078          ! atomic weight (calcium)
+    real, parameter :: massZn = 65.409          ! atomic weight (zinc)
+    real, parameter :: massFe = 55.845          ! atomic weight (iron)
+    real, parameter :: massCu = 63.546          ! atomic weight (copper)
 
     real, intent(out) :: stmass
     character(len=5), intent(in) :: atmtype
@@ -977,6 +978,7 @@ contains
     if(eltp1 == 'K') stmass = massK
     if(eltp1 == 'F') stmass = massF
     eltp2 = atmtype(1:2)
+    if(eltp2 == 'He') stmass = massHe
     if(eltp2 == 'Li') stmass = massLi
     if(eltp2 == 'Na') stmass = massNa
     if(eltp2 == 'Cl') stmass = massCl
