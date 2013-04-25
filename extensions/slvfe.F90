@@ -35,7 +35,7 @@ module sysvars
 
   real :: inptemp = 300.0                                     ! Kelvin
   real, parameter :: zero = 0.0
-  real :: error = 1.0e-8, tiny = 1.0e-10
+  real :: error = 1.0e-8, tiny = 1.0e-8
   integer :: pickgr = 3, msemin = 1, msemax = 5
   real :: mesherr = 0.10                                      ! kcal/mol
   integer :: maxmesh = 30000, large = 500000, itrmax = 100
