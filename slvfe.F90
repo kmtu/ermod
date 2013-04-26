@@ -360,7 +360,7 @@ contains
   end subroutine
 
   subroutine datread(cntrun)
-    use sysvars, only: refmerge, zero, tiny,&
+    use sysvars, only: refmerge, zero, tiny, &
          solndirec, refsdirec, slndnspf, slncorpf, refdnspf, refcorpf, numbers
     implicit none
     integer, intent(in) :: cntrun
@@ -403,7 +403,7 @@ contains
     end select
     
     rddst(:) = 0.0
-    if(slncor == 'yes') rdslc(:,:)=0.0
+    if(slncor == 'yes') rdslc(:,:) = 0.0
     if((cntrun == 1) .or. (refmerge == 'not')) then
        rddns(:) = 0.0
        rdcor(:,:) = 0.0
@@ -474,11 +474,11 @@ contains
     end do
 !
     if(cntrun == 1) write(6, *)
-    do pti=1,numslv
+    do pti = 1, numslv
        factor = sum( rddst, mask = (rdspec == pti) )
        ampl   = sum( rddns, mask = (rdspec == pti) )
        num_different = .false.
-       if(abs(factor-ampl) > tiny) num_different = .true.
+       if(abs(factor - ampl) > tiny) num_different = .true.
        if(cntrun > 1) then
           if(nint(factor) /= nint(nummol(pti))) num_different = .true.
           if(nint(ampl) /= nint(nummol(pti))) num_different = .true.
