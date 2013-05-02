@@ -22,7 +22,7 @@ module trajectory
   type handle
      integer :: iohandle
   end type handle
-  
+ 
 contains
 
   subroutine init_trajectory()
@@ -66,13 +66,13 @@ contains
     type(handle), intent(in) :: htraj
     integer, intent(in) :: natom
     logical, intent(in) :: is_periodic
-    real(8), intent(out) :: crd(3,natom)
-    real(8), intent(out) :: cell(3,3)
+    real, intent(out) :: crd(3, natom)
+    real, intent(out) :: cell(3, 3)
     integer, intent(out) :: status
 
     integer :: n
-    real(8) :: xcell, ycell, zcell, alpha, beta, gamma
-    real(8) :: lengths(3), angles(3)
+    real :: xcell, ycell, zcell, alpha, beta, gamma
+    real :: lengths(3), angles(3)
 
     read(htraj%iohandle, err = 999, end = 999) ! step, time
     read(htraj%iohandle, err = 999, end = 999) n
@@ -93,7 +93,7 @@ contains
 
     status = 0
     return
-    
+
 999 status = 1
     return
   end subroutine read_trajectory

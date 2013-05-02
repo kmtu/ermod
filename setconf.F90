@@ -23,10 +23,10 @@ module OUTname
   use trajectory, only: handle
 !
   implicit none
-  integer, parameter :: iotrj=99                 ! trajectory file IO
-  character(*), parameter :: trjfile='HISTORY'   ! trajectory filename
-  integer, parameter :: mdinf=89                 ! MD info file IO
-  character(*), parameter :: inffile='MDinfo'    ! MD info filename
+  integer, parameter :: iotrj = 99                     ! trajectory file IO
+  character(len=*), parameter :: trjfile = 'HISTORY'   ! trajectory filename
+  integer, parameter :: mdinf = 89                     ! MD info file IO
+  character(len=*), parameter :: inffile = 'MDinfo'    ! MD info filename
 
   integer OUTens, OUTbxs, OUTcmb, OUTclt, OUTspo
   real OUTtemp, OUTelc, OUTlwl, OUTupl, OUTscr
@@ -504,7 +504,8 @@ contains
          moltype, numsite, sluvid, &
          bfcoord, sitemass, charge, &
          ljene_mat, ljlensq_mat, ljtype, ljtype_max, cmbrule, &
-         specatm, sitepos, mol_begin_index, belong_to, mol_charge, &
+         specatm, sitepos, &
+         mol_begin_index, mol_end_index, belong_to, mol_charge, &
          LJFMT_EPS_cal_SGM_nm, LJFMT_EPS_Rminh, LJFMT_EPS_J_SGM_A, &
          LJFMT_A_C, LJFMT_C12_C6, LJFMT_TABLE, &
          LJCMB_ARITH, LJCMB_GEOM, &
@@ -555,7 +556,7 @@ contains
     call check_param
 
     ! pttype is particle type for each molecule group
-    allocate(pttype(numtype), ptcnt(numtype), ptsite(numtype))
+    allocate( pttype(numtype), ptcnt(numtype), ptsite(numtype) )
     ! Default is physical particle, coordinate existing in (HISTORY) trajectory
     pttype(:) = PT_SOLVENT
     ! Default: same as written in MDinfo
@@ -580,14 +581,14 @@ contains
        end do
 99     close(molio)
        ptsite(numtype) = stmax
-       pttype(numtype) = slttype   ! Test particle is the last (for insertion)       
+       pttype(numtype) = slttype   ! Test particle is the last (for insertion)
        solute_index = numtype
     endif
 
     ! count up number of mols, 
     ! set max and total no. of atoms 
-    nummol = sum(ptcnt(1:numtype))
-    numatm = sum(ptcnt(1:numtype) * ptsite(1:numtype))
+    nummol = sum( ptcnt(1:numtype) )
+    numatm = sum( ptcnt(1:numtype) * ptsite(1:numtype) )
 
     allocate( moltype(nummol), numsite(nummol), sluvid(nummol) )
 
@@ -601,12 +602,11 @@ contains
     end do
     if(cmax /= nummol) call halt_with_error("set_num")
 
-    ! Read solute specification
-    do i = 1, nummol
-       pti = moltype(i)
-       numsite(i) = ptsite(pti)
-       sluvid(i) = pttype(pti)
-    end do
+    ! Assign the number of sites within molecule
+    numsite(1:nummol) = ptsite( moltype(1:nummol) )
+
+    ! Build the solute/solvent specification
+    sluvid(1:nummol) = pttype( moltype(1:nummol) )
 
     ! check if all the solute molecules have the same number of atoms
     stmax = -1
@@ -620,7 +620,7 @@ contains
        endif
     end do
 
-    if(numatm /= sum(numsite(1:nummol))) stop "something is wrong in setconf::setparam, numatm"
+    if(numatm /= sum( numsite(1:nummol) )) stop "something is wrong in setconf::setparam, numatm"
 
 
     allocate( bfcoord(3, stmax), sitemass(numatm) )
@@ -636,21 +636,25 @@ contains
     charge(:) = 0.0
 
     ! initialize mol_begin_index
-    ! mol_begin_index(i) .. (mol_begin_index(i+1) - 1) will be the index range for i-th molecule
+    ! mol_begin_index(i) .. (mol_begin_index(i + 1) - 1)
+    !    will be the index range for i-th molecule
+    ! mol_end_index is defined in the engmain module as a function through
+    !    mol_end_index(i) = mol_begin_index(i + 1) - 1
     mol_begin_index(1) = 1
     do i = 1, nummol
        mol_begin_index(i + 1) = mol_begin_index(i) + numsite(i)
     end do
     if(mol_begin_index(nummol + 1) /= numatm + 1) call halt_with_error("set_bug")
+    if(mol_end_index(nummol) /= numatm) call halt_with_error("set_bug")
 
     ! initialize belong_to(map from atom number to molecule no)
     do i = 1, nummol
-       belong_to(mol_begin_index(i):(mol_begin_index(i + 1) - 1)) = i
+       belong_to(mol_begin_index(i):mol_end_index(i)) = i
     end do
 
     ! large enough LJ table size
-    allocate( ljlen_temp_table(1:sum(ptsite(:))), &
-              ljene_temp_table(1:sum(ptsite(:))) )
+    allocate( ljlen_temp_table(1:sum( ptsite(:) )), &
+              ljene_temp_table(1:sum( ptsite(:) )) )
 
     ! temporary set of LJ & coordinates
     maxsite = maxval(ptsite(1:numtype))
@@ -789,7 +793,7 @@ contains
 
     ! get molecule-wise charges
     do i = 1, nummol
-       mol_charge(i) = sum(charge(mol_begin_index(i):(mol_begin_index(i+1)-1)))
+       mol_charge(i) = sum( charge(mol_begin_index(i):mol_end_index(i)) )
     end do
 
     deallocate( pttype, ptcnt, ptsite )
@@ -820,7 +824,7 @@ contains
     OUTatm = sum( numsite, &
                   mask = ((sluvid == PT_SOLVENT) .or. (sluvid == PT_SOLUTE)) )
     if(myrank == 0) allocate( readpos(3, OUTatm) )
-    allocate( OUTpos(3,OUTatm), OUTcell(3,3) )
+    allocate( OUTpos(3, OUTatm), OUTcell(3, 3) )
 
     ! first time setup: read index permutation
     if(first_time) then

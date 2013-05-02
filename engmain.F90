@@ -348,7 +348,7 @@ contains
     open(unit = unit, file = ene_confname, action = "read", iostat = err)
     
     if(err == 0) then
-       read(unit, nml=ene_param)
+       read(unit, nml = ene_param)
        close(unit)
     else
        stop "parameter file does not exist"
@@ -360,7 +360,6 @@ contains
   integer function specatm(i, mol)
     implicit none
     integer, intent(in) :: i, mol
-
     specatm = mol_begin_index(mol) + (i - 1)
   end function specatm
 
