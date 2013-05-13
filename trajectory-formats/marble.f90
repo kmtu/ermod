@@ -2,17 +2,17 @@
 ! ERmod - Eneregy Representation Module
 ! Copyright (C) 2000-2012 Nobuyuki Matubayasi
 ! Copyright (C) 2010-2012 Shun Sakuraba
-! 
+!
 ! This program is free software; you can redistribute it and/or
 ! modify it under the terms of the GNU General Public License
 ! as published by the Free Software Foundation; either version 2
 ! of the License, or (at your option) any later version.
-! 
+!
 ! This program is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program; if not, write to the Free Software
 ! Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -22,7 +22,7 @@ module trajectory
   type handle
      integer :: iohandle
   end type handle
-  
+ 
 contains
 
   subroutine init_trajectory()
@@ -34,7 +34,7 @@ contains
   end subroutine finish_trajectory
 
   ! Open trajectory and returns handle as htraj. 
-  ! Should open fails, the program abends.
+  ! Should open fail, the program abends.
   subroutine open_trajectory(htraj, fname)
     use utility, only: newunit
     implicit none
@@ -63,10 +63,10 @@ contains
     type(handle), intent(in) :: htraj
     integer, intent(in) :: natom
     logical, intent(in) :: is_periodic
-    real(8), intent(out) :: crd(3,natom)
-    real(8), intent(out) :: cell(3,3)
+    real, intent(out) :: crd(3, natom)
+    real, intent(out) :: cell(3, 3)
     integer, intent(out) :: status
-    integer :: i, j
+    integer :: i
 
     do i = 1, natom
        read(htraj%iohandle, *, err=999) crd(:, i)

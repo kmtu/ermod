@@ -540,7 +540,7 @@ def gen(mode):
     if mode == "soln":
         for i in range(len(mols)):
             if curmols[i][2]:
-                carryover["sltpick"] = i + 1 # 1-origin
+                carryover["sltspec"] = i + 1 # 1-origin
 
     # output MDinfo
     mdifh = file(mode + "/MDinfo", "wt")

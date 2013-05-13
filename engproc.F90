@@ -33,44 +33,45 @@ contains
   !  procedure for constructing energy distribution functions
   !
   subroutine enginit
-    use engmain, only: numtype,nummol,engdiv,corrcal,selfcal,slttype,&
-         moltype,sluvid,&
-         ermax,numslv,uvmax,uvsoft,esmax,uvspec,&
-         uvcrd,edens,ecorr,escrd,eself,&
+    use engmain, only: numtype, nummol, engdiv, corrcal, selfcal, slttype, &
+         moltype, sluvid, &
+         ermax, numslv, uvmax, uvsoft, esmax, uvspec, &
+         uvcrd, edens, ecorr, escrd, eself, &
          voffset, &
-         aveuv,slnuv,avediv,minuv,maxuv,numslt,sltlist,&
-         ene_param, ene_confname, &
-         io_flcuv, CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, PT_SOLVENT
+         aveuv, slnuv, avediv, minuv, maxuv, numslt, sltlist, &
+         ene_confname, &
+         io_flcuv, SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, PT_SOLVENT, YES
     use mpiproc, only: halt_with_error, warning, myrank
     implicit none
-    real ecdmin,ecfmns,ecmns0,ecdcen,ecpls0,ecfpls,eccore,ecdmax
-    real eclbin,ecfbin,ec0bin,finfac,ectmvl
-    integer peread,pemax,pesoft,pecore,solute_moltype
-    character(*), parameter :: ecdfile='EcdInfo'
-    integer, parameter :: ecdio=51       ! IO for ecdfile
-    real, parameter :: infty=1.0e50      ! essentially equal to infinity
+    real ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax
+    real eclbin, ecfbin, ec0bin, finfac, ectmvl
+    integer peread, pemax, pesoft, pecore, solute_moltype
+    character(*), parameter :: ecdfile = 'EcdInfo'
+    integer, parameter :: ecdio = 51       ! IO for ecdfile
+    real, parameter :: infty = 1.0e50      ! essentially equal to infinity
     !
-    integer, parameter :: rglmax=5, large=10000
-    real, parameter :: tiny=1.0e-30
-    integer iduv,i,k,q,pti,regn,prvmx,curmx,uprgcd(rglmax+1)
-    real factor,incre,cdrgvl(0:rglmax+1),rgcnt(rglmax),ecpmrd(10)
+    integer, parameter :: rglmax = 5, large = 10000, too_large_ermax = 15000
+    real, parameter :: tiny = 1.0e-30
+    integer iduv, i, q, pti, regn, minrg, maxrg, uprgcd(0:rglmax+1)
+    real factor, incre, cdrgvl(0:rglmax+1), ecpmrd(large)
     integer, dimension(:), allocatable :: tplst
     real, dimension(:,:), allocatable  :: ercrd
     !
     integer, parameter :: paramfile_io=191
     integer :: param_err
     logical :: check_ok
-    namelist /hist/ ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax,&
-         eclbin, ecfbin, ec0bin, finfac, ectmvl,&
-         peread, pemax, pesoft, pecore
+    namelist /hist/ ecdmin, ecfmns, ecmns0, ecdcen, &
+                    ecpls0, ecfpls, eccore, ecdmax, &
+                    eclbin, ecfbin, ec0bin, finfac, ectmvl, &
+                    peread, pemax, pesoft, pecore
     !
     allocate( tplst(nummol) )
-    numslt=0
-    do i=1,nummol
-       if(sluvid(i).gt.0) then
-          numslt=numslt+1
-          tplst(numslt)=i
-          solute_moltype=moltype(i)
+    numslt = 0
+    do i = 1, nummol
+       if(sluvid(i) > 0) then
+          numslt = numslt + 1
+          tplst(numslt) = i
+          solute_moltype = moltype(i)
        endif
     end do
     ! solute must have moltype value equal to solute_moltype
@@ -81,175 +82,164 @@ contains
     ! consistency check between slttype and numslt (number of solute molecules)
     check_ok = .true.
     if(numslt <= 0) check_ok = .false.
-    if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+    if((slttype == SLT_REFS_RIGID) .or. (slttype == SLT_REFS_FLEX)) then
        if(numslt /= 1) check_ok = .false.
     endif
     if(.not. check_ok) call halt_with_error('eng_num')
     !
     allocate( sltlist(numslt) )
-    sltlist(1:numslt)=tplst(1:numslt)   ! list of solute molecules
+    sltlist(1:numslt) = tplst(1:numslt)   ! list of solute molecules
     deallocate( tplst )
     !
     ! solute needs to be the last particle in reference system
-    if((slttype == CAL_REFS_RIGID) .or. (slttype == CAL_REFS_FLEX)) then
+    if((slttype == SLT_REFS_RIGID) .or. (slttype == SLT_REFS_FLEX)) then
        if(sltlist(1) /= nummol) call halt_with_error('eng_ins')
     endif
     !
     ! number of solvent species
-    if(numslt.eq.1) numslv=numtype-1
-    if(numslt.gt.1) numslv=numtype      ! solute can also be a solvent species
+    if(numslt == 1) numslv = numtype - 1
+    if(numslt >  1) numslv = numtype   ! solute can also be a solvent species
     !
     allocate( uvspec(nummol) )
     uvspec(1:nummol) = moltype(1:nummol)
-    if(numslt == 1) then    ! solute totally disappears in reference system
+    if(numslt == 1) then    ! solute totally disappears in reference solvent
       where(sluvid(:) /= PT_SOLVENT) uvspec(:) = 0 ! solute
       ! After the solute, slide the value of molecule type
       where(sluvid(:) == PT_SOLVENT .and. moltype(:) > solute_moltype) uvspec(:) = uvspec(:) - 1
     endif
     !
-    allocate( uvmax(numslv),uvsoft(numslv),ercrd(large,0:numslv) )
+    allocate( uvmax(numslv), uvsoft(numslv), ercrd(large,0:numslv) )
     !
-    peread=0
-    ermax=0
-    do pti=0,numslv
+    peread = 0
+    ermax = 0
+    do pti = 0, numslv
        open(unit = paramfile_io, file = ene_confname, action = "read", iostat = param_err)
        if (param_err == 0) then
-          read(paramfile_io, nml = ene_param) ! FIXME: is this necessary?
           read(paramfile_io, nml = hist)
           close(paramfile_io)
        else
           stop "parameter file does not exist"
        end if
-       if(peread.eq.1) then   ! read coordinate parameters from separate file
-          open(unit=ecdio,file=ecdfile,action='read',status='old')
-          read(ecdio,*)        ! comment line
-          do i=1,large
-             read(ecdio,*,end=3109) q
-             if(q.eq.pti) then
+       if(peread == 1) then   ! read coordinate parameters from separate file
+          open(unit = ecdio, file = ecdfile, action = 'read', status = 'old')
+          read(ecdio,*)                ! comment line
+          do i = 1, large
+             read(ecdio, *, end=3109) q
+             if(q == pti) then
                 backspace(ecdio)
-                if(pti.eq.0) then
-                   read(ecdio,*) k,(ecpmrd(k),k=1,8)
-                   pecore=0       ! no core region for solute self-energy
+                if(pti == 0) then      ! solute self-energy
+                   read(ecdio,*) iduv, ecpmrd(1:8)
+                   pecore = 0          ! no core region for solute self-energy
                 endif
-                if(pti.gt.0) then
-                   read(ecdio,*) k,(ecpmrd(k),k=1,9),pecore
-                   ecdmax=ecpmrd(9)
+                if(pti >  0) then      ! solute-solvent interaction energy
+                   read(ecdio,*) iduv, ecpmrd(1:9), pecore
+                   ecdmax = ecpmrd(9)
+                   if(pecore <= 1) call halt_with_error('eng_pcr')
                 endif
-                eclbin=ecpmrd(1) ; ecfbin=ecpmrd(2) ; ec0bin=ecpmrd(3)
-                finfac=ecpmrd(4) ; ecdmin=ecpmrd(5) ; ecfmns=ecpmrd(6)
-                ecdcen=ecpmrd(7) ; eccore=ecpmrd(8)
+                eclbin = ecpmrd(1) ; ecfbin = ecpmrd(2) ; ec0bin = ecpmrd(3)
+                finfac = ecpmrd(4) ; ecdmin = ecpmrd(5) ; ecfmns = ecpmrd(6)
+                ecdcen = ecpmrd(7) ; eccore = ecpmrd(8)
                 if(eccore < tiny) pecore=0
-                if(pecore == 1) call halt_with_error('eng_ecd')
+                if(pecore == 1) call halt_with_error('eng_pcr')
                 exit
              endif
           end do
 3109      continue
           close(ecdio)
        end if
-       ectmvl=finfac*ecfbin ; ecdmin=ecdmin-ectmvl
-       ecfmns=ecfmns-ectmvl ; ecmns0=ecdcen-ectmvl
-       ecpls0=2.0e0*ecdcen-ecmns0 ; ecfpls=2.0e0*ecdcen-ecfmns
-       eccore=eccore+ecfpls-ecdcen
+       ectmvl = finfac * ecfbin
+       ecdmin = ecdmin - ectmvl
+       ecfmns = ecfmns - ectmvl
+       ecmns0 = ecdcen - ectmvl
+       ecpls0 = 2.0 * ecdcen - ecmns0
+       ecfpls = 2.0 * ecdcen - ecfmns
+       eccore = eccore + ecfpls - ecdcen
 
-       rgcnt(1)=(ecfmns-ecdmin)/eclbin
-       rgcnt(2)=(ecmns0-ecfmns)/ecfbin
-       rgcnt(3)=(ecpls0-ecmns0)/ec0bin
-       rgcnt(4)=(ecfpls-ecpls0)/ecfbin
-       rgcnt(5)=(eccore-ecfpls)/eclbin
-       pesoft=0
-       do regn=1,rglmax
-          factor=rgcnt(regn)
-          if(int(factor) < 1) call halt_with_error('eng_ecd')
-          pesoft=pesoft+nint(factor)
+       cdrgvl(0) = ecdmin
+       cdrgvl(1) = ecfmns
+       cdrgvl(2) = ecmns0
+       cdrgvl(3) = ecpls0
+       cdrgvl(4) = ecfpls
+       cdrgvl(5) = eccore
+       cdrgvl(6) = ecdmax
+
+       uprgcd(0) = 1
+       do regn = 1, rglmax
+          if((regn == 1) .or. (regn == 5)) factor = eclbin
+          if((regn == 2) .or. (regn == 4)) factor = ecfbin
+          if(regn == 3) factor = ec0bin
+          incre = cdrgvl(regn) - cdrgvl(regn - 1)
+          if(incre < factor) call halt_with_error('eng_ecd')
+          iduv = nint(incre / factor)
+          uprgcd(regn) = uprgcd(regn - 1) + iduv
        end do
 
-       pemax=pesoft+pecore
+       pesoft = uprgcd(rglmax) - uprgcd(0)
+       pemax = pesoft + pecore
+       uprgcd(rglmax+1) = pemax
+       ercrd(uprgcd(0:(rglmax+1)), pti) = cdrgvl(0:(rglmax+1))
+
        if(pemax > large) call halt_with_error('eng_siz')
 
-       cdrgvl(0)=ecdmin
-       cdrgvl(1)=ecfmns
-       cdrgvl(2)=ecmns0
-       cdrgvl(3)=ecpls0
-       cdrgvl(4)=ecfpls
-       cdrgvl(5)=eccore
-       cdrgvl(6)=ecdmax
-       do regn=1,rglmax-1
-          if((regn.eq.1).or.(regn.eq.5)) factor=eclbin
-          if((regn.eq.2).or.(regn.eq.4)) factor=ecfbin
-          if(regn.eq.3) factor=ec0bin
-          iduv=nint((cdrgvl(regn)-cdrgvl(regn-1))/factor)
-          if(regn.eq.1) uprgcd(regn)=iduv
-          if(regn.gt.1) uprgcd(regn)=uprgcd(regn-1)+iduv
-       end do
-       uprgcd(rglmax)=pesoft
-       uprgcd(rglmax+1)=pemax-1
-
-       do regn=0,rglmax+1
-          if(regn.eq.0) iduv=0
-          if(regn.gt.0) iduv=uprgcd(regn)
-          ercrd(iduv+1,pti)=cdrgvl(regn)
-       end do
-
-       if(pecore.eq.0) i=rglmax       ! no core region
-       if(pecore.gt.0) i=rglmax+1     ! explicit treatment of core region
-       curmx=0
-       do regn=1,i
-          prvmx=curmx
-          curmx=uprgcd(regn)
-          if((regn.eq.1).or.(regn.eq.5)) factor=eclbin
-          if((regn.eq.2).or.(regn.eq.4)) factor=ecfbin
-          if(regn.eq.3) factor=ec0bin
-          if(regn.eq.(rglmax+1)) then ! this condition is satisfied only if pecore == 0
-             incre=log(ercrd(pemax,pti)/ercrd(pesoft+1,pti))
-             factor=incre/real(pecore-1)
+       if(pecore == 0) i = rglmax        ! no core region
+       if(pecore >  0) i = rglmax + 1    ! explicit treatment of core region
+       do regn = 1, i
+          minrg = uprgcd(regn - 1)
+          maxrg = uprgcd(regn)
+          if(regn <= rglmax) then
+             incre = ercrd(maxrg, pti) - ercrd(minrg, pti)
           endif
-          do iduv=prvmx+1,curmx
-             incre=factor*real(iduv-prvmx-1)
-             if(regn.le.rglmax) ercrd(iduv,pti)=ercrd(prvmx+1,pti)+incre
-             if(regn.eq.(rglmax+1)) then
-                ercrd(iduv,pti)=ercrd(prvmx+1,pti)*exp(incre)
-             end if
+          if(regn == (rglmax + 1)) then  ! effective only when pecore > 0
+             incre = log(ercrd(maxrg, pti) / ercrd(minrg, pti))
+          endif
+          factor = incre / real(maxrg - minrg)
+          do iduv = minrg, (maxrg - 1)
+             incre = factor * real(iduv - minrg)
+             if(regn <= rglmax) then
+                ercrd(iduv, pti) = ercrd(minrg, pti) + incre
+             endif
+             if(regn == (rglmax + 1)) then
+                ercrd(iduv, pti) = ercrd(minrg, pti) * exp(incre)
+             endif
           end do
        end do
 
-       if(pti.eq.0) esmax=pesoft      ! solute self-energy
-       if(pti.gt.0) then              ! solute-solvent interaction energy
-          uvmax(pti)=pemax
-          uvsoft(pti)=pesoft
-          ermax=ermax+pemax
+       if(pti == 0) esmax = pesoft    ! solute self-energy
+       if(pti >  0) then              ! solute-solvent interaction energy
+          uvmax(pti) = pemax
+          uvsoft(pti) = pesoft
+          ermax = ermax + pemax
        endif
     end do
     
-    allocate( uvcrd(ermax),edens(ermax) )
-    i=0
-    do pti=1,numslv
-       pemax=uvmax(pti)
-       do iduv=1,pemax
-          i=i+1
-          uvcrd(i)=ercrd(iduv,pti)
+    allocate( uvcrd(ermax), edens(ermax) )
+    i = 0
+    do pti = 1, numslv
+       pemax = uvmax(pti)
+       do iduv = 1, pemax
+          i = i + 1
+          uvcrd(i) = ercrd(iduv, pti)
        end do
     end do
 
-    if(corrcal.eq.1) then
-       if(ermax > 15000) then
-          call warning('emax')
-       endif
+    if(corrcal == YES) then
+       if(ermax > too_large_ermax) call warning('emax')
        allocate( ecorr(ermax,ermax) )
     endif
 
-    if(selfcal.eq.1)  then
-      allocate( escrd(esmax),eself(esmax) )
-      escrd(1:esmax)=ercrd(1:esmax,0)
+    if(selfcal == YES)  then
+      allocate( escrd(esmax), eself(esmax) )
+      escrd(1:esmax) = ercrd(1:esmax,0)
     endif
     deallocate( ercrd )
 
-    if(slttype == CAL_SOLN) allocate( aveuv(engdiv,numslv),slnuv(numslv) )
+    if(slttype == SLT_SOLN) allocate( aveuv(engdiv,numslv), slnuv(numslv) )
     allocate( avediv(engdiv,2) )
-    allocate( minuv(0:numslv),maxuv(0:numslv) )
+    allocate( minuv(0:numslv), maxuv(0:numslv) )
      
-    do pti=0,numslv
-       minuv(pti)=infty
-       maxuv(pti)=-infty
+    do pti = 0, numslv
+       minuv(pti) = infty
+       maxuv(pti) = -infty
     end do
     voffset = -infty
 
@@ -257,12 +247,12 @@ contains
 
     ! Output for energy fluctuation
     if(myrank == 0) then
-       if(slttype == CAL_SOLN) then
+       if(slttype == SLT_SOLN) then
           ! open flcuv file
-          open(unit=io_flcuv,file='flcuv.tt',status='new', action='write')
+          open(unit = io_flcuv, file = 'flcuv.tt', status = 'new', action = 'write')
        else
           ! open progress file
-          open(unit=io_flcuv,file='progress.tt', status='new', action='write')
+          open(unit = io_flcuv, file = 'progress.tt', status = 'new', action = 'write')
        endif
     endif
 
@@ -270,23 +260,22 @@ contains
   end subroutine enginit
 
   subroutine engclear
-    use engmain, only: corrcal,selfcal,slttype,ermax,numslv,esmax,&
-                       edens,ecorr,eself,slnuv,avslf,engnorm,engsmpl, &
-                       CAL_SOLN
+    use engmain, only: corrcal, selfcal, slttype, SLT_SOLN, YES, &
+                       edens, ecorr, eself, slnuv, avslf, engnorm, engsmpl
     implicit none
-    edens(1:ermax)=0.0e0
-    if(corrcal.eq.1) ecorr(1:ermax,1:ermax)=0.0e0
-    if(selfcal.eq.1) eself(1:esmax)=0.0e0
-    if(slttype == CAL_SOLN) slnuv(1:numslv)=0.0e0
-    avslf=0.0e0
-    engnorm=0.0e0
-    engsmpl=0.0e0
+    edens(:) = 0.0
+    if(corrcal == YES) ecorr(:,:) = 0.0
+    if(selfcal == YES) eself(:) = 0.0
+    if(slttype == SLT_SOLN) slnuv(:) = 0.0
+    avslf = 0.0
+    engnorm = 0.0
+    engsmpl = 0.0
     return
   end subroutine engclear
 
   subroutine engproc_cleanup
-    use engmain, only: slttype, CAL_SOLN, io_flcuv
-    use mpiproc
+    use engmain, only: io_flcuv
+    use mpiproc, only: myrank
     implicit none
     if(myrank == 0) then
        endfile(io_flcuv)
@@ -296,25 +285,25 @@ contains
   !
   !
   subroutine engconst(stnum)
-    use engmain, only: nummol,skpcnf,slttype,sluvid,&
-         maxins,numslv,numslt,cltype,cell,&
-         io_flcuv, &
-         SYS_NONPERIODIC, SYS_PERIODIC, &
-         EL_COULOMB, EL_PME, ES_NVT, ES_NPT, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, PT_SOLVENT, PT_SOLUTE
-    use reciprocal, only: recpcal_init, &
-         recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
-         recpcal_self_energy
+    use engmain, only: nummol, skpcnf, slttype, sluvid, &
+                       maxins, numslv, numslt, cltype, cell, &
+                       io_flcuv, &
+                       SYS_NONPERIODIC, SYS_PERIODIC, &
+                       EL_COULOMB, EL_PME, ES_NVT, ES_NPT, &
+                       SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
+                       PT_SOLVENT, PT_SOLUTE
+    use reciprocal, only: recpcal_init, recpcal_spline_greenfunc, &
+                          recpcal_prepare_solvent
     use mpiproc                                                      ! MPI
     implicit none
     integer, intent(in) :: stnum
     integer :: i, k, irank
-    real :: engnmfc,pairep,stat_weight_solute,factor
-    integer, dimension(:), allocatable :: insdst,engdst,tplst
-    real, dimension(:),    allocatable :: uvengy,svfl
+    real :: engnmfc, pairep, stat_weight_solute, factor
+    integer, dimension(:), allocatable :: insdst, engdst, tplst
+    real, dimension(:),    allocatable :: uvengy, svfl
     logical, allocatable :: flceng_stored_g(:,:)
     real, allocatable :: flceng_g(:,:,:)
-    real, save :: prevcl(3, 3)
+    real, save :: prevcl(3,3)
     real, parameter :: tiny = 1.0e-20
     logical :: skipcond
     logical, save :: pme_initialized = .false.
@@ -325,36 +314,36 @@ contains
     ! for soln: maxdst is number of solutes (multiple solute)
     ! for refs: maxdst is number of insertions
     select case(slttype)
-    case(CAL_SOLN)
-       maxdst=numslt
-    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
-       maxdst=maxins
+    case(SLT_SOLN)
+       maxdst = numslt
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+       maxdst = maxins
     end select
 
     allocate( tplst(nummol) )
-    slvmax=0
-    do i=1,nummol
+    slvmax = 0
+    do i = 1, nummol
        ! particle exists in trajectory (not a test particle)
        if((sluvid(i) == PT_SOLVENT) .or. (sluvid(i) == PT_SOLUTE)) then
-          slvmax=slvmax+1
-          tplst(slvmax)=i
+          slvmax = slvmax + 1
+          tplst(slvmax) = i
        end if
     end do
     allocate( tagpt(slvmax) )
     allocate( uvengy(0:slvmax) )
-    tagpt(1:slvmax)=tplst(1:slvmax)  ! and copied from tplst
+    tagpt(1:slvmax) = tplst(1:slvmax)  ! and copied from tplst
     deallocate( tplst )
 
     allocate(flceng_stored(maxdst))
     allocate(flceng(numslv, maxdst))
     flceng_stored(:) = .false.
-    flceng(:, :) = 0
+    flceng(:,:) = 0
 
     if(myrank < nactiveproc) then
        ! Initialize reciprocal space - grid and charges
        call get_inverted_cell
        if(cltype == EL_PME) then
-          if(.not. pme_initialized) call recpcal_init(slvmax,tagpt)
+          if(.not. pme_initialized) call recpcal_init(slvmax, tagpt)
           
           ! check whether cell size changes
           ! recpcal is called only when cell size differ
@@ -362,14 +351,14 @@ contains
           if((.not. pme_initialized) .or. &
              (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
           call perf_time()
-          prevcl(:, :) = cell(:, :)
+          prevcl(:,:) = cell(:,:)
           
           pme_initialized = .true.
 
           call perf_time("kpre")
           !$omp parallel do schedule(dynamic) private(k, i)
-          do k=1,slvmax
-             i=tagpt(k)
+          do k = 1, slvmax
+             i = tagpt(k)
              call recpcal_prepare_solvent(i)
           end do
           call perf_time()
@@ -384,9 +373,8 @@ contains
           call update_histogram(stnum, stat_weight_solute, uvengy(0:slvmax))
        end do
 
-       if(slttype == CAL_SOLN) then
-          ! for soln only: need to output flceng
-          
+       select case(slttype)
+       case(SLT_SOLN)                           ! for soln: output flceng
           allocate(flceng_stored_g(maxdst, nactiveproc))
           allocate(flceng_g(numslv, maxdst, nactiveproc))
           
@@ -407,10 +395,14 @@ contains
              do irank = 1, nactiveproc
                 do cntdst = 1, maxdst
                    if(flceng_stored_g(maxdst, irank)) then
-                      if(maxdst.eq.1) then
-                         write(io_flcuv, 911) (stnum + irank - 1) * skpcnf, flceng_g(1:numslv, cntdst, irank)
+                      if(maxdst == 1) then
+                         write(io_flcuv, 911) &
+                                        (stnum + irank - 1) * skpcnf, &
+                                        flceng_g(1:numslv, cntdst, irank)
                       else
-                         write(io_flcuv, 912) cntdst, (stnum + irank - 1) * skpcnf, flceng_g(1:numslv, cntdst, irank)
+                         write(io_flcuv, 912) cntdst, &
+                                        (stnum + irank - 1) * skpcnf, &
+                                        flceng_g(1:numslv, cntdst, irank)
                       endif
 911                   format(i9,999f15.5)
 912                   format(2i9,999f15.5)
@@ -419,12 +411,11 @@ contains
              enddo
           endif
           deallocate(flceng_g, flceng_stored_g)
-       else
-          ! for refs: output progress
-          if(myrank == 0) then
-             write(io_flcuv, *) ((stnum + irank - 1) * skpcnf, irank = 1, nactiveproc)
-          endif
-       endif
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)      ! for refs: output progress
+          if(myrank == 0) write(io_flcuv, *) ( &
+                                        (stnum + irank - 1) * skpcnf, &
+                                             irank = 1, nactiveproc)
+       end select
     endif
 
     deallocate( tagpt,uvengy )
@@ -437,198 +428,213 @@ contains
   !
   subroutine engstore(stnum)
     !
-    use engmain, only: maxcnf,skpcnf,engdiv,corrcal,selfcal,&
-         slttype,wgtslf,&
-         plmode,ermax,numslv,esmax,temp,&
-         edens,ecorr,eself,&
-         aveuv,slnuv,avediv,avslf,minuv,maxuv,&
-         engnorm,engsmpl,voffset,voffset_initialized, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+    use engmain, only: maxcnf, skpcnf, engdiv, corrcal, selfcal, &
+         slttype, wgtslf, &
+         plmode, ermax, numslv, esmax, temp, &
+         edens, ecorr, eself, &
+         aveuv, slnuv, avediv, avslf, minuv, maxuv, &
+         engnorm, engsmpl, voffset, voffset_initialized, &
+         SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, NO, YES
     use mpiproc                                                      ! MPI
     implicit none
-    integer stnum,i,pti,j,iduv,k,division
-    character*10, parameter :: numbers='0123456789'
-    character*9 engfile
-    character*3 suffeng
+    integer :: stnum, pti, j, k, iduv, division
+    character(len=10), parameter :: numbers='0123456789'
+    character(len=9) :: engfile
+    character(len=3) :: suffeng
     real :: voffset_local, voffset_scale
     real :: factor
+    integer, parameter :: eng_io = 71, cor_io = 72, slf_io = 73
+    integer, parameter :: ave_io = 74, wgt_io = 75, uvr_io = 76
     real, parameter :: tiny=1.0e-30
-    real, dimension(:), allocatable :: sve1,sve2
+    real, dimension(:), allocatable :: sve1, sve2
     call mpi_info                                                    ! MPI
     !
 
     ! synchronize voffset
-    if(wgtslf == 1) then
+    if(wgtslf == YES) then
        voffset_local = voffset
 #ifndef noMPI
-       call mpi_allreduce(voffset_local, voffset, 1,&
-            mpi_double_precision, mpi_max, mpi_comm_world, ierror)   ! MPI
+    ! MPI part starts here
+       call mpi_allreduce(voffset_local, voffset, 1, &
+            mpi_double_precision, mpi_max, mpi_comm_world, ierror)
 
        ! if uninitialized, use voffset so as not to pollute results with NaN
        if(.not. voffset_initialized) voffset_local = voffset
 
        ! scale histograms accoording to the maximum voffset
        select case(slttype)
-       case (CAL_SOLN)
+       case(SLT_SOLN)
           voffset_scale = exp((voffset_local - voffset)/temp)
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
           voffset_scale = exp(-(voffset_local - voffset)/temp)
        end select
 
        engnorm = engnorm * voffset_scale
-       if(selfcal == 1) eself(:) = eself(:) * voffset_scale
-       if(slttype == CAL_SOLN) slnuv(:) = slnuv(:) * voffset_scale
+       if(selfcal == YES) eself(:) = eself(:) * voffset_scale
+       if(slttype == SLT_SOLN) slnuv(:) = slnuv(:) * voffset_scale
        edens(:) = edens(:) * voffset_scale
-       if(corrcal == 1) ecorr(:, :) = ecorr(:, :) * voffset_scale
+       if(corrcal == YES) ecorr(:, :) = ecorr(:, :) * voffset_scale
+    ! MPI part ends here
 #endif
     endif
 
     ! Gather all information to Master node
 #ifndef noMPI
-    if(plmode == 2) then                                              ! MPI
-       call mpi_reduce(avslf,factor,1,&
-            mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
-       avslf=factor                                                   ! MPI
-       call mpi_reduce(engnorm,factor,1,&
-            mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
-       engnorm=factor                                                 ! MPI
-       call mpi_reduce(engsmpl,factor,1,&
-            mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)     ! MPI
-       engsmpl=factor                                                 ! MPI
-       if(selfcal == 1) then                                          ! MPI
-         allocate( sve1(esmax) )                                      ! MPI
-         sve1(1:esmax)=eself(1:esmax)                                 ! MPI
-         call mpi_reduce(sve1,eself,esmax,&
-              mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)   ! MPI
-         deallocate( sve1 )                                           ! MPI
-       endif                                                          ! MPI
-       if(slttype == CAL_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
-    endif                                                             ! MPI
-    allocate( sve1(0:numslv),sve2(0:numslv) )                         ! MPI
-    sve1(0:numslv)=minuv(0:numslv)                                    ! MPI
-    sve2(0:numslv)=maxuv(0:numslv)                                    ! MPI
-    call mpi_reduce(sve1,minuv,numslv+1,&                             ! MPI
-         mpi_double_precision,mpi_min,0,mpi_comm_world,ierror)        ! MPI
-    call mpi_reduce(sve2,maxuv,numslv+1,&                             ! MPI
-         mpi_double_precision,mpi_max,0,mpi_comm_world,ierror)        ! MPI
-    deallocate( sve1,sve2 )                                           ! MPI
-    allocate( sve1(ermax) )                                           ! MPI
-    sve1(1:ermax)=edens(1:ermax)                                      ! MPI
-    call mpi_reduce(sve1,edens,ermax,&                                ! MPI
-         mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)        ! MPI
-    deallocate( sve1 )                                                ! MPI
+    ! MPI part starts here
+    if(plmode == 2) then
+       call mpi_reduce(avslf, factor, 1, &
+            mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+       avslf = factor
+       call mpi_reduce(engnorm, factor, 1, &
+            mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+       engnorm = factor
+       call mpi_reduce(engsmpl, factor, 1, &
+            mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+       engsmpl = factor
+       if(selfcal == YES) then
+         allocate( sve1(esmax) )
+         sve1(1:esmax) = eself(1:esmax)
+         call mpi_reduce(sve1, eself, esmax, &
+              mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+         deallocate( sve1 )
+       endif
+       if(slttype == SLT_SOLN) call mympi_reduce_real(slnuv, numslv, mpi_sum, 0)
+    endif
+    allocate( sve1(0:numslv), sve2(0:numslv) )
+    sve1(0:numslv) = minuv(0:numslv)
+    sve2(0:numslv) = maxuv(0:numslv)
+    call mpi_reduce(sve1, minuv, (numslv + 1), &
+         mpi_double_precision, mpi_min, 0, mpi_comm_world, ierror)
+    call mpi_reduce(sve2, maxuv, (numslv + 1), &
+         mpi_double_precision, mpi_max, 0, mpi_comm_world, ierror)
+    deallocate( sve1, sve2 )
+    allocate( sve1(ermax) )
+    sve1(1:ermax) = edens(1:ermax)
+    call mpi_reduce(sve1, edens, ermax, &
+         mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+    deallocate( sve1 )
+    ! MPI part ends here
 #endif
-    edens(1:ermax)=edens(1:ermax)/engnorm
-    if(corrcal == 1) then
+    edens(1:ermax) = edens(1:ermax) / engnorm
+    if(corrcal == YES) then
        do iduv=1,ermax
 #ifndef noMPI
-          allocate( sve1(ermax),sve2(ermax) )                         ! MPI
-          sve1(1:ermax)=ecorr(1:ermax,iduv)                           ! MPI
-          call mpi_reduce(sve1,sve2,ermax,&                           ! MPI
-               mpi_double_precision,mpi_sum,0,mpi_comm_world,ierror)  ! MPI
-          ecorr(1:ermax,iduv)=sve2(1:ermax)                           ! MPI
-          deallocate( sve1,sve2 )                                     ! MPI
+    ! MPI part starts here
+          allocate( sve1(ermax), sve2(ermax) )
+          sve1(1:ermax) = ecorr(1:ermax, iduv)
+          call mpi_reduce(sve1, sve2, ermax, &
+               mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+          ecorr(1:ermax, iduv) = sve2(1:ermax)
+          deallocate( sve1, sve2 )
+    ! MPI part ends here
 #endif
-          ecorr(1:ermax,iduv)=ecorr(1:ermax,iduv)/engnorm
+          ecorr(1:ermax, iduv) = ecorr(1:ermax, iduv) / engnorm
        end do
     endif
-    if(selfcal == 1) eself(1:esmax)=eself(1:esmax)/engnorm
-    avslf=avslf/engnorm
+    if(selfcal == YES) eself(1:esmax) = eself(1:esmax) / engnorm
+    avslf = avslf / engnorm
     !
-    if(myrank.ne.0) return                                           ! MPI
+    if(myrank /= 0) return                                            ! MPI
     !
     division = stnum / (maxcnf / skpcnf / engdiv)
     !
     avediv(division, 1) = engnorm / engsmpl
     select case(slttype)
-    case (CAL_SOLN)
+    case(SLT_SOLN)
        aveuv(division, 1:numslv) = slnuv(1:numslv) / engnorm
        avediv(division, 2) = voffset - temp * log(avslf)
-    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        avediv(division, 2) = voffset + temp * log(avslf)
     end select
     !
     if(division == engdiv) then
-       if(slttype == CAL_SOLN) then
-          open(unit=75, file='aveuv.tt', action='write')
-          do k=1,engdiv
-             write(75,751) k, aveuv(k, 1:numslv)
+       if(slttype == SLT_SOLN) then
+          open(unit = ave_io, file = 'aveuv.tt', action = 'write')
+          do k = 1, engdiv
+             write(ave_io,751) k, aveuv(k, 1:numslv)
+751          format(i5,9999f15.5)
           end do
-          endfile(75) ; close(75)
-751       format(i5,9999f15.5)
+          endfile(ave_io)
+          close(ave_io)
        endif
 
        select case(slttype)
-       case (CAL_SOLN)
-          open(unit=73, file='weight_soln', action='write')
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          open(unit=73, file='weight_refs', action='write')
+       case(SLT_SOLN)
+          open(unit = wgt_io, file = 'weight_soln', action = 'write')
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+          open(unit = wgt_io, file = 'weight_refs', action = 'write')
        end select
-       do k=1,engdiv
-          if(wgtslf == 0) then
-             write(73,'(i5,e15.8)') k, avediv(k,1)
-          else
-             write(73,'(i5,e15.8,e15.7)') k, avediv(k,1), avediv(k,2)
-          endif
+       do k = 1, engdiv
+          select case(wgtslf)
+          case(NO)
+             write(wgt_io, '(i5,e20.8)') k, avediv(k,1)
+          case(YES)
+             write(wgt_io, '(i5,e20.8,e20.7)') k, avediv(k,1), avediv(k,2)
+          end select
        end do
-       endfile(73) ; close(73)
+       endfile(wgt_io)
+       close(wgt_io)
 
-       open(77, file='uvrange.tt', action='write')
-       write(77,'(A)') ' species     minimum        maximum'
-       do pti=0,numslv
+       open(uvr_io, file='uvrange.tt', action='write')
+       write(uvr_io,'(A)') ' species     minimum        maximum'
+       do pti = 0, numslv
           if(maxuv(pti) < 1.0e5) then
-             write(77,'(i5,2f15.5)') pti, minuv(pti), maxuv(pti)
+             write(uvr_io, '(i5,2f15.5)') pti, minuv(pti), maxuv(pti)
           else
-             write(77,'(i5,f15.5,g18.5)') pti, minuv(pti), maxuv(pti)
+             write(uvr_io, '(i5,f15.5,g18.5)') pti, minuv(pti), maxuv(pti)
           endif
        end do
-       endfile(77) ; close(77)
+       endfile(uvr_io)
+       close(uvr_io)
     endif
 
-    j=division/10
-    k=division-10*j
     if(engdiv == 1) then
        suffeng='.tt'
     else
-       suffeng='.'//numbers(j+1:j+1)//numbers(k+1:k+1)
+       j = division / 10
+       k = mod(division, 10)
+       suffeng = '.' // numbers(j+1:j+1) // numbers(k+1:k+1)
     endif
     !
     ! storing the solute-solvent pair-energy distribution function
     select case(slttype)
-    case (CAL_SOLN)
-       engfile='engsln'//suffeng
-    case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-       engfile='engref'//suffeng
+    case(SLT_SOLN)
+       engfile = 'engsln' // suffeng
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+       engfile = 'engref' // suffeng
     end select
-    open(unit=71, file=engfile, form="FORMATTED", action='write')
-    do iduv=1,ermax
-       call repval(iduv,factor,pti,'intn')
-       write(71,'(g15.7,i5,g25.15)') factor, pti, edens(iduv)
+    open(unit = eng_io, file = engfile, form = "FORMATTED", action = 'write')
+    do iduv = 1, ermax
+       call repval('intn', iduv, factor, pti)
+       write(eng_io, '(g15.7,i5,g25.15)') factor, pti, edens(iduv)
     enddo
-    endfile(71) ; close(71)
+    endfile(eng_io)
+    close(eng_io)
     !
     ! storing the solvent-solvent correlation matrix in energy representation
-    if(corrcal == 1) then
+    if(corrcal == YES) then
        select case(slttype)
-       case (CAL_SOLN)
-          engfile='corsln'//suffeng
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          engfile='corref'//suffeng
+       case(SLT_SOLN)
+          engfile = 'corsln' // suffeng
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+          engfile = 'corref' // suffeng
        end select
-       open(unit=72, file=engfile, form="UNFORMATTED", action='write')
-       write(72) ecorr
-       endfile(72) ; close(72)
+       open(unit = cor_io, file = engfile, form = "UNFORMATTED", action = 'write')
+       write(cor_io) ecorr
+       endfile(cor_io)
+       close(cor_io)
     endif
     !
     ! storing the distribution function of the self-energy of solute
-    if(selfcal == 1) then
-       engfile='slfeng'//suffeng
-       open(unit=73, file=engfile, form="FORMATTED", action='write')
-       do iduv=1,esmax
-          call repval(iduv,factor,pti,'self')
-          write(73,'(g15.7,g25.15)') factor, eself(iduv)
+    if(selfcal == YES) then
+       engfile = 'slfeng' // suffeng
+       open(unit = slf_io, file = engfile, form = "FORMATTED", action = 'write')
+       do iduv = 1, esmax
+          call repval('self', iduv, factor)
+          write(slf_io, '(g15.7,g25.15)') factor, eself(iduv)
        end do
-       endfile(73) ; close(73)
+       endfile(slf_io)
+       close(slf_io)
     endif
     !
     return
@@ -636,20 +642,18 @@ contains
 
   ! Calculate interaction energy between solute and solvent
   subroutine get_uv_energy(stnum, stat_weight_solute, uvengy, out_of_range)
-    use engmain, only: maxcnf,skpcnf,slttype,sltlist,cltype,&
-         SYS_NONPERIODIC, SYS_PERIODIC, &
-         EL_COULOMB, EL_PME, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX, &
-         ES_NVT, ES_NPT, sitepos ! FIXME: remove
+    use engmain, only: maxcnf, skpcnf, slttype, sltlist, cltype, &
+                       EL_COULOMB, EL_PME, &
+                       SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX
     use ptinsrt, only: instslt
-    use realcal, only: realcal_proc, realcal_prepare, realcal_cleanup, realcal_bare, realcal_self
-    use reciprocal, only: recpcal_init, &
-         recpcal_prepare_solute, recpcal_prepare_solvent, recpcal_energy, recpcal_spline_greenfunc, &
-         recpcal_self_energy
+    use realcal, only: realcal_prepare, realcal_proc, realcal_self, &
+                       realcal_bare, realcal_cleanup
+    use reciprocal, only: recpcal_prepare_solute, recpcal_self_energy, &
+                          recpcal_energy
     use mpiproc                                                      ! MPI
     implicit none
     integer, intent(in) :: stnum
-    real, intent(inout) :: uvengy(0:slvmax), stat_weight_solute
+    real, intent(out) :: uvengy(0:slvmax), stat_weight_solute
     logical, intent(out) :: out_of_range
 
     integer :: i, k
@@ -662,12 +666,13 @@ contains
     out_of_range = .false.
     ! determine / pick solute structure
     select case(slttype) 
-    case(CAL_SOLN)
-       tagslt=sltlist(cntdst)
+    case(SLT_SOLN)
+       tagslt = sltlist(cntdst)
+       stat_weight_solute = 1.0
        call check_mol_configuration(out_of_range)
        if(out_of_range) return
-    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
-       tagslt=sltlist(1)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+       tagslt = sltlist(1)
        if(.not. initialized) call instslt('init')
        initialized = .true.
        call instslt('proc', stat_weight_solute)
@@ -694,7 +699,7 @@ contains
     residual = 0.0
     current_solute_hash = get_solute_hash() ! FIXME: if this tuns into a bottleneck, add conditionals
     if(current_solute_hash == solute_hash .or. &
-       (slttype == CAL_REFS_RIGID .and. solute_hash /= 0)) then 
+       (slttype == SLT_REFS_RIGID .and. solute_hash /= 0)) then 
        ! For refs calculation, the configuration of solute may change with
        ! random translation and/or rotation upon insertion, 
        ! though the self energy will not change.
@@ -711,9 +716,9 @@ contains
 
     ! solute-solvent pair
     !$omp parallel do schedule(dynamic) private(i, k, pairep, factor)
-    do k=1,slvmax
-       i=tagpt(k)
-       if(i.eq.tagslt) cycle
+    do k = 1, slvmax
+       i = tagpt(k)
+       if(i == tagslt) cycle
 
        pairep = 0
        factor = 0
@@ -732,16 +737,14 @@ contains
   end subroutine get_uv_energy
 
   subroutine update_histogram(stnum, stat_weight_solute, uvengy)
-    use engmain, only: wgtslf, estype, slttype, corrcal, selfcal, &
-         volume, temp, uvspec, &
-         ermax, numslv, &
-         slnuv, avslf,&
-         minuv, maxuv, &
-         edens, ecorr, eself, &
-         stat_weight_system, engnorm, engsmpl, voffset, voffset_initialized, &
-         io_flcuv, &
-         CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX,&
-         ES_NVT, ES_NPT
+    use engmain, only: wgtslf, estype, slttype, corrcal, selfcal, ermax, &
+                       volume, temp, uvspec, &
+                       slnuv, avslf, minuv, maxuv, &
+                       edens, ecorr, eself, &
+                       stat_weight_system, engnorm, engsmpl, &
+                       voffset, voffset_initialized, &
+                       SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
+                       ES_NVT, ES_NPT, NO, YES
     use mpiproc
     implicit none
     integer, intent(in) :: stnum
@@ -751,83 +754,81 @@ contains
     real, allocatable :: svfl(:)
 
     integer :: i, k, q, iduv, iduvp, pti
-    real :: factor, engnmfc, pairep
+    real :: factor, engnmfc, pairep, total_weight
 
     allocate(insdst(ermax), engdst(ermax))
 
-    if(wgtslf.eq.0) engnmfc=1.0e0
-    if(wgtslf.eq.1) then
-       factor=uvengy(0)
+    select case(wgtslf)
+    case(NO)
+       engnmfc=1.0
+    case(YES)
        if(.not. voffset_initialized) then
-          voffset=factor
+          voffset = uvengy(0)
           voffset_initialized = .true.
        endif
-       factor=factor-voffset               ! shifted by offset
+       factor = uvengy(0) - voffset  ! shifted by offset
        select case(slttype)
-       case (CAL_SOLN)
-          engnmfc=exp(factor/temp)
-       case (CAL_REFS_RIGID, CAL_REFS_FLEX)
-          engnmfc=exp(-factor/temp)
+       case(SLT_SOLN)
+          engnmfc = exp(factor / temp)
+       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+          engnmfc = exp(- factor / temp)
        end select
-    endif
-    engnmfc = engnmfc * stat_weight_system
-    if(estype == ES_NPT) call volcorrect(engnmfc)
-    if(slttype == CAL_REFS_RIGID .or. slttype == CAL_REFS_FLEX) engnmfc = engnmfc * stat_weight_solute
-    !
-    engnorm=engnorm+engnmfc               ! normalization factor
-    engsmpl=engsmpl+1.0e0                 ! number of sampling
-
-    select case(estype)
-    case (ES_NVT)
-       avslf=avslf+stat_weight_solute
-    case (ES_NPT)
-       avslf=avslf+stat_weight_solute * volume
+    case default
+       stop "Unknown wgtslf"
     end select
-
+    total_weight = stat_weight_system * stat_weight_solute
+    if(estype == ES_NPT) call volcorrect(total_weight)
+    engnmfc = engnmfc * total_weight
+    !
+    engnorm = engnorm + engnmfc      ! normalization factor
+    engsmpl = engsmpl + 1.0          ! number of sampling
+    avslf = avslf + total_weight     ! normalization without solute self-energy
 
     ! self energy histogram
-    if(selfcal.eq.1) then
+    if(selfcal == YES) then
       call getiduv(0, uvengy(0), iduv)
       eself(iduv) = eself(iduv) + engnmfc
     endif
     minuv(0) = min(minuv(0), uvengy(0))
     maxuv(0) = max(maxuv(0), uvengy(0))
 
-    insdst(:) = 0
-    flceng(:, cntdst) = 0.0e0                     ! sum of solute-solvent energy
+    insdst(:) = 0                              ! instantaneous histogram
+    flceng(:, cntdst) = 0.0                    ! sum of solute-solvent energy
     flceng_stored(cntdst) = .true.
-    ! interaction energy histogram
     do k = 1, slvmax
-       i=tagpt(k)
-       if(i.eq.tagslt) cycle
-       pti=uvspec(i)
+       i = tagpt(k)
+       if(i == tagslt) cycle
+       pti = uvspec(i)
        if(pti <= 0) call halt_with_error('eng_cns')
 
-       pairep=uvengy(k)
-       call getiduv(pti,pairep,iduv)
+       pairep = uvengy(k)
+       call getiduv(pti, pairep, iduv)
 
-       insdst(iduv)=insdst(iduv)+1
-       flceng(pti, cntdst) = flceng(pti, cntdst) + pairep    ! sum of solute-solvent energy
+       ! instantaneous histogram of solute-solvent energy
+       insdst(iduv) = insdst(iduv) + 1
+       ! sum of solute-solvent energy
+       flceng(pti, cntdst) = flceng(pti, cntdst) + pairep
 
+       ! minimum and maxmium of solute-solvent energy
        minuv(pti) = min(minuv(pti), pairep)
        maxuv(pti) = max(maxuv(pti), pairep)
     end do
 
-    if(slttype == CAL_SOLN) then
+    if(slttype == SLT_SOLN) then
        slnuv(:) = slnuv(:) + flceng(:, cntdst) * engnmfc
     endif
 
-    do iduv=1,ermax
-       k=insdst(iduv)
-       if(k.gt.0) edens(iduv)=edens(iduv)+engnmfc*real(k)
+    do iduv = 1, ermax
+       k = insdst(iduv)
+       if(k > 0) edens(iduv) = edens(iduv) + engnmfc * real(k)
     enddo
-    if(corrcal.eq.1) then
-       do iduv=1,ermax
-          k=insdst(iduv)
+    if(corrcal == YES) then
+       do iduv = 1, ermax
+          k = insdst(iduv)
           if(k == 0) cycle
 
-          do iduvp=1,ermax
-             q=insdst(iduvp)
+          do iduvp = 1, ermax
+             q = insdst(iduvp)
              if(q == 0) cycle
 
              ecorr(iduvp,iduv) = ecorr(iduvp,iduv) + engnmfc*real(k)*real(q)
@@ -847,22 +848,23 @@ contains
     real :: epcl
     if(cltype == EL_COULOMB) return
     epcl = PI * mol_charge(i) * mol_charge(j) / screen / screen / volume
-    if(i == j) epcl = epcl / 2.0e0 ! self-interaction
+    if(i == j) epcl = epcl / 2.0   ! self-interaction
     pairep = pairep - epcl
   end subroutine residual_ene
   !
-  subroutine volcorrect(engnmfc)
+  subroutine volcorrect(weight)
     use engmain, only:  sluvid, cltype, screen, mol_charge, volume, temp, &
-                        EL_COULOMB, PT_SOLVENT, PT_SOLUTE, PI
+                        EL_EWALD, EL_PME, PT_SOLVENT, PT_SOLUTE, PI
     implicit none
-    real total_charge,factor,engnmfc
-    engnmfc=volume*engnmfc
-    if(cltype /= EL_COULOMB) then  ! Ewald and PME
+    real, intent(inout) :: weight
+    real :: total_charge, factor
+    weight = weight * volume
+    if((cltype == EL_EWALD) .or. (cltype == EL_PME)) then  ! Ewald and PME
        ! sum of charges over physical particles
        total_charge = sum( mol_charge, mask = ((sluvid == PT_SOLVENT) &
                                           .or. (sluvid == PT_SOLUTE)) )
-       factor=PI*total_charge*total_charge/screen/screen/volume/2.0e0
-       engnmfc=engnmfc*exp(factor/temp)
+       factor = PI * (total_charge ** 2)  / (screen ** 2 ) / volume / 2.0
+       weight = weight * exp(factor / temp)
     endif
     return
   end subroutine volcorrect
@@ -877,23 +879,25 @@ contains
   end subroutine update_cell_info
 
   subroutine get_inverted_cell
-    use engmain, only:  cell,invcl,volume
+    use engmain, only:  cell, invcl, volume
     implicit none
-    volume=cell(1,1)*cell(2,2)*cell(3,3)&
-          +cell(1,2)*cell(2,3)*cell(3,1)+cell(1,3)*cell(2,1)*cell(3,2)&
-          -cell(1,3)*cell(2,2)*cell(3,1)&
-          -cell(1,2)*cell(2,1)*cell(3,3)-cell(1,1)*cell(2,3)*cell(3,2)
-    invcl(1,1)=cell(2,2)*cell(3,3)-cell(2,3)*cell(3,2)
-    invcl(1,2)=cell(1,3)*cell(3,2)-cell(1,2)*cell(3,3)
-    invcl(1,3)=cell(1,2)*cell(2,3)-cell(1,3)*cell(2,2)
-    invcl(2,1)=cell(2,3)*cell(3,1)-cell(2,1)*cell(3,3)
-    invcl(2,2)=cell(1,1)*cell(3,3)-cell(1,3)*cell(3,1)
-    invcl(2,3)=cell(1,3)*cell(2,1)-cell(1,1)*cell(2,3)
-    invcl(3,1)=cell(2,1)*cell(3,2)-cell(2,2)*cell(3,1)
-    invcl(3,2)=cell(1,2)*cell(3,1)-cell(1,1)*cell(3,2)
-    invcl(3,3)=cell(1,1)*cell(2,2)-cell(1,2)*cell(2,1)
+    volume = cell(1,1) * cell(2,2) * cell(3,3) &
+           + cell(1,2) * cell(2,3) * cell(3,1) &
+           + cell(1,3) * cell(2,1) * cell(3,2) &
+           - cell(1,3) * cell(2,2) * cell(3,1) &
+           - cell(1,2) * cell(2,1) * cell(3,3) &
+           - cell(1,1) * cell(2,3) * cell(3,2)
+    invcl(1,1) = cell(2,2) * cell(3,3) - cell(2,3) * cell(3,2)
+    invcl(1,2) = cell(1,3) * cell(3,2) - cell(1,2) * cell(3,3)
+    invcl(1,3) = cell(1,2) * cell(2,3) - cell(1,3) * cell(2,2)
+    invcl(2,1) = cell(2,3) * cell(3,1) - cell(2,1) * cell(3,3)
+    invcl(2,2) = cell(1,1) * cell(3,3) - cell(1,3) * cell(3,1)
+    invcl(2,3) = cell(1,3) * cell(2,1) - cell(1,1) * cell(2,3)
+    invcl(3,1) = cell(2,1) * cell(3,2) - cell(2,2) * cell(3,1)
+    invcl(3,2) = cell(1,2) * cell(3,1) - cell(1,1) * cell(3,2)
+    invcl(3,3) = cell(1,1) * cell(2,2) - cell(1,2) * cell(2,1)
 
-    invcl(1:3,1:3)=invcl(1:3,1:3)/volume
+    invcl(1:3, 1:3) = invcl(1:3, 1:3) / volume
     call update_cell_info
   end subroutine get_inverted_cell
 
@@ -906,9 +910,9 @@ contains
   subroutine binsearch(coord, n, v, ret)
     implicit none 
     real, intent(in) :: coord(n)
-    integer, intent(out) :: ret
-    real, intent(in) :: v
     integer, intent(in) :: n
+    real, intent(in) :: v
+    integer, intent(out) :: ret
     integer :: rmin, rmax, rmid
     if(v < coord(1)) then
        ret = 0
@@ -936,68 +940,65 @@ contains
   end subroutine binsearch
 
   ! returns the position of the bin corresponding to energy coordinate value
-  subroutine getiduv(pti,engcoord,iduv)
-    use engmain, only: ermax,numslv,uvmax,uvcrd,esmax,escrd,stdout
+  subroutine getiduv(pti, engcoord, iduv)
+    use engmain, only: uvmax, uvcrd, esmax, escrd, stdout
     use mpiproc, only: halt_with_error, warning
     implicit none
     integer, intent(in) :: pti
     real, intent(in) :: engcoord
     integer, intent(out) :: iduv
-    integer :: k,idpick,idmax,picktest
-    real :: egcrd
-    real, parameter :: warn_threshold = 1e+8
+    integer :: idmin, idnum, idpti
+    real, parameter :: warn_threshold = 1.0e+3
     logical, save :: warn_bin_firsttime = .true.
 
-    if(pti.eq.0) idmax=esmax               ! solute self-energy
-    if(pti.gt.0) idmax=uvmax(pti)          ! solute-solvent interaction
-    idpick=0
-    if(pti.gt.1) then
-       do k=1,pti-1
-          idpick=idpick+uvmax(k)
-       end do
+    if(pti <  0) call halt_with_error('eng_bug')
+    if(pti == 0) then                      ! solute self-energy
+       idmin = 0
+       idnum = esmax
+       call binsearch(escrd(1:idnum), idnum, engcoord, idpti)
     endif
-    iduv=idpick
-    if(pti == 0) then
-       call binsearch(escrd, idmax, engcoord, picktest)
-    else
-       call binsearch(uvcrd(idpick+1), idmax, engcoord, picktest)
+    if(pti >  0) then                      ! solute-solvent interaction
+       if(pti == 1) idmin = 0
+       if(pti >  1) idmin = sum( uvmax(1:pti-1) )
+       idnum = uvmax(pti)
+       call binsearch(uvcrd(idmin+1:idmin+idnum), idnum, engcoord, idpti)
     endif
-    iduv = picktest + idpick
+    iduv = idmin + idpti
 
-    if(picktest == idmax .and. engcoord < warn_threshold .and. warn_bin_firsttime) then
-       ! Feature #52: put a warning if energy exceeds max binning region and pecore = 0
-       ! Since it is hard to distinguish pecore = 0 bin at this moment,
-       ! it is determined by looking engcoord: if too low, it is sprious
+    ! Warning if the energy exceeds the maximum binning region and pecore = 0
+    ! Since it is hard to see the pecore value at this point,
+    ! the energy value is simply shown as a warning
+    if((idpti == idnum) .and. (engcoord < warn_threshold) &
+                        .and. (warn_bin_firsttime)) then
        write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
        call warning('mbin')
        warn_bin_firsttime = .false.
     endif
 
-    ! FIXME: clean up the following
-    if(iduv.le.idpick) then
-       iduv=idpick+1                                 ! smallest energy mesh
-       write(stdout,199) engcoord,pti
-199    format('  energy of ',g12.4,' for ',i3,'-th species')
+    if(iduv <= idmin) then              ! smaller than the minimum energy mesh
+       write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
        call halt_with_error('eng_min')
     endif
-    if(iduv.gt.(idpick+idmax)) iduv=idpick+idmax    ! largest energy mesh
+    if(iduv > (idmin + idnum)) then     ! larger than the maximum energy mesh
+       call halt_with_error('eng_bug')
+    endif
 
     return
   end subroutine getiduv
 
   ! Check system consistency: either test particle or solvent must exist
   subroutine sanity_check_sluvid()
-    use engmain, only: slttype, nummol, sluvid, CAL_SOLN, CAL_REFS_RIGID, CAL_REFS_FLEX
+    use engmain, only: slttype, nummol, sluvid, SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX
     use mpiproc, only: halt_with_error
     implicit none
 
     ! sanity check
     if(any(sluvid(:) < 0) .or. any(sluvid(:) > 3)) call halt_with_error('eng_bug')
     select case(slttype)
-    case(CAL_SOLN)
+    case(SLT_SOLN)
        ! sluvid should be 0 (solvent) or 1 (solute)
        if(any(sluvid(:) >= 2)) call halt_with_error('eng_par')
-    case(CAL_REFS_RIGID, CAL_REFS_FLEX)
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        ! sluvid should be 0 (solvent), 2, 3 (test particles)
        if(any(sluvid(:) == 1)) call halt_with_error('eng_par')
        ! solvent must exist
@@ -1012,9 +1013,12 @@ contains
   subroutine check_mol_configuration(out_of_range)
     use engmain, only: insposition, insstructure, lwreg, upreg, lwstr, upstr, &
                        numsite, mol_begin_index, mol_end_index, &
-                       sitepos, boxshp, invcl, celllen, SYS_NONPERIODIC, &
+                       sitepos, boxshp, invcl, celllen, &
+                       SYS_NONPERIODIC, &
                        INSPOS_RANDOM, INSPOS_NOCHANGE, &
-                       INSPOS_SPHERE, INSPOS_SLAB, INSPOS_RMSD, INSPOS_GAUSS, &
+                       INSPOS_SPHERE, &
+                       INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC, &
+                       INSPOS_RMSD, INSPOS_GAUSS, &
                        INSSTR_NOREJECT, INSSTR_RMSD
     use ptinsrt, only: refhost_natom, refhost_specatm, &
                        refhost_crd, refhost_weight, &
@@ -1031,22 +1035,26 @@ contains
     out_of_range = .false.
 
     select case(insposition)
-    case(INSPOS_RANDOM)     ! random
+    case(INSPOS_RANDOM)                               ! random
        ! do nothing
-    case(INSPOS_NOCHANGE)   ! fixed configuration
+    case(INSPOS_NOCHANGE)                             ! fixed configuration
        ! do nothing
-    case(INSPOS_SPHERE)     ! sphere geometry
+    case(INSPOS_SPHERE)                               ! sphere geometry
        ! The following has the same structure as the corresponding part
        ! in the set_shift_com subroutine within insertion.F90
        call relative_com(tagslt, dx)
        distance = sqrt(dot_product(dx, dx))
-    case(INSPOS_SLAB)       ! slab (only z-axis is constrained) configuration
+    case(INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)  ! slab configuration
+       ! constrained to z-axis
        ! The following has the same structure as the corresponding part
        ! in the set_shift_com subroutine within insertion.F90
        if(boxshp == SYS_NONPERIODIC) call halt_with_error('eng_slb')
        call relative_com(tagslt, dx)
-       distance = abs(dot_product(invcl(3,:), dx(:))) * celllen(3)
-    case(INSPOS_RMSD)       ! comparison to reference
+       distance = dot_product(invcl(3,:), dx(:)) * celllen(3)
+       if(insposition == INSPOS_SLAB_SYMMETRIC) then  ! symmetric bilayer
+          distance = abs(distance)
+       endif
+    case(INSPOS_RMSD)                                 ! comparison to reference
        ptb = mol_begin_index(tagslt)
        pte = mol_end_index(tagslt)
        if(numsite(tagslt) /= refslt_natom) call halt_with_error('eng_bug')
@@ -1064,8 +1072,8 @@ contains
        distance = rmsd_nofit(refslt_natom, refslt_bestfit, &
                              sitepos(1:3, ptb:pte), refslt_weight)
        deallocate( hostcrd, refslt_bestfit )
-    case(INSPOS_GAUSS)      ! comparison to reference (experimental)
-       ! Under construction...  What is to be written?
+    case(INSPOS_GAUSS)                                ! comparison to reference
+       ! Exeperimental and under construction...  What is to be written?
     case default
        stop "Unknown insposition in check_mol_configuration"
     end select
@@ -1100,7 +1108,8 @@ contains
     subroutine relative_com(tagpt, dx)
       use engmain, only: numsite, mol_begin_index, mol_end_index, &
                          sitemass, sitepos
-      use bestfit, only: center_of_mass, com_aggregate
+      use ptinsrt, only: com_aggregate
+      use bestfit, only: center_of_mass
       implicit none
       integer, intent(in) :: tagpt
       real, intent(out) :: dx(3)
@@ -1114,8 +1123,8 @@ contains
       allocate( ptmass(stmax), ptsite(3, stmax) )
       ptmass(1:stmax) = sitemass(ptb:pte)
       ptsite(1:3, 1:stmax) = sitepos(1:3, ptb:pte)
-      call center_of_mass(stmax,ptsite,ptmass,solute_com)  ! solute COM
-      call com_aggregate(aggregate_com)                    ! aggregate COM
+      call center_of_mass(stmax, ptsite, ptmass, solute_com)  ! solute COM
+      call com_aggregate(aggregate_com)                       ! aggregate COM
       dx(1:3) = solute_com(1:3) - aggregate_com(1:3)
       deallocate( ptmass, ptsite )
       return
@@ -1132,35 +1141,43 @@ contains
   end function get_solute_hash
 
   
-  subroutine repval(iduv,factor,pti,caltype)
-    use engmain, only: ermax,numslv,uvmax,uvsoft,uvcrd,esmax,escrd
+  subroutine repval(uvtype, iduv, engcoord, spec)
+    use engmain, only: numslv, uvmax, uvsoft, uvcrd, esmax, escrd
     use mpiproc, only: halt_with_error
     implicit none
-    integer iduv,idpt,pti,cnt,idpick,idmax,idsoft
-    real factor
-    character*4 caltype
-    if(caltype == 'self') then
-       if(iduv.lt.esmax) factor=(escrd(iduv)+escrd(iduv+1))/2.0e0
-       if(iduv.eq.esmax) factor=escrd(esmax)
-    endif
-    if(caltype == 'intn') then
-       idpick=0
-       do cnt=1,numslv
-          idpick=idpick+uvmax(cnt)
-          if(iduv <= idpick) exit
+    character(len=4), intent(in) :: uvtype
+    integer, intent(in) :: iduv
+    real, intent(out) :: engcoord
+    integer, intent(out), optional :: spec
+    integer :: idpt, cnt, idmin, idmax, idsoft
+    select case(uvtype)
+    case('self')
+       if(present(spec)) call halt_with_error('eng_bug')
+       if(iduv <  esmax) engcoord = (escrd(iduv) + escrd(iduv+1)) / 2.0
+       if(iduv == esmax) engcoord = escrd(esmax)
+       if(iduv >  esmax) call halt_with_error('eng_ecd')
+    case('intn')
+       if(.not. present(spec)) call halt_with_error('eng_bug')
+       idmin = 0
+       do cnt = 1, numslv
+          idpt = idmin + uvmax(cnt)
+          if(iduv <= idpt) exit
+          idmin = idpt
        enddo
-       pti=cnt
-       idpick=idpick-uvmax(pti)
-       idsoft=uvsoft(pti)
-       idmax=uvmax(pti)
-       idpt=iduv-idpick
+       spec = cnt
+       idsoft = uvsoft(spec)
+       idmax = uvmax(spec)
+       idpt = iduv - idmin
        if((idpt < 0) .or. (idpt > idmax)) call halt_with_error('eng_ecd')
-       if(idpt <= idsoft) factor=(uvcrd(iduv)+uvcrd(iduv+1))/2.0e0
-       if((idpt > idsoft) .and. (idpt < idmax)) then
-          factor=sqrt(uvcrd(iduv)*uvcrd(iduv+1))
+       if(idpt <= idsoft) then   ! linear graduation
+          engcoord = (uvcrd(iduv) + uvcrd(iduv+1)) / 2.0
+       else                      ! logarithmic graduation
+          if(idpt <  idmax) engcoord = sqrt(uvcrd(iduv) * uvcrd(iduv+1))
+          if(idpt == idmax) engcoord = uvcrd(iduv)
        endif
-       if(idpt == idmax) factor=uvcrd(iduv)
-    endif
+    case default
+       stop "Unknown caltype in repval"
+    end select
     return
   end subroutine repval
 end module engproc

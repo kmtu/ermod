@@ -1,7 +1,7 @@
-slvfe.F90:
+Lennard-Jones long-range correction
 
 The slvfe.F90 program contained in the extensions directory has a key of ljlrc,
-which enables the Lennard-Jones long-range correction at ljlrc = 'yes'
+which enables the Lennard-Jones long-range correction at ljlrc = 'yes'.
 To use the slvfe.F90 program contained in extensions,
 user simply does the followings in the parent directory of ermod.
 

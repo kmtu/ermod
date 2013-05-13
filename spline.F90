@@ -29,8 +29,8 @@ contains
     real :: factor
     order = spline_order
     allocate( coeff(0:order) )
-    do i = 0,order
-       factor=1.0e0
+    do i = 0, order
+       factor = 1.0
        do k = 1, i ! pass thru when i == 0
           factor = factor * real(k)
        end do
@@ -48,7 +48,7 @@ contains
     real, intent(in) :: rst
     integer :: i, k
     real :: f
-    f = 0.0e0
+    f = 0.0
     if((rst > 0.0) .and. (rst < order)) then
        k = int(rst)
        do i = 0, k

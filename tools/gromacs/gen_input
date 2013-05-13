@@ -73,8 +73,8 @@ try:
         'arithmetic': 0
         }[carryover["ljtype"]]
 
-    if mode == "solution" and "sltpick" in carryover:
-        params["sltpick"] = carryover["sltpick"]
+    if mode == "solution" and "sltspec" in carryover:
+        params["sltspec"] = carryover["sltspec"]
     
 except OSError:
     pass

@@ -2,17 +2,17 @@
 ! ERmod - Eneregy Representation Module
 ! Copyright (C) 2000-2012 Nobuyuki Matubayasi
 ! Copyright (C) 2010-2012 Shun Sakuraba
-! 
+!
 ! This program is free software; you can redistribute it and/or
 ! modify it under the terms of the GNU General Public License
 ! as published by the Free Software Foundation; either version 2
 ! of the License, or (at your option) any later version.
-! 
+!
 ! This program is distributed in the hope that it will be useful,
 ! but WITHOUT ANY WARRANTY; without even the implied warranty of
 ! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ! GNU General Public License for more details.
-! 
+!
 ! You should have received a copy of the GNU General Public License
 ! along with this program; if not, write to the Free Software
 ! Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
@@ -23,7 +23,7 @@ module trajectory
      integer :: iohandle
      logical :: have_cell_info
   end type handle
-  
+ 
 contains
 
   subroutine init_trajectory()
@@ -72,13 +72,13 @@ contains
     type(handle), intent(in) :: htraj
     integer, intent(in) :: natom
     logical, intent(in) :: is_periodic
-    real(8), intent(out) :: crd(3,natom)
-    real(8), intent(out) :: cell(3,3)
+    real, intent(out) :: crd(3, natom)
+    real, intent(out) :: cell(3, 3)
     integer, intent(out) :: status
     real(4), allocatable :: buffer(:)
 
     cell(:, :) = 0.
-    allocate(buffer(natom))
+    allocate( buffer(natom) )
 
     if(is_periodic) then
        if(.not. htraj%have_cell_info) stop "Cell info is requested, but does not exist!"
@@ -93,11 +93,11 @@ contains
     crd(3, :) = buffer(:)
 
     status = 0
-    deallocate(buffer)
+    deallocate( buffer )
     return
 
 999 status = 1
-    deallocate(buffer)
+    deallocate( buffer )
     return
   end subroutine read_trajectory
 

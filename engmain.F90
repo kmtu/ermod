@@ -38,19 +38,28 @@
 !               2 : test particle (rigid)  3 : test particle (flexible)
 !            The file for the solute configuration
 !            is SltInfo when slttype = 2 and is SltConf when slttype = 3
-!   sltpick : specifying the solute species
-!               1 <= sltpick <= numtype (default = 1) if slttype = 1
-!               sltpick = numtype if slttype >= 2
-!             This parameter is effective as an input only in soln calculation.
 !   wgtslf : weighting by the self-energy  --- 0 : no  1 : yes
 !   wgtins : weight of the solute intramolecular configuration
 !               0 : no  1 : yes (can be = 1 only when slttype = 3)
 !   wgtsys : weight of the solution / solvent configuration
 !               0 : no  1 : yes
-!   estype : type of system
-!               1 : constant volume  2 : constant pressure
 !   boxshp : shape of the unit cell box
 !               0 : non-periodic  1 : periodic and parallelepiped
+!   estype : type of system
+!               1 : constant volume  2 : constant pressure
+!
+!   sltspec : specifying the solute species
+!               1 <= sltspec <= numtype (default = 1) when slttype = 1
+!               sltspec = numtype when slttype >= 2
+!             This parameter is effective as an input only in soln calculation.
+!   hostspec : solvent spcies to act as a host and bind the guest solute
+!              (micelle, membrane or protein)
+!               1 <= hostspec <= numtype      when slttype = 1
+!               1 <= hostspec <= numtype - 1  when slttype >= 2
+!   refspec : specifying the mixed solvent species for superposition reference
+!               1 <= refspec <= numtype       when slttype = 1
+!               1 <= refspec <= numtype - 1   when slttype >= 2
+!             This parameter is effective as an input only when insorigin = 3
 !
 !   insorigin : translational origin of the solute position
 !               0 (default) : mass weighted center is moved to (0, 0, 0)
@@ -61,28 +70,34 @@
 !               3 : fit to reference structure.
 !                   reference structure needs be given as RefInfo in PDB format.
 !                   RefInfo contains the structure of the host species
+!                   (species forming the reference host is defined by refspec)
 !                   and the solute structure, in order.
-!                   (error unless insposition = 4 or 5)
+!                   (error unless insposition = 5 or 6)
 !   insposition : position for the solute
 !               0 (default) : fully random position (within perodic bondary)
 !               1 : no position change from the value in the file to be read
 !                   (error unless insorigin = 1)
 !               2 : spherically random position,
 !                   with radius specified from lwreg to upreg.
-!               3 : slab random position
+!               3 : slab random position (generic case)
 !                   slab geometry specified as z = com(aggregate) + dz with
-!                   (-upreg < dz < -lwreg AND lwreg < dz < upreg)
+!                   lwreg < dz < upreg for rectangular box periodic condition.
+!                   Positioning is more complicated in parallelpiped cell.
+!                   (see insertion.F90)
+!               4 : slab random position (symmetric bilayer)
+!                   slab geometry specified as z = com(aggregate) + dz with
+!                   -upreg < dz < -lwreg or lwreg < dz < upreg
 !                   for rectangular box periodic condition.
 !                   Positioning is more complicated in parallelpiped cell.
 !                   (see insertion.F90)
-!               4 : random position relative to a reference structure
-!                   solvent species identified with the hostspec parameter
+!               5 : random position relative to a reference structure
+!                   solvent species identified with the refspec parameter
 !                   is set to the reference structure accompanying
 !                   the reference position of solute insertion
 !                   and the solute is placed relative to that reference
 !                   with condition of lwreg < RMSD < upreg
 !                   (error unless insorigin = 3)
-!               5 : (experimental) Gaussian random position.
+!               6 : (experimental) Gaussian random position.
 !                   Position is given by displacing the reference coordinate,
 !                   or coordinate fit to reference (insorigin = 3), with upreg.
 !                   Solute weight is automatically adjusted
@@ -95,24 +110,18 @@
 !               1 : only the structures with lwstr < RMSD < upstr is counted
 !                     RefInfo needs to be prepared to determine RMSD
 !
-!   inscnd : (to be obsolete) geometrical condition of the solute configuration
-!               0 : random    (insorigin = 0, insposition = 0)  default
-!               1 : spherical (insorigin = 2, insposition = 2)
-!               2 : slab      (insorigin = 2, insposition = 3)
-!               3 : reference (insorigin = 3, insposition = 4)
-!   inscfg : (to be obsolete) position and orientation for the inserted solute
+!   inscnd : (deprecated) geometrical condition of the solute configuration
+!               0 : random            (insorigin = 0, insposition = 0)  default
+!               1 : spherical         (insorigin = 2, insposition = 2)
+!               2 : symmetric bilayer (insorigin = 2, insposition = 4)
+!               3 : reference         (insorigin = 3, insposition = 5)
+!   inscfg : (deprecated) position and orientation for the inserted solute
 !               0 : only the intramolecular configuration is from the file.
 !                   (insorient = 0)  default
 !               1 : orientation is fixed from the file with random position
 !                   (insorient = 1)
 !               2 : position and orientation are also fixed from the file
 !                   (insorient = 1, insposition = 1)
-!   hostspec : solvent spcies to act as a host and bind the guest solute
-!              (micelle, membrane or protein)
-!              active only when insorigin = 2 (micelle or membrane)
-!              or when insorigin = 3 (protein)
-!               1 <= hostspec <= numtype    when slttype = 1
-!               1 <= hostspec <= numtype-1  when slttype >= 2
 !
 !   lwreg : lower bound of the region of solute position
 !   upreg : upper bound of the region of solute position
@@ -157,7 +166,7 @@
 !   ljlen : length parameter for Lennard-Jones potential in a molecule
 !   intprm : whether the intereaction paramters given below
 !                    (from elecut to ms1max,ms2max,ms3max)
-!                    and estype, boxshp, and inptemp
+!                    and boxshp, estype, and inptemp
 !                    are read from the parent MD program
 !      default = 0 in the case of on-the-fly calculation
 !      default = 1 in the case of trajectory reading
@@ -179,8 +188,11 @@
 !   ew1max,ew2max,ew3max : number of reciprocal vectors along one direction
 !   ms1max,ms2max,ms3max : number of meshes in PME along one direction
 !   plmode : parallelization mode for calculation of solute-solvent interaction
-!        2 : each trajectory snapshot is assigned to each processor and calculated in parallel
+!        1 : parallel over solvent molecules in each trajectory snapshot
+!        2 : each trajectory snapshot is assigned to
+!                   each processor and calculated in parallel
 !        default = 2
+!        plmode = 1 is not used any more
 !   specatm : specification of the site, defined as an integer function
 !   sitepos : coordiantes of interaction site
 !   cell : unit cell vector
@@ -233,13 +245,13 @@ module engmain
   ! Note for optimization: any major compilers shall inline expand "parameter"s
   ! mathematical & physical constants
   real, parameter :: PI = 3.1415926535897932
-  real, parameter :: cal_per_joule = 4.1840e0 ! thermochemical cal / J
+  real, parameter :: cal_per_joule = 4.1840   ! thermochemical cal / J
 !
   integer :: numtype, nummol, numatm, maxcnf, engdiv, skpcnf, corrcal, selfcal
-  integer :: slttype, sltpick, wgtslf, wgtins, wgtsys
-  integer :: estype,boxshp
-  integer :: insorigin, insposition, insorient, insstructure, inscnd, inscfg
-  integer :: hostspec
+  integer :: slttype, wgtslf, wgtins, wgtsys, boxshp, estype
+  integer :: sltspec, hostspec, refspec
+  integer :: insorigin, insposition, insorient, insstructure
+  integer :: sltpick, refpick, inscnd, inscfg           ! deprecated
   real :: lwreg, upreg, lwstr, upstr
   integer :: ljformat, ljswitch, iseed
   real :: inptemp, temp
@@ -250,55 +262,63 @@ module engmain
   integer, parameter :: stdout = 6                      ! standard output
   integer, parameter :: io_flcuv = 91                   ! IO unit for flcuv
 
-  integer, dimension(:),   allocatable :: moltype, numsite, sluvid
-  real, dimension(:,:),    allocatable :: bfcoord
-  real, dimension(:),      allocatable :: sitemass, charge, ljene, ljlen
+  integer, dimension(:), allocatable :: moltype, numsite, sluvid
+  real, dimension(:,:),  allocatable :: bfcoord
+  real, dimension(:),    allocatable :: sitemass, charge, ljene, ljlen
 
   integer                            :: ljtype_max
   integer, dimension(:), allocatable :: ljtype
   real, dimension(:,:),  allocatable :: ljlensq_mat, ljene_mat
   
-  real, dimension(:,:),    allocatable :: sitepos
-  real, dimension(:),      allocatable :: mol_charge
-  integer, dimension(:),   allocatable :: mol_begin_index, belong_to
-  real, dimension(3,3)                 :: cell, invcl
-  real, dimension(3)                   :: celllen
-  real                                 :: volume
+  real, dimension(:,:),  allocatable :: sitepos
+  real, dimension(:),    allocatable :: mol_charge
+  integer, dimension(:), allocatable :: mol_begin_index, belong_to
+  real, dimension(3,3)               :: cell, invcl
+  real, dimension(3)                 :: celllen
+  real                               :: volume
 
   real    :: elecut, lwljcut, upljcut, screen, ewtoler
   integer :: intprm, cmbrule, cltype, splodr, plmode
   integer :: ew1max, ew2max, ew3max, ms1max, ms2max, ms3max
   
   integer :: ermax, numslv, esmax, maxins
-  integer, dimension(:),   allocatable :: uvmax, uvsoft, uvspec
-  real, dimension(:),      allocatable :: uvcrd, edens
-  real, dimension(:,:),    allocatable :: ecorr
-  real, dimension(:),      allocatable :: escrd, eself
-  real, dimension(:,:),    allocatable :: aveuv
-  real, dimension(:),      allocatable :: slnuv
-  real, dimension(:,:),    allocatable :: avediv
-  real                            :: avslf
-  real, dimension(:), allocatable :: minuv(:), maxuv(:)
-  integer              :: numslt
-  integer, allocatable :: sltlist(:)
+  integer, dimension(:), allocatable :: uvmax, uvsoft, uvspec
+  real, dimension(:),    allocatable :: uvcrd, edens
+  real, dimension(:,:),  allocatable :: ecorr
+  real, dimension(:),    allocatable :: escrd, eself
+  real, dimension(:,:),  allocatable :: aveuv
+  real, dimension(:),    allocatable :: slnuv
+  real, dimension(:,:),  allocatable :: avediv
+  real                               :: avslf
+  real, dimension(:),    allocatable :: minuv, maxuv
+  integer                            :: numslt
+  integer, dimension(:), allocatable :: sltlist
   real :: stat_weight_system
   real :: engnorm, engsmpl, voffset
   logical :: voffset_initialized = .false.
 
 
   ! numeric constants reference
+  integer, parameter :: NO = 0, YES = 1
   integer, parameter :: SYS_NONPERIODIC = 0, SYS_PERIODIC = 1
-  integer, parameter :: EL_COULOMB = 0, EL_PME = 2
   integer, parameter :: ES_NVT = 1, ES_NPT = 2
-  integer, parameter :: CAL_SOLN = 1, CAL_REFS_RIGID = 2, CAL_REFS_FLEX = 3
+  integer, parameter :: LJFMT_EPS_cal_SGM_nm = 0, LJFMT_EPS_Rminh = 1, &
+                        LJFMT_EPS_J_SGM_A = 2, LJFMT_A_C = 3, &
+                        LJFMT_C12_C6 = 4, LJFMT_TABLE = 5
+  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, LJSWT_FORCE = 2
+  integer, parameter :: LJCMB_ARITH = 0, LJCMB_GEOM = 1
+  integer, parameter :: EL_COULOMB = 0, EL_EWALD = 1, EL_PME = 2
+  integer, parameter :: SLT_SOLN = 1, SLT_REFS_RIGID = 2, SLT_REFS_FLEX = 3
   integer, parameter :: PT_SOLVENT = 0, &
-                        PT_SOLUTE = 1, PT_TEST_RIGID = 2, PT_TEST_FLEX = 3
-  ! PT_SOLUTE to PT_TEST_FLEX should correspond to CAL_SOLN to CAL_REFS_FLEX
+                        PT_SOLUTE = SLT_SOLN, PT_TEST_RIGID = SLT_REFS_RIGID, &
+                                              PT_TEST_FLEX = SLT_REFS_FLEX
+  ! PT_SOLUTE to PT_TEST_FLEX should correspond to SLT_SOLN to SLT_REFS_FLEX
   integer, parameter :: INSORG_ORIGIN = 0, INSORG_NOCHANGE= 1, &
                         INSORG_AGGCEN = 2, INSORG_REFSTR = 3
   integer, parameter :: INSPOS_RANDOM = 0, INSPOS_NOCHANGE= 1, &
-                        INSPOS_SPHERE = 2, INSPOS_SLAB = 3,    &
-                        INSPOS_RMSD = 4, INSPOS_GAUSS = 5
+                        INSPOS_SPHERE = 2, &
+                        INSPOS_SLAB_GENERIC = 3, INSPOS_SLAB_SYMMETRIC = 4, &
+                        INSPOS_RMSD = 5, INSPOS_GAUSS = 6
   integer, parameter :: INSROT_RANDOM = 0, INSROT_NOCHANGE= 1
   integer, parameter :: INSSTR_NOREJECT = 0, INSSTR_RMSD = 1
 
@@ -306,10 +326,10 @@ module engmain
 
   namelist /ene_param/ iseed, &
        skpcnf, corrcal, selfcal, &
-       slttype, sltpick, wgtslf, wgtins, wgtsys, &
-       estype,boxshp, &
-       insorigin, insposition, insorient, insstructure, inscnd, inscfg, &
-       hostspec, lwreg, upreg, lwstr, upstr, &
+       slttype, wgtslf, wgtins, wgtsys, boxshp, estype, &
+       sltspec, hostspec, refspec, lwreg, upreg, lwstr, upstr, &
+       insorigin, insposition, insorient, insstructure, &
+       sltpick, refpick, inscnd, inscfg, &                  ! deprecated
        ljformat, ljswitch, &
        inptemp, temp, &
        engdiv, maxins, &
@@ -328,7 +348,7 @@ contains
     open(unit = unit, file = ene_confname, action = "read", iostat = err)
     
     if(err == 0) then
-       read(unit, nml=ene_param)
+       read(unit, nml = ene_param)
        close(unit)
     else
        stop "parameter file does not exist"
@@ -340,7 +360,6 @@ contains
   integer function specatm(i, mol)
     implicit none
     integer, intent(in) :: i, mol
-
     specatm = mol_begin_index(mol) + (i - 1)
   end function specatm
 
