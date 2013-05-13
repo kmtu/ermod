@@ -69,27 +69,35 @@ AS_IF([test "x$with_mkl" != "x"],
   *) :
   ;;
   esac
+
   AS_IF([test "x$with_mkl" = "xyes"],
     AS_IF([test "x$MKLROOT" = "x"],
       [AC_MSG_FAILURE([could not get MKL version; set MKLROOT or use --with-mkl=(version number)])],
       mklroot="$MKLROOT"),
     mklroot="/opt/intel/mkl/$with_mkl")
-  # Here comes super-duper crazily dirty MKL versioning checker
-  # check 10.0 - 10.2
-  with_blas="-L$mklroot/lib/$mkl_plat -lmkl_solver_lp64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group -lguide -lpthread"
-  MY_CHECK_BLAS([MKL 10.0-10.2], 
-                [$with_blas])
+  # Check for recent Intel Composer (-mkl=parallel works)
+  with_blas="-mkl=parallel"
+  MY_CHECK_BLAS([Intel composer default], [$with_blas])
   AS_IF([test "x$blas_ok" = "xyes"],
-        [],
-	# check for 10.3
-	[with_blas="-L$mklroot/lib/$mkl_platnew -lmkl_rt $OPENMP_FCFLAGS -lpthread"
-         MY_CHECK_BLAS([MKL 10.3+],
+        [FCFLAGS="-mkl=parallel"],
+        [
+         # Here comes super-duper crazily dirty MKL versioning checker
+         # check 10.0 - 10.2
+         with_blas="-L$mklroot/lib/$mkl_plat -lmkl_solver_lp64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -Wl,--end-group -lguide -lpthread"
+         MY_CHECK_BLAS([MKL 10.0-10.2], 
                        [$with_blas])
          AS_IF([test "x$blas_ok" = "xyes"],
                [],
-               [AC_MSG_WARN([Failed to find appropriate MKL. If you are using old mkl, please update])])])
-  with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"
-  FCFLAGS="-I$mklroot/include $FCFLAGS"
+               # check for 10.3
+               [with_blas="-L$mklroot/lib/$mkl_platnew -lmkl_rt $OPENMP_FCFLAGS -lpthread"
+                MY_CHECK_BLAS([MKL 10.3+],
+                              [$with_blas])
+                AS_IF([test "x$blas_ok" = "xyes"],
+                      [],
+                      [AC_MSG_WARN([Failed to find appropriate MKL. If you are using old mkl, please update])])])
+         with_lapack="-L$mklroot/lib/$mkl_plat -lmkl_lapack"
+         FCFLAGS="-I$mklroot/include $FCFLAGS"
+        ])
 ])
 
 AC_ARG_WITH([fftw],
