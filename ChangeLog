@@ -2,6 +2,7 @@ version 0.3.alpha9 (XX/YY/2013)
 * Misc:
     * Treatment of asymmetric slab geometry is made possible.
     * A workaround was implemented in configure agaist a bug in MKL ver 10.3.
+    * Added ERMOD_FORCE_PLUGIN_TYPE environment to coerce file format detection.
 
 version 0.3.alpha8 (04/10/2013)
 * Solvation Free Energy:
