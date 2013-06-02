@@ -55,6 +55,8 @@
 
 #define ADHOC_RESOLVER "adhocresolve.list"
 
+#define ERMOD_FORCE_PLUGIN "ERMOD_FORCE_PLUGIN_TYPE"
+
 /* lazy */
 #define MAXTYPES 1000
 static int typecounts = 0;
@@ -236,6 +238,11 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
     ext = lastdot + 1;
   }
   fprintf(stderr, "Opening: \"%s\"...\n", buf);
+
+  if(getenv(ERMOD_FORCE_PLUGIN) != NULL && 
+     strlen(getenv(ERMOD_FORCE_PLUGIN)) > 0) {
+    ext = getenv(ERMOD_FORCE_PLUGIN);
+  }
 
   for(i = 0; i < typecounts; ++i){
     int extlen = strlen(ext);
