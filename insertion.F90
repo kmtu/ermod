@@ -725,13 +725,13 @@ contains
          ! (e.g. by using B-factor, etc.)
          ! default: hydrogen is masked and the others have the same weight
          if(wgt > 0.95 * massHe) then    ! non-hydrogen
-            ! wgt > massHe, actually, where massHe is the helium atomic weight
+            ! wgt >= massHe, actually, where massHe is the helium atomic weight
             wgt = 1.0
          else                            ! hydrogen
             wgt = 0.0
          endif
          !
-         ! when mass weight is to be used, comment out the following line
+         ! comment out the following line if the mass weight is to be used
 !        wgt = sitemass(ati)
          !
       endif

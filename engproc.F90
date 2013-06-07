@@ -726,8 +726,8 @@ contains
           call residual_ene(tagslt, i, pairep)
           call recpcal_energy(tagslt, i, factor)
           pairep = pairep + factor
-       else
-          call realcal_bare(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
+       else                      ! Bare coulomb solute-solvent interaction
+          call realcal_bare(tagslt, i, pairep)
        endif
        !$omp atomic
        uvengy(k) = uvengy(k) + pairep
@@ -941,7 +941,8 @@ contains
 
   ! returns the position of the bin corresponding to energy coordinate value
   subroutine getiduv(pti, engcoord, iduv)
-    use engmain, only: uvmax, uvcrd, esmax, escrd, stdout
+    use engmain, only: slttype, uvmax, uvsoft, uvcrd, esmax, escrd, &
+                       stdout, SLT_SOLN
     use mpiproc, only: halt_with_error, warning
     implicit none
     integer, intent(in) :: pti
@@ -952,18 +953,34 @@ contains
     logical, save :: warn_bin_firsttime = .true.
 
     if(pti <  0) call halt_with_error('eng_bug')
-    if(pti == 0) then                      ! solute self-energy
+    if(pti == 0) then                   ! solute self-energy
        idmin = 0
        idnum = esmax
        call binsearch(escrd(1:idnum), idnum, engcoord, idpti)
     endif
-    if(pti >  0) then                      ! solute-solvent interaction
+    if(pti >  0) then                   ! solute-solvent interaction
        if(pti == 1) idmin = 0
        if(pti >  1) idmin = sum( uvmax(1:pti-1) )
        idnum = uvmax(pti)
        call binsearch(uvcrd(idmin+1:idmin+idnum), idnum, engcoord, idpti)
     endif
-    iduv = idmin + idpti
+
+    ! inappropriate setting of energy coordinate
+    ! smaller than the minimum energy mesh
+    if(idpti <= 0) then
+       write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
+       call halt_with_error('eng_min')
+    endif
+    ! larger than the maximum energy mesh
+    if(idpti > idnum) call halt_with_error('eng_bug')
+    ! only for solute-solvent interaction in solution system
+    ! larger than the maximum of soft part (linear-graduation part)
+    if((slttype == SLT_SOLN) .and. (pti > 0)) then
+       if(idpti > uvsoft(pti)) then
+          write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
+          call halt_with_error('eng_sft')
+       endif
+    endif
 
     ! Warning if the energy exceeds the maximum binning region and pecore = 0
     ! Since it is hard to see the pecore value at this point,
@@ -975,13 +992,7 @@ contains
        warn_bin_firsttime = .false.
     endif
 
-    if(iduv <= idmin) then              ! smaller than the minimum energy mesh
-       write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
-       call halt_with_error('eng_min')
-    endif
-    if(iduv > (idmin + idnum)) then     ! larger than the maximum energy mesh
-       call halt_with_error('eng_bug')
-    endif
+    iduv = idmin + idpti
 
     return
   end subroutine getiduv
