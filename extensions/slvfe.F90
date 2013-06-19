@@ -54,9 +54,9 @@ module sysvars
   character(len=1024) :: cumuintfl = 'cumsfe'
   character(len=10), parameter :: numbers='0123456789'
   
-  integer prmmax, maxsln, maxref, numrun
-  integer numslv, ermax
-  real temp, kT, slfeng
+  integer :: prmmax, maxsln, maxref, numrun
+  integer :: numslv, ermax
+  real :: temp, kT, slfeng
 
   real, dimension(:),     allocatable :: nummol
   integer, dimension(:),  allocatable :: rduvmax, rduvcore
@@ -94,6 +94,8 @@ contains
     close(iounit)
     
 99  if(numdiv == -1) numdiv = numsln
+
+    if(cumuint == 'yes') numdiv = 1
     
   end subroutine init_sysvars
 end module sysvars
@@ -556,7 +558,7 @@ contains
     integer :: pti
     if(first_time) then
        call set_keyparam
-       write(6,550) lwljcut, upljcut
+       write(6, 550) lwljcut, upljcut
 550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f7.1,' or ',f7.1,' Angstrom in any direction from any atom within the solute molecule')
        write(6,*)
        call get_ljtable
@@ -564,13 +566,13 @@ contains
        do pti = 1, numslv
           call calc_ljlrc(pti, ljcorr(pti))
        end do
-       write(6,551) ljcorr(1:numslv)
+       write(6, 551) ljcorr(1:numslv)
        write(6,*)
 551    format('  LJ long-range correction    =   ', 9999f12.4)
        first_time = .false.
     endif
     aveuv(1:numslv) = aveuv(1:numslv) + ljcorr(1:numslv)
-    if((uvread.eq.'yes').and.(clcond.eq.'merge')) then
+    if((uvread == 'yes') .and. (clcond == 'merge')) then
        blkuv(1:numslv, cntrun) = blkuv(1:numslv, cntrun) + ljcorr(1:numslv)
        blkuv(0, cntrun) = blkuv(0, cntrun) + sum(ljcorr(1:numslv))
     endif

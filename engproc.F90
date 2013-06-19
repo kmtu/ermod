@@ -1055,6 +1055,10 @@ contains
        ! in the set_shift_com subroutine within insertion.F90
        call relative_com(tagslt, dx)
        distance = sqrt(dot_product(dx, dx))
+       if((lwreg > distance) .or. (distance > upreg)) then
+          out_of_range = .true.     ! configuration is rejected
+          return
+       endif
     case(INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)  ! slab configuration
        ! constrained to z-axis
        ! The following has the same structure as the corresponding part
@@ -1064,6 +1068,10 @@ contains
        distance = dot_product(invcl(3,:), dx(:)) * celllen(3)
        if(insposition == INSPOS_SLAB_SYMMETRIC) then  ! symmetric bilayer
           distance = abs(distance)
+       endif
+       if((lwreg > distance) .or. (distance > upreg)) then
+          out_of_range = .true.     ! configuration is rejected
+          return
        endif
     case(INSPOS_RMSD)                                 ! comparison to reference
        ptb = mol_begin_index(tagslt)
@@ -1083,15 +1091,15 @@ contains
        distance = rmsd_nofit(refslt_natom, refslt_bestfit, &
                              sitepos(1:3, ptb:pte), refslt_weight)
        deallocate( hostcrd, refslt_bestfit )
+       if((lwreg > distance) .or. (distance > upreg)) then
+          out_of_range = .true.     ! configuration is rejected
+          return
+       endif
     case(INSPOS_GAUSS)                                ! comparison to reference
        ! Exeperimental and under construction...  What is to be written?
     case default
        stop "Unknown insposition in check_mol_configuration"
     end select
-    if((lwreg > distance) .or. (distance > upreg)) then
-       out_of_range = .true.        ! configuration is rejected
-       return
-    endif
 
     select case(insstructure)
     case(INSSTR_NOREJECT)    ! no rejection of solute structure

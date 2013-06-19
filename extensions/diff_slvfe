@@ -1,5 +1,5 @@
---- slvfe.F90	2013-04-25 20:08:48.500861621 +0900
-+++ extensions/slvfe.F90	2013-04-25 20:08:36.091736188 +0900
+--- slvfe.F90	2013-06-19 19:33:53.082820942 +0900
++++ extensions/slvfe.F90	2013-06-19 19:34:35.586826840 +0900
 @@ -26,7 +26,7 @@
    integer :: numsln = 10,  numref = 5,  numdiv = -1
  
@@ -17,7 +17,7 @@
         refmerge, extsln, extthres_soln, extthres_refs, &
         wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
         inptemp, pickgr, msemin, msemax, mesherr, &
-@@ -507,6 +508,371 @@
+@@ -509,6 +510,371 @@
    end subroutine datread
  end module
  
@@ -69,7 +69,7 @@
 +    integer :: pti
 +    if(first_time) then
 +       call set_keyparam
-+       write(6,550) lwljcut, upljcut
++       write(6, 550) lwljcut, upljcut
 +550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f7.1,' or ',f7.1,' Angstrom in any direction from any atom within the solute molecule')
 +       write(6,*)
 +       call get_ljtable
@@ -77,13 +77,13 @@
 +       do pti = 1, numslv
 +          call calc_ljlrc(pti, ljcorr(pti))
 +       end do
-+       write(6,551) ljcorr(1:numslv)
++       write(6, 551) ljcorr(1:numslv)
 +       write(6,*)
 +551    format('  LJ long-range correction    =   ', 9999f12.4)
 +       first_time = .false.
 +    endif
 +    aveuv(1:numslv) = aveuv(1:numslv) + ljcorr(1:numslv)
-+    if((uvread.eq.'yes').and.(clcond.eq.'merge')) then
++    if((uvread == 'yes') .and. (clcond == 'merge')) then
 +       blkuv(1:numslv, cntrun) = blkuv(1:numslv, cntrun) + ljcorr(1:numslv)
 +       blkuv(0, cntrun) = blkuv(0, cntrun) + sum(ljcorr(1:numslv))
 +    endif
@@ -389,7 +389,7 @@
  module sfecalc
    use sysvars, only: zerosft, wgtfnform, slncor, &
                       numslv, ermax, nummol, kT, itrmax, zero, error, &
-@@ -571,8 +937,10 @@
+@@ -573,8 +939,10 @@
    subroutine chmpot(prmcnt, cntrun)
      !
      use sysvars, only: uvread, slfslt, normalize, showdst, wrtzrsft, &
@@ -400,7 +400,7 @@
      !
      implicit none
      integer, intent(in) :: prmcnt, cntrun
-@@ -688,6 +1056,7 @@
+@@ -690,6 +1058,7 @@
               aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
            end do
         endif

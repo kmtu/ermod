@@ -54,9 +54,9 @@ module sysvars
   character(len=1024) :: cumuintfl = 'cumsfe'
   character(len=10), parameter :: numbers='0123456789'
   
-  integer prmmax, maxsln, maxref, numrun
-  integer numslv, ermax
-  real temp, kT, slfeng
+  integer :: prmmax, maxsln, maxref, numrun
+  integer :: numslv, ermax
+  real :: temp, kT, slfeng
 
   real, dimension(:),     allocatable :: nummol
   integer, dimension(:),  allocatable :: rduvmax, rduvcore
@@ -93,6 +93,8 @@ contains
     close(iounit)
     
 99  if(numdiv == -1) numdiv = numsln
+
+    if(cumuint == 'yes') numdiv = 1
     
   end subroutine init_sysvars
 end module sysvars

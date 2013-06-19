@@ -230,6 +230,8 @@ contains
     if(errtype == 'set_num') write(stdout, "(A)") " The number of molecules or atoms is incorrectly set"
     if(errtype == 'set_prs') write(stdout, "(A)") " The system parameters are incorrectly set"
     if(errtype == 'set_ins') write(stdout, "(A)") " The insertion parameters are incorrectly set"
+    if(errtype == 'set_reg') write(stdout, "(A)") " The lwreg and/or upreg parameter is incorrectly set"
+    if(errtype == 'set_str') write(stdout, "(A)") " The lwstr and/or upstr parameter is incorrectly set"
     if(errtype == 'set_ewa') write(stdout, "(A)") " The Ewald parameters are incorrectly set"
     if(errtype == 'set_trj') write(stdout, "(A)") " Trajectory is shorter than specified in MDinfo"
     if(errtype == 'set_pmt') write(stdout, "(A)") " Permutation index file is invalid"
