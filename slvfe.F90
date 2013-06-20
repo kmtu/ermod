@@ -22,8 +22,9 @@ module sysvars
 
   character(len=5) :: clcond = 'merge'
 
-  integer :: pecore = 200, numprm = 10
-  integer :: numsln = 10,  numref = 5,  numdiv = -1
+  integer :: pecore = 200
+  integer :: numsln = 10, numref = 5
+  integer :: numprm = 0, numdiv = 0
 
   character(len=3) :: peread = 'not',    uvread = 'yes'
   character(len=3) :: slfslt = 'yes',    infchk = 'not'
@@ -92,7 +93,15 @@ contains
     read(iounit, nml = fevars)
     close(iounit)
     
-99  if(numdiv == -1) numdiv = numsln
+99  if(numdiv <= 0) numdiv = numsln          ! default setting
+
+    if(numprm <= 0) then                     ! default setting
+       if(infchk == 'yes') then
+          numprm = 11
+       else
+          numprm = 10
+       endif
+    endif
 
     if(cumuint == 'yes') numdiv = 1
     
