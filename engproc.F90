@@ -311,7 +311,7 @@ contains
     call mpi_init_active_group(nactiveproc)
     call sanity_check_sluvid()
 
-    ! for soln: maxdst is number of solutes (multiple solute)
+    ! for soln: maxdst is number of solute molecules
     ! for refs: maxdst is number of insertions
     select case(slttype)
     case(SLT_SOLN)
@@ -366,7 +366,7 @@ contains
 
        ! cntdst is the pick-up no. of solute MOLECULE from plural solutes (soln)
        ! cntdst is the iteration no. of insertion (refs)
-       do cntdst=1,maxdst
+       do cntdst = 1, maxdst
           call get_uv_energy(stnum, stat_weight_solute, uvengy(0:slvmax), skipcond)
           if(skipcond) cycle
           

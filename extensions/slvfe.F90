@@ -22,7 +22,7 @@ module sysvars
 
   character(len=5) :: clcond = 'merge'
 
-  integer :: pecore = 200, numprm = 15
+  integer :: pecore = 200, numprm = 10
   integer :: numsln = 10,  numref = 5,  numdiv = -1
 
   character(len=3) :: peread = 'not',    uvread = 'yes'
@@ -268,21 +268,20 @@ contains
     case('range', 'merge')
        do prmcnt = 1, prmmax                 ! inft in % (percentage)
           if(infchk == 'yes') then
-             if(prmcnt == 1) then  ; group=1  ; inft=0   ; endif
-             if(prmcnt == 2) then  ; group=1  ; inft=60  ; endif
-             if(prmcnt == 3) then  ; group=1  ; inft=80  ; endif
-             if(prmcnt == 4) then  ; group=1  ; inft=100 ; endif
-             if(prmcnt == 5) then  ; group=2  ; inft=0   ; endif
-             if(prmcnt == 6) then  ; group=3  ; inft=0   ; endif
-             if(prmcnt == 7) then  ; group=4  ; inft=0   ; endif
-             if(prmcnt == 8) then  ; group=5  ; inft=0   ; endif
-             if(prmcnt == 9) then  ; group=5  ; inft=60  ; endif
-             if(prmcnt == 10) then ; group=5  ; inft=80  ; endif
-             if(prmcnt == 11) then ; group=5  ; inft=100 ; endif
-             if(prmcnt == 12) then ; group=8  ; inft=0   ; endif
-             if(prmcnt == 13) then ; group=10 ; inft=0   ; endif
-             if(prmcnt == 14) then ; group=15 ; inft=0   ; endif
-             if(prmcnt == 15) then ; group=20 ; inft=0   ; endif
+             if(prmcnt == 1) then  ; group = 1  ; inft = 0   ; endif
+             if(prmcnt == 2) then  ; group = 1  ; inft = 60  ; endif
+             if(prmcnt == 3) then  ; group = 1  ; inft = 80  ; endif
+             if(prmcnt == 4) then  ; group = 1  ; inft = 100 ; endif
+             if(prmcnt == 5) then  ; group = 2  ; inft = 0   ; endif
+             if(prmcnt == 6) then  ; group = 3  ; inft = 0   ; endif
+             if(prmcnt == 7) then  ; group = 4  ; inft = 0   ; endif
+             if(prmcnt == 8) then  ; group = 5  ; inft = 0   ; endif
+             if(prmcnt == 9) then  ; group = 5  ; inft = 60  ; endif
+             if(prmcnt == 10) then ; group = 5  ; inft = 80  ; endif
+             if(prmcnt == 11) then ; group = 5  ; inft = 100 ; endif
+             if(prmcnt == 12) then ; group = 8  ; inft = 0   ; endif
+             if(prmcnt >= 13) then
+                group = 10 + (prmcnt - 13) * 5  ; inft = 0   ; endif
           else
              inft = 0
              if(prmcnt <= 10) then

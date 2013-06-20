@@ -117,7 +117,7 @@ contains
        reject = .false.
        call check_solute_configuration(insml, reject)
        ! user-defined scheme to apply change / reject the solute configuration
-       call insscheme(insml,reject)
+       call insscheme(insml, reject)
     end do
     
     return
