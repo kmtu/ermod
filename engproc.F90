@@ -311,7 +311,7 @@ contains
     call mpi_init_active_group(nactiveproc)
     call sanity_check_sluvid()
 
-    ! for soln: maxdst is number of solutes (multiple solute)
+    ! for soln: maxdst is number of solute molecules
     ! for refs: maxdst is number of insertions
     select case(slttype)
     case(SLT_SOLN)
@@ -366,7 +366,7 @@ contains
 
        ! cntdst is the pick-up no. of solute MOLECULE from plural solutes (soln)
        ! cntdst is the iteration no. of insertion (refs)
-       do cntdst=1,maxdst
+       do cntdst = 1, maxdst
           call get_uv_energy(stnum, stat_weight_solute, uvengy(0:slvmax), skipcond)
           if(skipcond) cycle
           
@@ -726,8 +726,8 @@ contains
           call residual_ene(tagslt, i, pairep)
           call recpcal_energy(tagslt, i, factor)
           pairep = pairep + factor
-       else
-          call realcal_bare(tagslt,i,pairep) ! Bare coulomb solute-solvent interaction
+       else                      ! Bare coulomb solute-solvent interaction
+          call realcal_bare(tagslt, i, pairep)
        endif
        !$omp atomic
        uvengy(k) = uvengy(k) + pairep
@@ -941,7 +941,8 @@ contains
 
   ! returns the position of the bin corresponding to energy coordinate value
   subroutine getiduv(pti, engcoord, iduv)
-    use engmain, only: uvmax, uvcrd, esmax, escrd, stdout
+    use engmain, only: slttype, uvmax, uvsoft, uvcrd, esmax, escrd, &
+                       stdout, SLT_SOLN
     use mpiproc, only: halt_with_error, warning
     implicit none
     integer, intent(in) :: pti
@@ -952,18 +953,34 @@ contains
     logical, save :: warn_bin_firsttime = .true.
 
     if(pti <  0) call halt_with_error('eng_bug')
-    if(pti == 0) then                      ! solute self-energy
+    if(pti == 0) then                   ! solute self-energy
        idmin = 0
        idnum = esmax
        call binsearch(escrd(1:idnum), idnum, engcoord, idpti)
     endif
-    if(pti >  0) then                      ! solute-solvent interaction
+    if(pti >  0) then                   ! solute-solvent interaction
        if(pti == 1) idmin = 0
        if(pti >  1) idmin = sum( uvmax(1:pti-1) )
        idnum = uvmax(pti)
        call binsearch(uvcrd(idmin+1:idmin+idnum), idnum, engcoord, idpti)
     endif
-    iduv = idmin + idpti
+
+    ! inappropriate setting of energy coordinate
+    ! smaller than the minimum energy mesh
+    if(idpti <= 0) then
+       write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
+       call halt_with_error('eng_min')
+    endif
+    ! larger than the maximum energy mesh
+    if(idpti > idnum) call halt_with_error('eng_bug')
+    ! only for solute-solvent interaction in solution system
+    ! larger than the maximum of soft part (linear-graduation part)
+    if((slttype == SLT_SOLN) .and. (pti > 0)) then
+       if(idpti > uvsoft(pti)) then
+          write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
+          call halt_with_error('eng_sft')
+       endif
+    endif
 
     ! Warning if the energy exceeds the maximum binning region and pecore = 0
     ! Since it is hard to see the pecore value at this point,
@@ -975,13 +992,7 @@ contains
        warn_bin_firsttime = .false.
     endif
 
-    if(iduv <= idmin) then              ! smaller than the minimum energy mesh
-       write(stdout, '(A,g12.4,A,i3,A)') '  energy of ', engcoord, ' for ', pti, '-th species'
-       call halt_with_error('eng_min')
-    endif
-    if(iduv > (idmin + idnum)) then     ! larger than the maximum energy mesh
-       call halt_with_error('eng_bug')
-    endif
+    iduv = idmin + idpti
 
     return
   end subroutine getiduv
@@ -1044,6 +1055,10 @@ contains
        ! in the set_shift_com subroutine within insertion.F90
        call relative_com(tagslt, dx)
        distance = sqrt(dot_product(dx, dx))
+       if((lwreg > distance) .or. (distance > upreg)) then
+          out_of_range = .true.     ! configuration is rejected
+          return
+       endif
     case(INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)  ! slab configuration
        ! constrained to z-axis
        ! The following has the same structure as the corresponding part
@@ -1053,6 +1068,10 @@ contains
        distance = dot_product(invcl(3,:), dx(:)) * celllen(3)
        if(insposition == INSPOS_SLAB_SYMMETRIC) then  ! symmetric bilayer
           distance = abs(distance)
+       endif
+       if((lwreg > distance) .or. (distance > upreg)) then
+          out_of_range = .true.     ! configuration is rejected
+          return
        endif
     case(INSPOS_RMSD)                                 ! comparison to reference
        ptb = mol_begin_index(tagslt)
@@ -1072,15 +1091,15 @@ contains
        distance = rmsd_nofit(refslt_natom, refslt_bestfit, &
                              sitepos(1:3, ptb:pte), refslt_weight)
        deallocate( hostcrd, refslt_bestfit )
+       if((lwreg > distance) .or. (distance > upreg)) then
+          out_of_range = .true.     ! configuration is rejected
+          return
+       endif
     case(INSPOS_GAUSS)                                ! comparison to reference
        ! Exeperimental and under construction...  What is to be written?
     case default
        stop "Unknown insposition in check_mol_configuration"
     end select
-    if((lwreg > distance) .or. (distance > upreg)) then
-       out_of_range = .true.        ! configuration is rejected
-       return
-    endif
 
     select case(insstructure)
     case(INSSTR_NOREJECT)    ! no rejection of solute structure

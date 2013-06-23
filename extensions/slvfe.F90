@@ -22,8 +22,9 @@ module sysvars
 
   character(len=5) :: clcond = 'merge'
 
-  integer :: pecore = 200, numprm = 15
-  integer :: numsln = 10,  numref = 5,  numdiv = -1
+  integer :: pecore = 200
+  integer :: numsln = 10, numref = 5
+  integer :: numprm = 0, numdiv = 0
 
   character(len=3) :: peread = 'not',    uvread = 'yes'
   character(len=3) :: slfslt = 'yes',    infchk = 'not',   ljlrc = 'not'
@@ -54,9 +55,9 @@ module sysvars
   character(len=1024) :: cumuintfl = 'cumsfe'
   character(len=10), parameter :: numbers='0123456789'
   
-  integer prmmax, maxsln, maxref, numrun
-  integer numslv, ermax
-  real temp, kT, slfeng
+  integer :: prmmax, maxsln, maxref, numrun
+  integer :: numslv, ermax
+  real :: temp, kT, slfeng
 
   real, dimension(:),     allocatable :: nummol
   integer, dimension(:),  allocatable :: rduvmax, rduvcore
@@ -93,7 +94,17 @@ contains
     read(iounit, nml = fevars)
     close(iounit)
     
-99  if(numdiv == -1) numdiv = numsln
+99  if(numdiv <= 0) numdiv = numsln          ! default setting
+
+    if(numprm <= 0) then                     ! default setting
+       if(infchk == 'yes') then
+          numprm = 11
+       else
+          numprm = 10
+       endif
+    endif
+
+    if(cumuint == 'yes') numdiv = 1
     
   end subroutine init_sysvars
 end module sysvars
@@ -266,21 +277,20 @@ contains
     case('range', 'merge')
        do prmcnt = 1, prmmax                 ! inft in % (percentage)
           if(infchk == 'yes') then
-             if(prmcnt == 1) then  ; group=1  ; inft=0   ; endif
-             if(prmcnt == 2) then  ; group=1  ; inft=60  ; endif
-             if(prmcnt == 3) then  ; group=1  ; inft=80  ; endif
-             if(prmcnt == 4) then  ; group=1  ; inft=100 ; endif
-             if(prmcnt == 5) then  ; group=2  ; inft=0   ; endif
-             if(prmcnt == 6) then  ; group=3  ; inft=0   ; endif
-             if(prmcnt == 7) then  ; group=4  ; inft=0   ; endif
-             if(prmcnt == 8) then  ; group=5  ; inft=0   ; endif
-             if(prmcnt == 9) then  ; group=5  ; inft=60  ; endif
-             if(prmcnt == 10) then ; group=5  ; inft=80  ; endif
-             if(prmcnt == 11) then ; group=5  ; inft=100 ; endif
-             if(prmcnt == 12) then ; group=8  ; inft=0   ; endif
-             if(prmcnt == 13) then ; group=10 ; inft=0   ; endif
-             if(prmcnt == 14) then ; group=15 ; inft=0   ; endif
-             if(prmcnt == 15) then ; group=20 ; inft=0   ; endif
+             if(prmcnt == 1) then  ; group = 1  ; inft = 0   ; endif
+             if(prmcnt == 2) then  ; group = 1  ; inft = 60  ; endif
+             if(prmcnt == 3) then  ; group = 1  ; inft = 80  ; endif
+             if(prmcnt == 4) then  ; group = 1  ; inft = 100 ; endif
+             if(prmcnt == 5) then  ; group = 2  ; inft = 0   ; endif
+             if(prmcnt == 6) then  ; group = 3  ; inft = 0   ; endif
+             if(prmcnt == 7) then  ; group = 4  ; inft = 0   ; endif
+             if(prmcnt == 8) then  ; group = 5  ; inft = 0   ; endif
+             if(prmcnt == 9) then  ; group = 5  ; inft = 60  ; endif
+             if(prmcnt == 10) then ; group = 5  ; inft = 80  ; endif
+             if(prmcnt == 11) then ; group = 5  ; inft = 100 ; endif
+             if(prmcnt == 12) then ; group = 8  ; inft = 0   ; endif
+             if(prmcnt >= 13) then
+                group = 10 + (prmcnt - 13) * 5  ; inft = 0   ; endif
           else
              inft = 0
              if(prmcnt <= 10) then
@@ -556,7 +566,7 @@ contains
     integer :: pti
     if(first_time) then
        call set_keyparam
-       write(6,550) lwljcut, upljcut
+       write(6, 550) lwljcut, upljcut
 550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f7.1,' or ',f7.1,' Angstrom in any direction from any atom within the solute molecule')
        write(6,*)
        call get_ljtable
@@ -564,13 +574,13 @@ contains
        do pti = 1, numslv
           call calc_ljlrc(pti, ljcorr(pti))
        end do
-       write(6,551) ljcorr(1:numslv)
+       write(6, 551) ljcorr(1:numslv)
        write(6,*)
 551    format('  LJ long-range correction    =   ', 9999f12.4)
        first_time = .false.
     endif
     aveuv(1:numslv) = aveuv(1:numslv) + ljcorr(1:numslv)
-    if((uvread.eq.'yes').and.(clcond.eq.'merge')) then
+    if((uvread == 'yes') .and. (clcond == 'merge')) then
        blkuv(1:numslv, cntrun) = blkuv(1:numslv, cntrun) + ljcorr(1:numslv)
        blkuv(0, cntrun) = blkuv(0, cntrun) + sum(ljcorr(1:numslv))
     endif

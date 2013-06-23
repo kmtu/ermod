@@ -76,20 +76,23 @@ contains
     real, intent(out) :: cell(3, 3)
     integer, intent(out) :: status
     real(4), allocatable :: buffer(:)
+    real(8) :: bufcell(3, 3)
 
-    cell(:, :) = 0.
+    bufcell(:, :) = 0.
     allocate( buffer(natom) )
 
     if(is_periodic) then
        if(.not. htraj%have_cell_info) stop "Cell info is requested, but does not exist!"
-       read(htraj%iohandle, err=999, end=999) cell(1,1), cell(1,2), cell(2,2), cell(1,3), cell(2,3), cell(3,3)
+       read(htraj%iohandle, err = 999, end = 999) bufcell(1,1), bufcell(1,2), bufcell(2,2), bufcell(1,3), bufcell(2,3), bufcell(3,3)
     end if
 
-    read(htraj%iohandle, err=999, end=999) buffer(:)
+    cell(:, :) = bufcell(:, :)
+
+    read(htraj%iohandle, err = 999, end = 999) buffer(:)
     crd(1, :) = buffer(:)
-    read(htraj%iohandle, err=999, end=999) buffer(:)
+    read(htraj%iohandle, err = 999, end = 999) buffer(:)
     crd(2, :) = buffer(:)
-    read(htraj%iohandle, err=999, end=999) buffer(:)
+    read(htraj%iohandle, err = 999, end = 999) buffer(:)
     crd(3, :) = buffer(:)
 
     status = 0

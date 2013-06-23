@@ -254,8 +254,10 @@ contains
 
     maxins = 1000
 
-    lwreg = 0.0 ; upreg = 5.0
-    lwstr = 0.0 ; upstr = 2.0
+    lwreg = -1.0
+    upreg = lwreg
+    lwstr = -1.0
+    upstr = lwstr
 
     if(intprm /= 0) then
       cmbrule = LJCMB_ARITH        ! arithmetic mean of LJ sigma
@@ -266,7 +268,7 @@ contains
     if(sltpick > 0) sltspec = sltpick                      ! deprecated
     if(refpick > 0) refspec = refpick                      ! deprecated
 
-    select case(inscnd)
+    select case(inscnd)                                    ! deprecated
     case(0)    ! random
        insorigin = INSORG_ORIGIN ; insposition = INSPOS_RANDOM
     case(1)    ! spherical
@@ -279,7 +281,7 @@ contains
        stop "Unknown inscnd"
     end select
 
-    select case(inscfg)
+    select case(inscfg)                                    ! deprecated
     case(0)    ! only the intramolecular configuration is from the file
        insorient = INSROT_RANDOM
     case(1)    ! orientation is fixed from the file with random position
@@ -395,11 +397,13 @@ contains
        if(insorigin /= INSORG_NOCHANGE) check_refins = .false.
     case(INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)
        ! check lwreg and upreg parameters
-       if(lwreg >= upreg) call halt_with_error('set_ins')
+       if((lwreg < 0.0) .or. (upreg < 0.0) .or. &
+          (lwreg >= upreg)) call halt_with_error('set_reg')
        if(insorigin /=INSORG_AGGCEN) check_refins = .false.
     case(INSPOS_RMSD, INSPOS_GAUSS)
        ! check lwreg and upreg parameters
-       if(lwreg >= upreg) call halt_with_error('set_ins')
+       if((lwreg < 0.0) .or. (upreg < 0.0) .or. &
+          (lwreg >= upreg)) call halt_with_error('set_reg')
        if(insorigin /= INSORG_REFSTR) call halt_with_error('set_ins')
     case default
        stop "Unknown insposition"
@@ -420,7 +424,8 @@ contains
     case(INSSTR_NOREJECT)
     case(INSSTR_RMSD)
        ! check lwstr and upstr parameters
-       if(lwstr >= upstr) call halt_with_error('set_ins')
+       if((lwstr < 0.0) .or. (upstr < 0.0) .or. &
+          (lwstr >= upstr)) call halt_with_error('set_str')
        ! check the solute type
        if(slttype == SLT_REFS_RIGID) call halt_with_error('set_slt')
     case default
