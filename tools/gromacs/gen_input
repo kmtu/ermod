@@ -149,8 +149,8 @@ def save_parameters_fe(temp):
 # TODO: LJ table
 def parse_mdp():
     logfh = open(options.log, "rt")
-    pats = re.compile(r"^\s*([a-zA-Z0-9_]+)\s*=\s*(\S+)\s*$")
-    reft = re.compile(r"^\s+ref_t:\s+([0-9.]+)")
+    pats = re.compile(r"^\s*([a-zA-Z0-9_\-]+)\s*=\s*(\S+)\s*$")
+    reft = re.compile(r"^\s+ref[_-]t:\s+([0-9.]+)")
     beta = re.compile(r"Using a Gaussian width \(1/beta\) of (\S+) nm for Ewald")
     dic = {}
     temp = 300.0
@@ -159,7 +159,9 @@ def parse_mdp():
     for l in logfh:
         pairs = pats.match(l)
         if pairs:
-            dic[pairs.group(1)] = pairs.group(2)
+            # Normalize to underscores, to handle both GROMACS 4.5 and 4.6
+            key = pairs.group(1).replace('-', '_')
+            dic[key] = pairs.group(2)
 
         reftf = reft.match(l)
         if reftf:
