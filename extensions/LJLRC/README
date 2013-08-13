@@ -6,7 +6,7 @@ To use the slvfe.F90 program contained in extensions,
 user simply does the followings in the parent directory of ermod.
 
 $ mv slvfe.F90 slvfe_original.F90
-$ cp extensions/slvfe.F90 ./
+$ cp extensions/LJLRC/slvfe.F90 ./
 $ make
 $ make install
 
