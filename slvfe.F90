@@ -725,10 +725,11 @@ contains
              endif
              slvfe = slvfe + lcent * edist(iduv)
 
-             lcsln = pyhnc(slncv(iduv), 1)
-             lcref = pyhnc(inscv(iduv), 2)
+             lcsln = pyhnc(slncv(iduv), 1)    ! solution
+             lcref = pyhnc(inscv(iduv), 2)    ! reference solvent
              if((slncor == 'yes') .and. &
                      (edist(iduv) > zero) .and. (edens(iduv) <= zero)) then
+                ! special case to be examined carefully
                 lcsln = pyhnc(sdrcv(iduv) + zrsdr(pti), 3)
              endif
              ampl = sfewgt(edist(iduv), edens(iduv))
@@ -1219,15 +1220,15 @@ contains
     real :: intg, factor
     factor = indpmf / kT
     select case(cnt)
-    case(1, 2)
-       if(factor < - zero) then
+    case(1, 2)      ! usual case   1 : solution  2 : referecen solvent
+       if(factor < - zero) then    ! PY
           if(cnt == 1) intg = factor + factor / (exp(- factor) - 1.0)
           if(cnt == 2) intg = log(1.0 - factor) * (1.0 / factor - 1.0)
           intg = intg + 1.0
-       else
+       else                        ! HNC
           intg = factor / 2.0
        endif
-    case(3)
+    case(3)         ! special case to be examined carefully
        if(factor >= zero) then
           intg = 1.0 - log(1.0 + factor) * (1.0 / factor + 1.0)
        else

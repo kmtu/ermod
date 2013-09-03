@@ -108,7 +108,7 @@ contains
       where(sluvid(:) == PT_SOLVENT .and. moltype(:) > solute_moltype) uvspec(:) = uvspec(:) - 1
     endif
     !
-    allocate( uvmax(numslv), uvsoft(numslv), ercrd(large,0:numslv) )
+    allocate( uvmax(numslv), uvsoft(numslv), ercrd(large, 0:numslv) )
     !
     peread = 0
     ermax = 0
@@ -224,7 +224,7 @@ contains
 
     if(corrcal == YES) then
        if(ermax > too_large_ermax) call warning('emax')
-       allocate( ecorr(ermax,ermax) )
+       allocate( ecorr(ermax, ermax) )
     endif
 
     if(selfcal == YES)  then
@@ -233,8 +233,8 @@ contains
     endif
     deallocate( ercrd )
 
-    if(slttype == SLT_SOLN) allocate( aveuv(engdiv,numslv), slnuv(numslv) )
-    allocate( avediv(engdiv,2) )
+    if(slttype == SLT_SOLN) allocate( aveuv(engdiv, numslv), slnuv(numslv) )
+    allocate( avediv(engdiv, 2) )
     allocate( minuv(0:numslv), maxuv(0:numslv) )
      
     do pti = 0, numslv
@@ -334,8 +334,8 @@ contains
     tagpt(1:slvmax) = tplst(1:slvmax)  ! and copied from tplst
     deallocate( tplst )
 
-    allocate(flceng_stored(maxdst))
-    allocate(flceng(numslv, maxdst))
+    allocate( flceng_stored(maxdst) )
+    allocate( flceng(numslv, maxdst) )
     flceng_stored(:) = .false.
     flceng(:,:) = 0
 
@@ -375,8 +375,8 @@ contains
 
        select case(slttype)
        case(SLT_SOLN)                           ! for soln: output flceng
-          allocate(flceng_stored_g(maxdst, nactiveproc))
-          allocate(flceng_g(numslv, maxdst, nactiveproc))
+          allocate( flceng_stored_g(maxdst, nactiveproc) )
+          allocate( flceng_g(numslv, maxdst, nactiveproc) )
           
 #ifndef noMPI
           ! gather flceng values to rank 0
@@ -410,7 +410,7 @@ contains
                 enddo
              enddo
           endif
-          deallocate(flceng_g, flceng_stored_g)
+          deallocate( flceng_g, flceng_stored_g )
        case(SLT_REFS_RIGID, SLT_REFS_FLEX)      ! for refs: output progress
           if(myrank == 0) write(io_flcuv, *) ( &
                                         (stnum + irank - 1) * skpcnf, &
@@ -418,7 +418,7 @@ contains
        end select
     endif
 
-    deallocate( tagpt,uvengy )
+    deallocate( tagpt, uvengy )
     deallocate( flceng, flceng_stored )
 
     call mpi_finish_active_group()
@@ -441,12 +441,13 @@ contains
     character(len=10), parameter :: numbers='0123456789'
     character(len=9) :: engfile
     character(len=3) :: suffeng
-    real :: voffset_local, voffset_scale
-    real :: factor
     integer, parameter :: eng_io = 71, cor_io = 72, slf_io = 73
     integer, parameter :: ave_io = 74, wgt_io = 75, uvr_io = 76
     real, parameter :: tiny=1.0e-30
+    real :: voffset_local, voffset_scale
+    real :: factor
     real, dimension(:), allocatable :: sve1, sve2
+    real, dimension(:, :), allocatable :: sve3
     call mpi_info                                                    ! MPI
     !
 
@@ -517,19 +518,16 @@ contains
 #endif
     edens(1:ermax) = edens(1:ermax) / engnorm
     if(corrcal == YES) then
-       do iduv=1,ermax
 #ifndef noMPI
     ! MPI part starts here
-          allocate( sve1(ermax), sve2(ermax) )
-          sve1(1:ermax) = ecorr(1:ermax, iduv)
-          call mpi_reduce(sve1, sve2, ermax, &
-               mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
-          ecorr(1:ermax, iduv) = sve2(1:ermax)
-          deallocate( sve1, sve2 )
+       allocate( sve3(ermax, ermax) )
+       sve3 = ecorr
+       call mpi_reduce(sve3, ecorr, (ermax * ermax), &
+            mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
+       deallocate( sve3 )
     ! MPI part ends here
 #endif
-          ecorr(1:ermax, iduv) = ecorr(1:ermax, iduv) / engnorm
-       end do
+       ecorr(1:ermax, 1:ermax) = ecorr(1:ermax, 1:ermax) / engnorm
     endif
     if(selfcal == YES) eself(1:esmax) = eself(1:esmax) / engnorm
     avslf = avslf / engnorm
@@ -756,7 +754,7 @@ contains
     integer :: i, k, q, iduv, iduvp, pti
     real :: factor, engnmfc, pairep, total_weight
 
-    allocate(insdst(ermax), engdst(ermax))
+    allocate( insdst(ermax), engdst(ermax) )
 
     select case(wgtslf)
     case(NO)
@@ -836,7 +834,7 @@ contains
        end do
     endif
 
-    deallocate(insdst, engdst)
+    deallocate( insdst, engdst )
   end subroutine update_histogram
 
   !
