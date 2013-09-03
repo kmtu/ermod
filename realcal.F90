@@ -50,6 +50,7 @@ module realcal
   ! "straight" coordinate system
   real, allocatable :: sitepos_normal(:, :)
   real :: cell_normal(3, 3), invcell_normal(3), cell_len_normal(3)
+  logical :: is_triclinic
 
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
@@ -523,6 +524,8 @@ contains
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
 
+    if(.not. is_triclinic) stop "realcal.F90: this version of ermod does not support non-triclinic system"
+
     half_cell(:) = 0.5 * cell_len_normal(:)
 
     n_lowlj = 0
@@ -697,6 +700,14 @@ contains
        sitepos_normal(i, :) = sitepos_normal(i, :) - &
             floor(sitepos_normal(i, :) * invcell_normal(i)) * cell_len_normal(i)
     end do
+
+    if(  abs(cell(1, 2)) > 1e-8 .or. &
+         abs(cell(1, 3)) > 1e-8 .or. &
+         abs(cell(2, 3)) > 1e-8 ) then
+       is_triclinic = .false.
+    else
+       is_triclinic = .true.
+    end if
   end subroutine normalize_periodic
 
 end module realcal
