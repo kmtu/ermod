@@ -208,8 +208,10 @@ contains
     if(errtype == 'eng_ins') write(stdout, "(A)") " The solute numbering is incorrect for insertion"
     if(errtype == 'eng_par') write(stdout, "(A)") " The input parameter is incorrectly set"
     if(errtype == 'eng_siz') write(stdout, "(A)") " The number of energy-coordinate meshes is too large"
-    if(errtype == 'eng_min') write(stdout, "(A)") " The minimum of the energy coordinate is too large; the ecdmin parameter needs to be smaller"
-    if(errtype == 'eng_sft') write(stdout, "(A)") " The eccore parameter is too small; there should be no distribution at energy coordinate larger than eccore in the solution system"
+    if(errtype == 'eng_min') write(stdout, "(A)") " The minimum of the energy coordinate is too large; " // &
+         "the ecdmin parameter needs to be smaller"
+    if(errtype == 'eng_sft') write(stdout, "(A)") " The eccore parameter is too small; " // &
+         "there should be no distribution at energy coordinate larger than eccore in the solution system"
     if(errtype == 'eng_pcr') write(stdout, "(A)") " The pecore parameter is incorrectly set"
     if(errtype == 'eng_ecd') write(stdout, "(A)") " The energy-coordinate system is inconsistent"
     if(errtype == 'eng_cns') write(stdout, "(A)") " Inconsistency is present in the engproc program"
