@@ -50,6 +50,7 @@ module realcal
   ! "straight" coordinate system
   real, allocatable :: sitepos_normal(:, :)
   real :: cell_normal(3, 3), invcell_normal(3), cell_len_normal(3)
+  real :: invcell(3, 3)
   logical :: is_triclinic
 
 contains
@@ -186,7 +187,12 @@ contains
           ljtype_j = ljtype(atj)
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
           if(boxshp == SYS_PERIODIC) then   ! when the system is periodic
-             xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
+             if(is_triclinic) then
+                xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
+             else
+                xst(:) = xst(:) - matmul(cell_normal, anint(matmul(invcell, xst)))
+             end if
+             
           endif
           dis2 = sum(xst(1:3) ** 2)
           rst = sqrt(dis2)
@@ -282,7 +288,11 @@ contains
           atj = specatm(js, i)
  
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
-          xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
+          if(is_triclinic) then
+             xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
+          else
+             xst(:) = xst(:) - matmul(cell_normal, anint(matmul(invcell, xst)))
+          end if
 
           dis2 = sum(xst(1:3) ** 2)
           rst = sqrt(dis2)
@@ -575,8 +585,6 @@ contains
     curp = 1
     !$ curp = omp_get_thread_num() + 1
 
-    if(.not. is_triclinic) stop "realcal.F90: this version of ermod does not support non-triclinic system"
-
     half_cell(:) = 0.5 * cell_len_normal(:)
 
     n_lowlj = 0
@@ -606,7 +614,12 @@ contains
 
        ! hide latency by calculating distance of next coordinate set
        d(:) = crdu(:) - sitepos_solv(:, psum_solv(vpos_b))
-       d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:)))
+       if(is_triclinic) then
+          d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:)))
+       else
+          d(:) = d(:) - matmul(cell_normal, anint(matmul(invcell, d)))
+       end if
+
        dist_next = sum(d(:) ** 2)
        
        do vi = psum_solv(vpos_b), psum_solv(vpos_e) - 1
@@ -617,7 +630,12 @@ contains
           crdv(:) = sitepos_solv(:, vi + 1)
 
           d(:) = crdv(:) - crdu(:)
-          d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
+          if(is_triclinic) then
+             d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
+          else
+             d(:) = d(:) - matmul(cell_normal, anint(matmul(invcell, d)))
+          end if
+
           ! assumes that only a single image matters for both electrostatic and LJ.
           ! if the box is very small and strongly anisotropic,
           ! there is a risk that second nearest image still being inside the cutoff length.
@@ -795,6 +813,15 @@ contains
        sitepos_normal(i, :) = sitepos_normal(i, :) - &
             floor(sitepos_normal(i, :) * invcell_normal(i)) * cell_len_normal(i)
     end do
+
+    info = 0
+    invcell(:, :) = cell_normal(:, :)
+    if(kind(dummy) == 8) then
+       call dtrtri('U', 'N', 3, invcell, 3, info)
+    else
+       call strtri('U', 'N', 3, invcell, 3, info)
+    endif
+    if(info /= 0) stop "engproc.f90, normalize_periodic: failed to invert box vector"
 
     if(  abs(cell(1, 2)) > 1e-8 .or. &
          abs(cell(1, 3)) > 1e-8 .or. &
