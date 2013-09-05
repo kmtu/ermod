@@ -90,6 +90,16 @@ def find_luck():
             return output
     return None
 
+def cpp_accepts_traditional():
+    ppw = popen2.Popen3(cmd = ["cpp", "--traditional-cpp", "/dev/null"], capturestderr = True)
+    ppw.tochild.close()
+
+    # FIXME: this procedure may block if the output of cpp exceeds the maximum pipe buffer size.
+    _stdouts = ppw.fromchild.readlines()
+    _stderrs = ppw.childerr.readlines()
+    errcode = ppw.wait()
+    return (errcode == 0)
+
 def where_gromacs():
     try:
         if os.environ.has_key("GMXDATA"):
@@ -326,6 +336,9 @@ if options.auto_dir_search:
 includes = ["-I" + i for i in options.includes]
 defines = ["-D" + d for d in options.defines]
 cmd = [options.cpp] + includes + defines + [options.topology]
+# Work around AMBER topology mess
+if cpp_accepts_traditional():
+    cmd += ["--traditional-cpp"]
 log("Invoking command: " + repr(cmd))
 
 ppw = popen2.Popen3(cmd)
