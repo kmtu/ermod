@@ -492,7 +492,7 @@ contains
              enddo
 
              if(iproc /= 1) then         ! send the data to other rank
-#ifndef noMPI
+#ifdef MPI
                 call mpi_send(psite, 3 * stmax, mpi_double_precision, &
                               iproc - 1, tag_sltcrd, mpi_comm_world, ierror)
                 call mpi_send(weight, 1, mpi_double_precision, &
@@ -505,7 +505,7 @@ contains
           end do
           deallocate( psite )
        else                              ! non-0 rank to receive the data
-#ifndef noMPI
+#ifdef MPI
           call mpi_recv(bfcoord, 3 * stmax, mpi_double_precision, &
                         0, tag_sltcrd, mpi_comm_world, mpistatus, ierror)
           call mpi_recv(stat_weight, 1, mpi_double_precision, &

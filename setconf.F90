@@ -877,7 +877,7 @@ contains
              end do
              
              if(iproc /= 1) then         ! send the data to other rank
-#ifndef noMPI
+#ifdef MPI
                 ! FIXME: rewrite with grouping and scatter?
                 call mpi_send(readpos, 3 * OUTatm, mpi_double_precision, &
                               iproc - 1, tag_coord, mpi_comm_world, ierror)
@@ -894,7 +894,7 @@ contains
              endif
           end do
        else                              ! non-0 rank to receive the data
-#ifndef noMPI
+#ifdef MPI
           call mpi_recv(OUTpos, 3 * OUTatm, mpi_double_precision, &
                         0, tag_coord, mpi_comm_world, mpistatus, ierror)
           call mpi_recv(OUTcell, 3 * 3, mpi_double_precision, &

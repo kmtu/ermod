@@ -273,8 +273,7 @@ AS_IF([test "x$use_mpi" = "xyes"],
 	     FC_CANONICAL="$FC"
 	     FC="$MPIFC"],
 	    [mpi_result="disabled"
-	     FC_CANONICAL="$FC"
-	     FCFLAGS="$FCFLAGS -DnoMPI"])
+	     FC_CANONICAL="$FC"])
 AC_SUBST([FC_CANONICAL])
 
 # optimization flags

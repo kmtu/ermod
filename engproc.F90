@@ -378,7 +378,7 @@ contains
           allocate( flceng_stored_g(maxdst, nactiveproc) )
           allocate( flceng_g(numslv, maxdst, nactiveproc) )
           
-#ifndef noMPI
+#ifdef MPI
           ! gather flceng values to rank 0
           call mpi_gather(flceng_stored, maxdst, mpi_logical, &
                flceng_stored_g, maxdst, mpi_logical, &
@@ -454,7 +454,7 @@ contains
     ! synchronize voffset
     if(wgtslf == YES) then
        voffset_local = voffset
-#ifndef noMPI
+#ifdef MPI
     ! MPI part starts here
        call mpi_allreduce(voffset_local, voffset, 1, &
             mpi_double_precision, mpi_max, mpi_comm_world, ierror)
@@ -480,7 +480,7 @@ contains
     endif
 
     ! Gather all information to Master node
-#ifndef noMPI
+#ifdef MPI
     ! MPI part starts here
     if(plmode == 2) then
        call mpi_reduce(avslf, factor, 1, &
@@ -518,7 +518,7 @@ contains
 #endif
     edens(1:ermax) = edens(1:ermax) / engnorm
     if(corrcal == YES) then
-#ifndef noMPI
+#ifdef MPI
     ! MPI part starts here
        allocate( sve3(ermax, ermax) )
        sve3 = ecorr

@@ -20,13 +20,13 @@
 ! mpi module
 
 module mpiproc
-#ifndef noMPI
+#ifdef MPI
   ! MPI
   use mpi
 #endif
   implicit none
 
-#ifdef noMPI
+#ifndef MPI
   integer, parameter :: mpi_status_size = 1
 #endif
 
@@ -58,7 +58,7 @@ contains
     implicit none
     character(len=4) :: type
     integer :: i
-#ifndef noMPI
+#ifdef MPI
     real(4) :: cputime
     real(8), save :: walltime
     if(type == 'init') then
@@ -89,7 +89,7 @@ contains
   subroutine mpi_info
     nprocs=1
     myrank=0
-#ifndef noMPI
+#ifdef MPI
     call mpi_comm_size(mpi_comm_world,nprocs,ierror)
     call mpi_comm_rank(mpi_comm_world,myrank,ierror)
 #endif
@@ -98,7 +98,7 @@ contains
 
   subroutine mpi_abend()
     integer :: ierror
-#ifndef noMPI
+#ifdef MPI
     call mpi_abort(mpi_comm_world, 1, ierror)
 #endif
   end subroutine mpi_abend
@@ -107,7 +107,7 @@ contains
     implicit none
     integer, intent(in) :: nactive
 
-#ifndef noMPI
+#ifdef MPI
     if(myrank < nactive) then
        call mpi_comm_split(mpi_comm_world, 1, myrank, mpi_comm_activeprocs, ierror)
     else
@@ -122,7 +122,7 @@ contains
 
   subroutine mpi_finish_active_group()
     implicit none
-#ifndef noMPI
+#ifdef MPI
     if(mpi_comm_activeprocs /= mpi_comm_null) then
        call mpi_comm_free(mpi_comm_activeprocs, ierror)
     end if
@@ -138,7 +138,7 @@ contains
     real, allocatable :: buf(:)
     integer :: mpitype
 
-#ifndef noMPI
+#ifdef MPI
     allocate(buf(data_size))
     select case(kind(data))
     case(4)
@@ -161,7 +161,7 @@ contains
     character(len=4), intent(in), optional :: state
     real(8) :: wall_time
 
-#ifndef noMPI
+#ifdef MPI
 #ifdef PERF
     wall_time = MPI_WTIME()
     if(prev_state_num /= 0) then
