@@ -1,9 +1,9 @@
 Lennard-Jones long-range correction
 
-The slvfe.F90 program contained in the extensions directory has a key of ljlrc,
+The slvfe.F90 program contained in this directory has a key of ljlrc,
 which enables the Lennard-Jones long-range correction at ljlrc = 'yes'.
-To use the slvfe.F90 program contained in extensions,
-user simply does the followings in the parent directory of ermod.
+To use the slvfe.F90 program contained in this directory,
+user simply does the followings in the parent directory of ERmod.
 
 $ mv slvfe.F90 slvfe_original.F90
 $ cp extensions/LJLRC/slvfe.F90 ./
@@ -29,7 +29,7 @@ If the volumedata file is not present, user is asked
 and is to type the average volume in Angstrom^3 directly on terminal.
 
 The difference between the original and modified slvfe.F90
-is always updated in diff_slvfe in the extensions directory.
+is always updated in diff_slvfe in this directory.
 
 Caution: The Lennard-Jones long-range correction scheme
 can be used only when the solvent distribution is homogeneous

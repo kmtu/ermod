@@ -70,9 +70,12 @@ contains
     real, intent(out) :: cell(3, 3)
     integer, intent(out) :: status
 
-    integer :: n
-    real :: xcell, ycell, zcell, alpha, beta, gamma
+    integer(4) :: n
+    real(8), allocatable :: xyz(:, :)
+    real(8) :: xcell, ycell, zcell, alpha, beta, gamma
     real :: lengths(3), angles(3)
+
+    allocate( xyz(3, natom) )
 
     read(htraj%iohandle, err = 999, end = 999) ! step, time
     read(htraj%iohandle, err = 999, end = 999) n
@@ -80,21 +83,24 @@ contains
        write(5, "(A,I8,A,I8,A)"), "modylas.f90, read_trajectory: natom = ", natom, ", but trajectory has ", n, " atoms"
        goto 999
     end if
-    read(htraj%iohandle, err = 999, end = 999) crd
+    read(htraj%iohandle, err = 999, end = 999) xyz
     read(htraj%iohandle, err = 999, end = 999) ! # of Nose-Hoover chains (temperature)
     read(htraj%iohandle, err = 999, end = 999) ! Nose-Hoover coordinates / velocities
     read(htraj%iohandle, err = 999, end = 999) ! # of Nose-Hoover chains (pressure)
     read(htraj%iohandle, err = 999, end = 999) ! Nose-Hoover coordinates / velocities
     read(htraj%iohandle, err = 999, end = 999) xcell, ycell, zcell, alpha, beta, gamma
 
+    crd(:, :) = xyz(:, :)
     lengths = (/ xcell, ycell, zcell /)
     angles = (/ alpha, beta, gamma /)
     call angles_to_cell_vector(lengths, angles, cell)
 
     status = 0
+    deallocate( xyz )
     return
 
 999 status = 1
+    deallocate( xyz )
     return
   end subroutine read_trajectory
 
