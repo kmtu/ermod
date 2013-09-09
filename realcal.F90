@@ -50,7 +50,7 @@ module realcal
   ! "straight" coordinate system
   real, allocatable :: sitepos_normal(:, :)
   real :: cell_normal(3, 3), invcell_normal(3), cell_len_normal(3)
-  logical :: is_triclinic
+  logical :: is_cuboid
 
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
@@ -524,7 +524,7 @@ contains
     if(cltype == 0) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == 0) stop "realcal%get_pair_energy_block: boxshp assertion failure"
 
-    if(.not. is_triclinic) stop "realcal.F90: this version of ermod does not support non-triclinic system"
+    if(.not. is_cuboid) stop "realcal.F90: this version of ermod only supports cuboid shape (all angles must be right angles.)"
 
     half_cell(:) = 0.5 * cell_len_normal(:)
 
@@ -704,9 +704,9 @@ contains
     if(  abs(cell(1, 2)) > 1e-8 .or. &
          abs(cell(1, 3)) > 1e-8 .or. &
          abs(cell(2, 3)) > 1e-8 ) then
-       is_triclinic = .false.
+       is_cuboid = .false.
     else
-       is_triclinic = .true.
+       is_cuboid = .true.
     end if
   end subroutine normalize_periodic
 
