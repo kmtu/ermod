@@ -846,6 +846,7 @@ contains
              ! the permutation(i)-th atom in the ermod program
              ! All the other variables such as mass and interaction parameters
              ! and the input files have the order of particles AFTER permutation
+             ! N.B. Fortran 95 std. 9.4.4.4 allows the reuse of [i]
              read(perm_io, *, end = 99) i, permutation(i)
              if (i < 1 .or. i > OUTatm) then
                 print *, "Incorrect range of particle number at ",i
