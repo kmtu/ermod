@@ -823,6 +823,7 @@ contains
 
     logical, save :: first_time = .true.
     integer, allocatable, save :: permutation(:)
+    integer, allocatable :: count_perm(:)
     integer :: stat
 
     ! sum over solvent & solute in trajectory file (HISTORY); no test particle
@@ -859,9 +860,20 @@ contains
           end do
 99        close(perm_io)
           ! each particle appears once and only once in permutation
+          allocate(count_perm(OUTatm))
+          count_perm(:) = 0
           do i = 1, OUTatm
-             if( count(permutation == i) /= 1 ) call halt_with_error('set_pmt')
+             count_perm(permutation(i)) = count_perm(permutation(i)) + 1
           end do
+          if( any(count_perm /= 1) ) then
+             do i = 1, OUTatm
+                if(count_perm(i) /= 1) then
+                   print *, "Atom ", i, " has ", count_perm(i), " entries"
+                end if
+             end do
+             call halt_with_error('set_pmt')
+          end if
+          deallocate(count_perm)
        endif
     end if
     
