@@ -51,7 +51,7 @@ module realcal
   real, allocatable :: sitepos_normal(:, :)
   real :: cell_normal(3, 3), invcell_normal(3), cell_len_normal(3)
   real :: invcell(3, 3)
-  logical :: is_triclinic
+  logical :: is_cuboid
 
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
@@ -187,7 +187,7 @@ contains
           ljtype_j = ljtype(atj)
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
           if(boxshp == SYS_PERIODIC) then   ! when the system is periodic
-             if(is_triclinic) then
+             if(is_cuboid) then
                 xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
              else
                 xst(:) = xst(:) - matmul(cell_normal, anint(matmul(invcell, xst)))
@@ -288,7 +288,7 @@ contains
           atj = specatm(js, i)
  
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
-          if(is_triclinic) then
+          if(is_cuboid) then
              xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
           else
              xst(:) = xst(:) - matmul(cell_normal, anint(matmul(invcell, xst)))
@@ -614,7 +614,7 @@ contains
 
        ! hide latency by calculating distance of next coordinate set
        d(:) = crdu(:) - sitepos_solv(:, psum_solv(vpos_b))
-       if(is_triclinic) then
+       if(is_cuboid) then
           d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:)))
        else
           d(:) = d(:) - matmul(cell_normal, anint(matmul(invcell, d)))
@@ -630,7 +630,7 @@ contains
           crdv(:) = sitepos_solv(:, vi + 1)
 
           d(:) = crdv(:) - crdu(:)
-          if(is_triclinic) then
+          if(is_cuboid) then
              d(:) = half_cell(:) - abs(half_cell(:) - abs(d(:))) ! get nearest image
           else
              d(:) = d(:) - matmul(cell_normal, anint(matmul(invcell, d)))
@@ -826,9 +826,9 @@ contains
     if(  abs(cell(1, 2)) > 1e-8 .or. &
          abs(cell(1, 3)) > 1e-8 .or. &
          abs(cell(2, 3)) > 1e-8 ) then
-       is_triclinic = .false.
+       is_cuboid = .false.
     else
-       is_triclinic = .true.
+       is_cuboid = .true.
     end if
   end subroutine normalize_periodic
 
