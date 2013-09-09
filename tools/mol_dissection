@@ -64,8 +64,8 @@ try:
     ifh = file("soln/.extraparam", "rt")
     carryover = pickle.load(ifh)
     ifh.close()
-    if "sltpick" in carryover:
-        picked = carryover["sltpick"] - 1
+    if "sltspec" in carryover:
+        picked = carryover["sltspec"] - 1
 except OSError:
     pass
 
@@ -215,7 +215,10 @@ QUIT         force quit without saving
     def save_mol():
         global mols
         # super-duper ad-hoc but must be enough for the case...
-        os.system("tar cf `date +%m%d%H%M%S`.tar soln/MDinfo soln/MolPrm* refs/MDinfo refs/MolPrm*")
+        tarcmd = "tar cf `date +%m%d%H%M%S`.tar soln/MDinfo soln/MolPrm* refs/MDinfo refs/MolPrm*"
+        if os.path.exists("soln/.extraparam"):
+            tarcmd += " soln/.extraparam"
+        os.system(tarcmd)
         os.system("rm -f soln/MolPrm*")
         os.system("rm -f refs/MolPrm*")
         # for metadata update with NFS async
@@ -250,7 +253,7 @@ QUIT         force quit without saving
                     # failed to read
                     carryover = {}
 
-                carryover["sltpick"] = solute + 1
+                carryover["sltspec"] = solute + 1
                 ofh = file(state + "/.extraparam", "wt")
                 pickle.dump(carryover, ofh)
                 safe_close(ofh)
@@ -277,6 +280,7 @@ QUIT         force quit without saving
 
             perm = open(state + "/PermIndex", "wt")
             if state == "refs":
+                refi = 0
                 for i in range(totalatoms):
                     orig = permindex[i]
                     (is_solute, rn, ri) = atoms[orig]
@@ -285,7 +289,8 @@ QUIT         force quit without saving
                         sol = " (solute)"
                     x = permindex_refs[orig]
                     if x != None:
-                        print >> perm, "%6d ! %s %d%s" % (x + 1, rn, ri, sol)
+                        print >> perm, "%6d %6d ! %s %d%s" % (orig + 1, refi + 1, rn, ri, sol)
+                        refi += 1
             else:
                 for i in range(totalatoms):
                     x = permindex[i]
@@ -293,7 +298,7 @@ QUIT         force quit without saving
                     sol = ""
                     if is_solute:
                         sol = " (solute)"
-                    print >> perm, "%6d ! %s %d%s" % (x + 1, rn, ri, sol)
+                    print >> perm, "%6d %6d ! %s %d%s" % (x + 1, i + 1, rn, ri, sol)
             safe_close(perm)
                         
             for i in range(mols):
