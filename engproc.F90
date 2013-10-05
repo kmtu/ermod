@@ -404,8 +404,8 @@ contains
                                         (stnum + irank - 1) * skpcnf, &
                                         flceng_g(1:numslv, cntdst, irank)
                       endif
-911                   format(i9,999f15.5)
-912                   format(2i9,999f15.5)
+911                   format(i9, 999f15.5)
+912                   format(2i9, 999f15.5)
                    endif
                 enddo
              enddo
@@ -443,7 +443,7 @@ contains
     character(len=3) :: suffeng
     integer, parameter :: eng_io = 71, cor_io = 72, slf_io = 73
     integer, parameter :: ave_io = 74, wgt_io = 75, uvr_io = 76
-    real, parameter :: tiny=1.0e-30
+    real, parameter :: tiny = 1.0e-30
     real :: voffset_local, voffset_scale
     real :: factor
     real, dimension(:), allocatable :: sve1, sve2
@@ -549,8 +549,8 @@ contains
        if(slttype == SLT_SOLN) then
           open(unit = ave_io, file = 'aveuv.tt', action = 'write')
           do k = 1, engdiv
-             write(ave_io,751) k, aveuv(k, 1:numslv)
-751          format(i5,9999f15.5)
+             write(ave_io, 751) k, aveuv(k, 1:numslv)
+751          format(i5, 999f15.5)
           end do
           endfile(ave_io)
           close(ave_io)

@@ -268,7 +268,7 @@ contains
     integer :: is, js, ismax, ati, atj
     real :: rst, dis2, epcl, xst(3), half_cell(3)
 
-    pairep=0.0
+    pairep = 0.0
     if(cltype == EL_COULOMB) return
 
     half_cell(:) = 0.5 * cell_len_normal(:) 

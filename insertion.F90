@@ -169,7 +169,7 @@ contains
     real, intent(inout) :: weight
     
     integer :: i, insb, inse
-    real :: com(3), syscen(3), r(3), norm, dir, t, s, maxdis, dst, movmax
+    real :: com(3), syscen(3), r(3), norm, dir, t, maxdis, dst, movmax
     real, parameter :: margin_factor = 3.0   ! see below for explanation
 
     select case(insposition)
@@ -190,16 +190,18 @@ contains
        return
     case(INSPOS_SPHERE)
        ! spherical random position
-       ! rejection method. Probability may not be good esp. lwreg ~ upreg.
+       call urand(t)
+       t = (t * (upreg ** 3 - lwreg ** 3) + lwreg ** 3) ** (1.0/3.0)
        do
           do i = 1, 3
              call urand(r(i))
           end do
           r(:) = r(:) * 2.0 - 1.0
           norm = sum(r ** 2)
-          if(norm < 1 .and. norm > (lwreg/upreg) ** 2) exit
+          if((0 < norm) .and. (norm <= 1)) exit
        end do
-       com(:) = r(:) * upreg
+       norm = sqrt(norm)
+       com(:) = t * r(:) / norm
        call shift_solute_com(insml, com)
        return
     case(INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)

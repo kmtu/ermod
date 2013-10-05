@@ -254,10 +254,15 @@ contains
 
     maxins = 1000
 
+    ! Unphysical initialization of lwreg and upreg
+    ! The program will terminate if lwreg or upreg stays unphysical when used
     lwreg = -1.0
-    upreg = lwreg
+    upreg = lwreg - 1.0
+
+    ! Unphysical initialization of lwstr and upstr
+    ! The program will terminate if lwstr or upstr stays unphysical when used
     lwstr = -1.0
-    upstr = lwstr
+    upstr = lwstr - 1.0
 
     if(intprm /= 0) then
       cmbrule = LJCMB_ARITH        ! arithmetic mean of LJ sigma
@@ -398,12 +403,12 @@ contains
     case(INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)
        ! check lwreg and upreg parameters
        if((lwreg < 0.0) .or. (upreg < 0.0) .or. &
-          (lwreg >= upreg)) call halt_with_error('set_reg')
+          (lwreg > upreg)) call halt_with_error('set_reg')
        if(insorigin /=INSORG_AGGCEN) check_refins = .false.
     case(INSPOS_RMSD, INSPOS_GAUSS)
        ! check lwreg and upreg parameters
        if((lwreg < 0.0) .or. (upreg < 0.0) .or. &
-          (lwreg >= upreg)) call halt_with_error('set_reg')
+          (lwreg > upreg)) call halt_with_error('set_reg')
        if(insorigin /= INSORG_REFSTR) call halt_with_error('set_ins')
     case default
        stop "Unknown insposition"
@@ -425,7 +430,7 @@ contains
     case(INSSTR_RMSD)
        ! check lwstr and upstr parameters
        if((lwstr < 0.0) .or. (upstr < 0.0) .or. &
-          (lwstr >= upstr)) call halt_with_error('set_str')
+          (lwstr > upstr)) call halt_with_error('set_str')
        ! check the solute type
        if(slttype == SLT_REFS_RIGID) call halt_with_error('set_slt')
     case default
