@@ -396,20 +396,27 @@ contains
     ! check insposition parameter
     check_refins = .true.
     select case(insposition)
-    case(INSPOS_RANDOM)
+    case(INSPOS_RANDOM)                               ! random
        if(insorigin /= INSORG_ORIGIN) check_refins = .false.
-    case(INSPOS_NOCHANGE)
+    case(INSPOS_NOCHANGE)                             ! fixed configuration
        if(insorigin /= INSORG_NOCHANGE) check_refins = .false.
-    case(INSPOS_SPHERE, INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)
-       ! check lwreg and upreg parameters
-       if((lwreg < 0.0) .or. (upreg < 0.0) .or. &
-          (lwreg > upreg)) call halt_with_error('set_reg')
+    case(INSPOS_SPHERE)                               ! sphere geometry
        if(insorigin /=INSORG_AGGCEN) check_refins = .false.
-    case(INSPOS_RMSD, INSPOS_GAUSS)
        ! check lwreg and upreg parameters
        if((lwreg < 0.0) .or. (upreg < 0.0) .or. &
           (lwreg > upreg)) call halt_with_error('set_reg')
+    case(INSPOS_SLAB_GENERIC, INSPOS_SLAB_SYMMETRIC)  ! slab configuration
+       if(insorigin /=INSORG_AGGCEN) check_refins = .false.
+       ! check lwreg and upreg parameters
+       if(lwreg > upreg) call halt_with_error('set_reg')
+       if(insposition == INSPOS_SLAB_SYMMETRIC) then  ! symmetric bilayer
+          if((lwreg < 0.0) .or. (upreg < 0.0)) call halt_with_error('set_reg')
+       endif
+    case(INSPOS_RMSD, INSPOS_GAUSS)                   ! comparison to reference
        if(insorigin /= INSORG_REFSTR) call halt_with_error('set_ins')
+       ! check lwreg and upreg parameters
+       if((lwreg < 0.0) .or. (upreg < 0.0) .or. &
+          (lwreg > upreg)) call halt_with_error('set_reg')
     case default
        stop "Unknown insposition"
     end select
@@ -420,14 +427,16 @@ contains
     ! check insorient parameter
     select case(insorient)
     case(INSROT_RANDOM, INSROT_NOCHANGE)
+       ! do nothing
     case default
        stop "Unknown insorient"
     end select
 
     ! check insstructure parameter
     select case(insstructure)
-    case(INSSTR_NOREJECT)
-    case(INSSTR_RMSD)
+    case(INSSTR_NOREJECT)    ! no rejection of solute structure
+       ! do nothing
+    case(INSSTR_RMSD)        ! solute structure rejection with RMSD
        ! check lwstr and upstr parameters
        if((lwstr < 0.0) .or. (upstr < 0.0) .or. &
           (lwstr > upstr)) call halt_with_error('set_str')
