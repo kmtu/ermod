@@ -371,7 +371,7 @@ contains
   end subroutine
 
   subroutine datread(cntrun)
-    use sysvars, only: refmerge, zero, tiny, &
+    use sysvars, only: refmerge, tiny, &
          solndirec, refsdirec, slndnspf, slncorpf, refdnspf, refcorpf, numbers
     implicit none
     integer, intent(in) :: cntrun
@@ -459,10 +459,6 @@ contains
              do iduv = 1, ermax
                 read(71, *) rdcrd(iduv), pti, factor
                 if(pti /= k) then
-                   if(factor > zero) then
-                      write(6, *) ' Incorrect energy range with species ', pti
-                      stop
-                   endif
                    k = pti
                    m = m + 1
                 endif
@@ -976,8 +972,8 @@ contains
           cnt = 1
           j = 0
        else
-          cnt = 1 + sum( rduvmax(1: pti-1) )
-          j = sum( uvmax(1: pti-1) )
+          cnt = 1 + sum( rduvmax(1:(pti - 1)) )
+          j = sum( uvmax(1:(pti - 1)) )
        endif
        do iduv = cnt, cnt + rduvmax(pti) - 1
           k = (iduv - cnt) / group + 1

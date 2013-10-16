@@ -376,7 +376,7 @@ contains
           if(sum(randq ** 2) < 1) exit
        end do
 
-       randq(:) = randq(:) / sqrt(sum(randq**2)) ! set on unit hyper-sphere surface
+       randq(:) = randq(:) / sqrt(sum(randq ** 2)) ! set on unit hyper-sphere surface
        call rotate_inplace(numsite(insml), sitepos(1:3, insb:inse), randq)
 
        call com_unshift(n, sitepos(1:3, insb:inse), sitemass(insb:inse), com)
