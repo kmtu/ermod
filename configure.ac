@@ -271,7 +271,7 @@ AM_CONDITIONAL(USE_MPI, [test "x$use_mpi" = "xyes"])
 AS_IF([test "x$use_mpi" = "xyes"],
 	    [mpi_result="enabled"
 	     FC_CANONICAL="$FC"
-	     FC="$MPIFC"],
+	     FC="$MPIFC -DMPI"],
 	    [mpi_result="disabled"
 	     FC_CANONICAL="$FC"])
 AC_SUBST([FC_CANONICAL])
