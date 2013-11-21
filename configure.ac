@@ -80,7 +80,7 @@ AS_IF([test "x$with_mkl" != "x"],
   with_blas="-mkl=parallel"
   MY_CHECK_BLAS([Intel composer default], [$with_blas])
   AS_IF([test "x$blas_ok" = "xyes"],
-        [FCFLAGS="-mkl=parallel"],
+        [FCFLAGS="-mkl=parallel $FCFLAGS"],
         [
          # Here comes super-duper crazily dirty MKL versioning checker
          # check 10.0 - 10.2
