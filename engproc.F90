@@ -573,7 +573,7 @@ contains
        endfile(wgt_io)
        close(wgt_io)
 
-       open(uvr_io, file='uvrange.tt', action='write')
+       open(uvr_io, file = 'uvrange.tt', action = 'write')
        write(uvr_io,'(A)') ' species     minimum        maximum'
        do pti = 0, numslv
           if(maxuv(pti) < 1.0e5) then
