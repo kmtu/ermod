@@ -43,27 +43,30 @@ contains
          io_flcuv, SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, PT_SOLVENT, YES
     use mpiproc, only: halt_with_error, warning, myrank
     implicit none
-    real ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax
-    real eclbin, ecfbin, ec0bin, finfac, ectmvl
-    integer peread, pemax, pesoft, pecore, solute_moltype
     character(*), parameter :: ecdfile = 'EcdInfo'
     integer, parameter :: ecdio = 51       ! IO for ecdfile
-    real, parameter :: infty = 1.0e50      ! essentially equal to infinity
+    real :: ecdmin, ecfmns, ecmns0, ecdcen, ecpls0, ecfpls, eccore, ecdmax
+    real :: eclbin, ecfbin, ec0bin, finfac, ectmvl
+    integer :: pecore, peread
+    ! pemax :  number of discretization of the solute-solvent energy
+    ! pesoft : number of discretization in the soft interaction region
+    !    they are constructed from other parameters (pemax = pesoft + pecore)
+    integer pemax, pesoft
     !
-    integer, parameter :: rglmax = 5, large = 10000, too_large_ermax = 15000
+    real, parameter :: infty = 1.0e50      ! essentially equal to infinity
     real, parameter :: tiny = 1.0e-30
-    integer iduv, i, q, pti, regn, minrg, maxrg, uprgcd(0:rglmax+1)
-    real factor, incre, cdrgvl(0:rglmax+1), ecpmrd(large)
+    integer, parameter :: rglmax = 5, large = 10000, too_large_ermax = 15000
+    real :: factor, incre, cdrgvl(0:rglmax+1), ecpmrd(large)
+    integer :: solute_moltype
+    integer :: iduv, i, q, pti, regn, minrg, maxrg, uprgcd(0:rglmax+1)
     integer, dimension(:), allocatable :: tplst
     real, dimension(:,:), allocatable  :: ercrd
     !
-    integer, parameter :: paramfile_io=191
+    integer, parameter :: paramfile_io = 191
     integer :: param_err
     logical :: check_ok
-    namelist /hist/ ecdmin, ecfmns, ecmns0, ecdcen, &
-                    ecpls0, ecfpls, eccore, ecdmax, &
-                    eclbin, ecfbin, ec0bin, finfac, ectmvl, &
-                    peread, pemax, pesoft, pecore
+    namelist /hist/ ecdmin, ecfmns, ecdcen, eccore, ecdmax, &
+                    eclbin, ecfbin, ec0bin, finfac, pecore, peread
     !
     allocate( tplst(nummol) )
     numslt = 0
@@ -129,16 +132,20 @@ contains
                 backspace(ecdio)
                 if(pti == 0) then      ! solute self-energy
                    read(ecdio,*) iduv, ecpmrd(1:8)
-                   pecore = 0          ! no core region for solute self-energy
-                endif
-                if(pti >  0) then      ! solute-solvent interaction energy
+                   pecore = 0            ! no core region for self-energy
+                else                   ! solute-solvent interaction energy
                    read(ecdio,*) iduv, ecpmrd(1:9), pecore
                    ecdmax = ecpmrd(9)
                    if(pecore <= 1) call halt_with_error('eng_pcr')
                 endif
-                eclbin = ecpmrd(1) ; ecfbin = ecpmrd(2) ; ec0bin = ecpmrd(3)
-                finfac = ecpmrd(4) ; ecdmin = ecpmrd(5) ; ecfmns = ecpmrd(6)
-                ecdcen = ecpmrd(7) ; eccore = ecpmrd(8)
+                eclbin = ecpmrd(1)
+                ecfbin = ecpmrd(2)
+                ec0bin = ecpmrd(3)
+                finfac = ecpmrd(4)
+                ecdmin = ecpmrd(5)
+                ecfmns = ecpmrd(6)
+                ecdcen = ecpmrd(7)
+                eccore = ecpmrd(8)
                 if(eccore < tiny) pecore=0
                 if(pecore == 1) call halt_with_error('eng_pcr')
                 exit
@@ -204,8 +211,9 @@ contains
           end do
        end do
 
-       if(pti == 0) esmax = pesoft    ! solute self-energy
-       if(pti >  0) then              ! solute-solvent interaction energy
+       if(pti == 0) then              ! solute self-energy
+          esmax = pesoft
+       else                           ! solute-solvent interaction energy
           uvmax(pti) = pemax
           uvsoft(pti) = pesoft
           ermax = ermax + pemax

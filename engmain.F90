@@ -215,17 +215,14 @@
 !   voffset : offset value for the self-energy
 !
 !  constants defining the discretized energy coordinate
-!     these appear only in the enginit subroutine
+!     these appear only in the enginit subroutine of engproc.F90
 !     and are used for each of the solute and solvent species
+!     ecmns0, ecpls0, and ecfpls are internally set within enginit
+!     and cannot be changed in the parameter files
 !   peread : determines whether the parameters are read from a separate file
-!       0 : parameters are read from param_eng
+!       0 : parameters are read from parameters_er (default)
 !       1 : parameters are read separately from a file EcdInfo
-!     default = 0
-!   pemax : number of discretization of the solute-solvent energy
-!   pesoft : number of discretization in the soft interaction region
 !   pecore : number of discretization in the core interaction region
-!            pemax and pesoft are constructed from other parameters
-!            pemax = pesoft + pecore
 !   ecdmin : minimum value of the solute-solvent energy
 !   ecfmns : smaller side of the finely dicretized solute-solvent energy
 !   ecmns0 : smaller side of the very finely dicretized energy near ecdcen
@@ -237,6 +234,8 @@
 !   eclbin : linear mesh for the solute-solvent energy
 !   ecfbin : fine linear mesh for the solute-solvent energy
 !   ec0bin : very fine linear mesh for the solute-solvent energy near 0
+!   finfac : additional "margin" is set in the low-energy domain
+!                       by shifting ecdmin and ecfmns by finfac * ecfbin 
 !
 !
 module engmain
