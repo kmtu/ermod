@@ -1,4 +1,4 @@
-version 0.3.alpha9 (XX/YY/2013)
+version 0.3.beta1 (XX/YY/2013)
 * Energy Histogram Computation:
     * Non-orthogonal periodic box is now correctly handled.
 * Misc:
@@ -6,6 +6,7 @@ version 0.3.alpha9 (XX/YY/2013)
     * A workaround was implemented in configure agaist a bug in MKL ver 10.3.
     * Added ERMOD_FORCE_PLUGIN_TYPE environment to coerce file format detection.
     * Workaround cpp's error when using AMBER force field in GROMACS
+    * Some histogram parameters are no longer adjustable (ticket #7)
 
 version 0.3.alpha8 (04/10/2013)
 * Solvation Free Energy:
