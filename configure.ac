@@ -356,6 +356,7 @@ LAPACK: $lapack_result
 FFT: $with_fft
 MPI: $mpi_result
 OpenMP: $enable_openmp
+FC=$FC
 FCFLAGS=$FCFLAGS
 
 Configuration complete; type \"make\" to start compiling])
