@@ -283,7 +283,7 @@ void vmdfio_open_traj_(void **handle, char *fname, int *fnamelen, int *status)
 		  "Error!\n"
 		  "Plugin supports file format \"%s\", estimated from the extension \"%s\".\n"
 		  "But the file format of \"%s\" does not match to the estimated format.\n"
-		  "This is possibly that the file has an incorrect extension, or the trajectory file header is corrupt.\n",
+		  "This is possibly that the file has an incorrect extension, the file is a nested symbolic link (which is unsupported), or the trajectory file header is corrupt.\n",
 		  p -> prettyname, ext, buf);
 	  /* Special error message for AMBER */
 	  if(strcmp(ext, "nc") == 0) {
