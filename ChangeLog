@@ -1,4 +1,4 @@
-version 0.3.beta1 (08/02/2013)
+version 0.3.beta1 (02/08/2013)
 * Energy Histogram Computation:
     * Non-orthogonal periodic box is now correctly handled.
     * Treatment of asymmetric slab geometry is made possible.
