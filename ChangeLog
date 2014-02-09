@@ -1,11 +1,12 @@
-version 0.3.beta1 (XX/YY/2013)
+version 0.3.beta1 (08/02/2013)
 * Energy Histogram Computation:
     * Non-orthogonal periodic box is now correctly handled.
-* Misc:
     * Treatment of asymmetric slab geometry is made possible.
-    * A workaround was implemented in configure agaist a bug in MKL ver 10.3.
+* File I/O:
     * Added ERMOD_FORCE_PLUGIN_TYPE environment to coerce file format detection.
-    * Workaround cpp's error when using AMBER force field in GROMACS
+* Bug fixes:
+    * A workaround was implemented in configure agaist a bug in MKL ver 10.3.
+    * Workaround cpp's error when using AMBER force field in GROMACS. This is not perfect (yet).
     * Some histogram parameters are no longer adjustable (ticket #7)
 
 version 0.3.alpha8 (04/10/2013)
