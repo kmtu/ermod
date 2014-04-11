@@ -23,6 +23,16 @@ AC_PROG_CC_C_O
 AM_PROG_CC_C_O
 AC_PROG_FC([ifort xlf90 xlf f95 f90 frt gfortran g95])
 
+# Check for buggy variant of ifort.
+AS_IF([test x$FC = xifort],
+      [version=`$FC --version`
+       case "x$version" in # (
+       *12.1.*):
+         AC_MSG_ERROR([This program does not run correctly with Intel Compiler 12.1.x])
+       ;;
+       esac
+       ])
+
 # modified MPI detector (searches mpiifort first)
 AC_LANG(Fortran)
 ACX_MPI_MY
@@ -155,7 +165,7 @@ if test $my_check_realasdouble = no; then
   AC_MSG_ERROR([unable to find compiler flag to read real as real(8)])
 fi
 FCFLAGS="$save_FCFLAGS $flag"
-if test x$flag = x; then
+if test "x$flag" = x; then
   echo -n "(none)"
 else
   echo -n $flag
