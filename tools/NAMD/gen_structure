@@ -102,9 +102,10 @@ if not os.path.exists(options.topology):
 
 # read LJ interaction parameters from topology file
 atomtable = {}
+fixtable = {}
 for parfile in parfs:
     fh = open(parfile, "rt")
-    state = False
+    state = None
     for l in fh:
         l = l.strip()
         if len(l) == 0:
@@ -120,19 +121,24 @@ for parfile in parfs:
         if len(ls) == 0:
             continue
         kwd = ls[0]
-        if kwd == 'NONBONDED':
-            state = True
+        if kwd.upper() in ['NONBONDED', 'NBONDED', 'NBFIX']:
+            state = kwd.upper()
             continue
-        if kwd.upper() in ['NBFIX', 'HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP', 'END', 'RETURN']:
-            state = False
+        if kwd.upper() in ['HBOND', 'BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'CMAP', 'END', 'RETURN']:
+            state = None
             continue
-        if not state:
-            continue
-        # inside NONBOND-section
-        atoms = ls[0]
-        eps = -float(ls[2])
-        rmin = float(ls[3])
-        atomtable[atoms] = (eps, rmin)
+        if state in ['NONBONDED', 'NBONDED']:
+            # inside NONBOND-section
+            atoms = ls[0]
+            eps = -float(ls[2])
+            rmin = float(ls[3]) # This is indeed rmin/2
+            atomtable[atoms] = (eps, rmin)
+        if state == 'NBFIX':
+            (atom1, atom2, eps, rmin, _eps14, _rmin14) = ls
+            eps = -float(eps)
+            rmin = float(rmin) # Caution: this is rmin, not rmin/2! 
+            fixtable[(atom1, atom2)] = (eps, rmin)
+            fixtable[(atom2, atom1)] = (eps, rmin)
     fh.close()
 
 mass_table = {
@@ -363,6 +369,12 @@ You should manually edit parameters or even program to make it work.""")
 
 (atoms, solvent, slupos) = get_topology_info()
 
+if len(fixtable) > 0:
+    log("NBFIX entries are found")
+    error("NBFIX is not supported in current version of ERmod; please contact developer team")
+
+    # FIXME TODO: make LJTable here
+
 def gen(mode):
     if not os.path.exists(mode):
         os.mkdir(mode)
@@ -395,6 +407,7 @@ def gen(mode):
             (_aid, _seg, _resi, resname, _atomname, atomtype, charge, mass) = atoms[rb + j]
             (eps, rmin) = atomtable[atomtype]
             atom = atomtype_of_mass(float(mass))
+            # FIXME TODO: output LJTable version here
             print >> ofh, ("%d %s %.5f %.5f %.5f" % 
                            (j + 1, atom, float(charge), eps, rmin))
         safe_close(ofh)
