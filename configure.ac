@@ -150,7 +150,7 @@ if test $my_check_realasdouble = no; then
   AC_MSG_ERROR([unable to find compiler flag to read real as real(8)])
 fi
 FCFLAGS="$save_FCFLAGS $flag"
-if test x$flag = x; then
+if test "x$flag" = x; then
   echo -n "(none)"
 else
   echo -n $flag
