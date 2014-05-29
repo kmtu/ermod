@@ -19,6 +19,8 @@
 
 module engproc
   implicit none
+  character(len=10), parameter :: numbers='0123456789'
+  real, parameter :: tiny = 1.0e-30
   integer :: cntdst, slvmax
   integer :: maxdst
   integer :: tagslt
@@ -54,7 +56,6 @@ contains
     integer pemax, pesoft
     !
     real, parameter :: infty = 1.0e50      ! essentially equal to infinity
-    real, parameter :: tiny = 1.0e-30
     integer, parameter :: rglmax = 5, large = 10000, too_large_ermax = 15000
     real :: factor, incre, cdrgvl(0:rglmax+1), ecpmrd(large)
     integer :: solute_moltype
@@ -76,7 +77,7 @@ contains
           tplst(numslt) = i
           solute_moltype = moltype(i)
        endif
-    end do
+    enddo
     ! solute must have moltype value equal to solute_moltype
     if(any(sluvid(:) /= PT_SOLVENT .and. moltype(:) /= solute_moltype)) call halt_with_error('eng_typ')
     ! solvent must have moltype value not equal to solute_moltype
@@ -100,14 +101,19 @@ contains
     endif
     !
     ! number of solvent species
-    if(numslt == 1) numslv = numtype - 1
-    if(numslt >  1) numslv = numtype   ! solute can also be a solvent species
+    if(numslt == 1) then
+       numslv = numtype - 1
+    elseif(numslt > 1) then     ! solute can also be a solvent species
+       numslv = numtype
+    else
+       call halt_with_error('eng_bug')
+    endif
     !
     allocate( uvspec(nummol) )
     uvspec(1:nummol) = moltype(1:nummol)
-    if(numslt == 1) then    ! solute totally disappears in reference solvent
+    if(numslt == 1) then        ! solute is not present in reference solvent
       where(sluvid(:) /= PT_SOLVENT) uvspec(:) = 0 ! solute
-      ! After the solute, slide the value of molecule type
+      ! after the solute, slide the value of molecule type
       where(sluvid(:) == PT_SOLVENT .and. moltype(:) > solute_moltype) uvspec(:) = uvspec(:) - 1
     endif
     !
@@ -150,7 +156,7 @@ contains
                 if(pecore == 1) call halt_with_error('eng_pcr')
                 exit
              endif
-          end do
+          enddo
 3109      continue
           close(ecdio)
        end if
@@ -179,7 +185,7 @@ contains
           if(incre < factor) call halt_with_error('eng_ecd')
           iduv = nint(incre / factor)
           uprgcd(regn) = uprgcd(regn - 1) + iduv
-       end do
+       enddo
 
        pesoft = uprgcd(rglmax) - uprgcd(0)
        pemax = pesoft + pecore
@@ -208,8 +214,8 @@ contains
              if(regn == (rglmax + 1)) then
                 ercrd(iduv, pti) = ercrd(minrg, pti) * exp(incre)
              endif
-          end do
-       end do
+          enddo
+       enddo
 
        if(pti == 0) then              ! solute self-energy
           esmax = pesoft
@@ -218,7 +224,7 @@ contains
           uvsoft(pti) = pesoft
           ermax = ermax + pemax
        endif
-    end do
+    enddo
     
     allocate( uvcrd(ermax), edens(ermax) )
     i = 0
@@ -227,8 +233,8 @@ contains
        do iduv = 1, pemax
           i = i + 1
           uvcrd(i) = ercrd(iduv, pti)
-       end do
-    end do
+       enddo
+    enddo
 
     if(corrcal == YES) then
        if(ermax > too_large_ermax) call warning('emax')
@@ -248,7 +254,7 @@ contains
     do pti = 0, numslv
        minuv(pti) = infty
        maxuv(pti) = -infty
-    end do
+    enddo
     voffset = -infty
 
     call engclear
@@ -312,7 +318,6 @@ contains
     logical, allocatable :: flceng_stored_g(:,:)
     real, allocatable :: flceng_g(:,:,:)
     real, save :: prevcl(3,3)
-    real, parameter :: tiny = 1.0e-20
     logical :: skipcond
     logical, save :: pme_initialized = .false.
 
@@ -336,7 +341,7 @@ contains
           slvmax = slvmax + 1
           tplst(slvmax) = i
        end if
-    end do
+    enddo
     allocate( tagpt(slvmax) )
     allocate( uvengy(0:slvmax) )
     tagpt(1:slvmax) = tplst(1:slvmax)  ! and copied from tplst
@@ -368,7 +373,7 @@ contains
           do k = 1, slvmax
              i = tagpt(k)
              call recpcal_prepare_solvent(i)
-          end do
+          enddo
           call perf_time()
        endif
 
@@ -379,7 +384,7 @@ contains
           if(skipcond) cycle
           
           call update_histogram(stnum, stat_weight_solute, uvengy(0:slvmax))
-       end do
+       enddo
 
        select case(slttype)
        case(SLT_SOLN)                           ! for soln: output flceng
@@ -446,12 +451,10 @@ contains
     use mpiproc                                                      ! MPI
     implicit none
     integer :: stnum, pti, j, k, iduv, division
-    character(len=10), parameter :: numbers='0123456789'
     character(len=9) :: engfile
     character(len=3) :: suffeng
     integer, parameter :: eng_io = 71, cor_io = 72, slf_io = 73
     integer, parameter :: ave_io = 74, wgt_io = 75, uvr_io = 76
-    real, parameter :: tiny = 1.0e-30
     real :: voffset_local, voffset_scale
     real :: factor
     real, dimension(:), allocatable :: sve1, sve2
@@ -539,7 +542,7 @@ contains
     endif
     if(selfcal == YES) eself(1:esmax) = eself(1:esmax) / engnorm
     avslf = avslf / engnorm
-    !
+
     if(myrank /= 0) return                                            ! MPI
     !
     division = stnum / (maxcnf / skpcnf / engdiv)
@@ -559,7 +562,7 @@ contains
           do k = 1, engdiv
              write(ave_io, 751) k, aveuv(k, 1:numslv)
 751          format(i5, 999f15.5)
-          end do
+          enddo
           endfile(ave_io)
           close(ave_io)
        endif
@@ -577,7 +580,7 @@ contains
           case(YES)
              write(wgt_io, '(i5,e20.8,e20.7)') k, avediv(k,1), avediv(k,2)
           end select
-       end do
+       enddo
        endfile(wgt_io)
        close(wgt_io)
 
@@ -589,13 +592,13 @@ contains
           else
              write(uvr_io, '(i5,f15.5,g18.5)') pti, minuv(pti), maxuv(pti)
           endif
-       end do
+       enddo
        endfile(uvr_io)
        close(uvr_io)
     endif
 
     if(engdiv == 1) then
-       suffeng='.tt'
+       suffeng = '.tt'
     else
        j = division / 10
        k = mod(division, 10)
@@ -638,7 +641,7 @@ contains
        do iduv = 1, esmax
           call repval('self', iduv, factor)
           write(slf_io, '(g15.7,g25.15)') factor, eself(iduv)
-       end do
+       enddo
        endfile(slf_io)
        close(slf_io)
     endif
@@ -766,7 +769,7 @@ contains
 
     select case(wgtslf)
     case(NO)
-       engnmfc=1.0
+       engnmfc = 1.0
     case(YES)
        if(.not. voffset_initialized) then
           voffset = uvengy(0)
@@ -818,7 +821,7 @@ contains
        ! minimum and maxmium of solute-solvent energy
        minuv(pti) = min(minuv(pti), pairep)
        maxuv(pti) = max(maxuv(pti), pairep)
-    end do
+    enddo
 
     if(slttype == SLT_SOLN) then
        slnuv(:) = slnuv(:) + flceng(:, cntdst) * engnmfc
@@ -826,7 +829,8 @@ contains
 
     do iduv = 1, ermax
        k = insdst(iduv)
-       if(k > 0) edens(iduv) = edens(iduv) + engnmfc * real(k)
+       if(k == 0) cycle
+       edens(iduv) = edens(iduv) + engnmfc * real(k)
     enddo
     if(corrcal == YES) then
        do iduv = 1, ermax
@@ -837,9 +841,9 @@ contains
              q = insdst(iduvp)
              if(q == 0) cycle
 
-             ecorr(iduvp,iduv) = ecorr(iduvp,iduv) + engnmfc*real(k)*real(q)
-          end do
-       end do
+             ecorr(iduvp,iduv) = ecorr(iduvp,iduv) + engnmfc * real(k) * real(q)
+          enddo
+       enddo
     endif
 
     deallocate( insdst, engdst )
@@ -1093,7 +1097,7 @@ contains
        ! in the reffit subroutine within insertion.F90
        do i = 1, refhost_natom
           hostcrd(1:3, i) = sitepos(1:3, refhost_specatm(i))
-       end do
+       enddo
        call fit_a_rotate_b(refhost_natom, hostcrd, &
                            refhost_crd, refhost_weight, &
                            refslt_natom, refslt_crd, refslt_bestfit)
