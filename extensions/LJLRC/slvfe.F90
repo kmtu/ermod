@@ -79,7 +79,7 @@ module sysvars
        maxmesh, large, itrmax, error, tiny, &
        solndirec, refsdirec, wgtslnfl, wgtreffl, &
        slndnspf, slncorpf, refdnspf, refcorpf, &
-       cumuint, cumuintfl
+       aveuvfile, ecdinfofl, cumuint, cumuintfl
 
 contains
 

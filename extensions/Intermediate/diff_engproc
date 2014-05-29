@@ -1,0 +1,215 @@
+--- engproc.F90	2014-05-29 15:45:41.252876616 +0900
++++ extensions/Intermediate/engproc.F90	2014-05-29 19:30:51.127503008 +0900
+@@ -30,6 +30,15 @@
+   logical, allocatable :: flceng_stored(:)
+   real, allocatable :: flceng(:, :)
+ 
++  ! start of the extension for the method with the intermediate state
++  integer :: do_intermediate
++  character(len=1024) :: refs_filename = '../refs/engref'
++  logical, dimension(:), allocatable :: zerodns_crd
++  real, dimension(:),    allocatable :: edintm, uvintm
++  real, dimension(:,:),  allocatable :: avintm
++  real :: soln_total, soln_intm, norm_intm
++  ! end of the extension for the method with the intermediate state
++
+ contains
+   !
+   !  procedure for constructing energy distribution functions
+@@ -42,6 +51,7 @@
+          voffset, &
+          aveuv, slnuv, avediv, minuv, maxuv, numslt, sltlist, &
+          ene_confname, &
++         NO, &       ! extension for the method with the intermediate state
+          io_flcuv, SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, PT_SOLVENT, YES
+     use mpiproc, only: halt_with_error, warning, myrank
+     implicit none
+@@ -66,6 +76,14 @@
+     integer, parameter :: paramfile_io = 191
+     integer :: param_err
+     logical :: check_ok
++    ! start of the extension for the method with the intermediate state
++    logical :: edens_exist
++    character(len=1024) :: opnfile
++    integer, parameter :: sufmax = 99, refs_io = 81
++    character(len=3), parameter :: default_suf = '.tt'
++    character(len=3) :: count_suf
++    namelist /intermediate/ do_intermediate, refs_filename
++    ! end of the extension for the method with the intermediate state
+     namelist /hist/ ecdmin, ecfmns, ecdcen, eccore, ecdmax, &
+                     eclbin, ecfbin, ec0bin, finfac, pecore, peread
+     !
+@@ -257,6 +275,48 @@
+     enddo
+     voffset = -infty
+ 
++    ! start of the extension for the method with the intermediate state
++    do_intermediate = NO                 ! default = don't do it
++    if(slttype == SLT_SOLN) then
++       open(unit = paramfile_io, file = ene_confname, action = "read", iostat = param_err)
++       if(param_err == 0) then
++          read(paramfile_io, nml = intermediate)
++          close(paramfile_io)
++       endif
++       if(do_intermediate == YES) then
++          allocate( zerodns_crd(ermax), edintm(ermax) )
++          allocate( avintm(engdiv, numslv), uvintm(numslv) )
++          zerodns_crd(:) = .true.
++          soln_total = 0.0
++          soln_intm = 0.0
++          opnfile = trim(refs_filename) // default_suf
++          inquire(file = opnfile, exist = edens_exist)
++          if( edens_exist ) then
++             regn = 1
++          else
++             regn = sufmax
++          endif
++          do pti = 1, regn
++             if(regn == sufmax) then
++                i = pti / 10
++                q = mod(pti, 10)
++                count_suf = '.' // numbers(i+1:i+1) // numbers(q+1:q+1)
++                opnfile = trim(refs_filename) // count_suf
++                inquire(file = opnfile, exist = edens_exist)
++             endif
++             if( edens_exist ) then
++                open(unit = refs_io, file = opnfile, action = "read")
++                do iduv = 1, ermax
++                   read(refs_io, *) i, i, factor
++                   if(factor > tiny) zerodns_crd(iduv) = .false.
++                enddo
++                close(refs_io)
++             endif
++          enddo
++       endif
++    endif
++    ! end of the extension for the method with the intermediate state
++
+     call engclear
+ 
+     ! Output for energy fluctuation
+@@ -284,6 +344,13 @@
+     avslf = 0.0
+     engnorm = 0.0
+     engsmpl = 0.0
++    ! start of the extension for the method with the intermediate state
++    if(do_intermediate == YES) then
++       edintm(:) = 0.0
++       uvintm(:) = 0.0
++       norm_intm = 0.0
++    endif
++    ! end of the extension for the method with the intermediate state
+     return
+   end subroutine engclear
+ 
+@@ -459,6 +526,7 @@
+     real :: factor
+     real, dimension(:), allocatable :: sve1, sve2
+     real, dimension(:, :), allocatable :: sve3
++    integer, parameter :: prb_io = 81  ! extension with the intermediate state
+     call mpi_info                                                    ! MPI
+     !
+ 
+@@ -543,6 +611,79 @@
+     if(selfcal == YES) eself(1:esmax) = eself(1:esmax) / engnorm
+     avslf = avslf / engnorm
+ 
++    ! start of the extension for the method with the intermediate state
++    if(do_intermediate == YES) then
++#ifdef MPI
++       if(wgtslf == YES) then
++          soln_total = soln_total * voffset_scale
++          soln_intm = soln_intm * voffset_scale
++          norm_intm = norm_intm * voffset_scale
++          edintm(:) = edintm(:) * voffset_scale
++          uvintm(:) = uvintm(:) * voffset_scale
++       endif
++
++       if(plmode == 2) then
++          call mpi_reduce(norm_intm, factor, 1, &
++               mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
++          norm_intm = factor
++          call mympi_reduce_real(uvintm, numslv, mpi_sum, 0)
++          allocate( sve1(ermax) )
++          sve1(1:ermax) = edintm(1:ermax)
++          call mpi_reduce(sve1, edintm, ermax, &
++               mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
++          deallocate( sve1 )
++
++          if(stnum == maxcnf) then
++             call mpi_reduce(soln_total, factor, 1, &
++                  mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
++             soln_total = factor
++             call mpi_reduce(soln_intm, factor, 1, &
++                  mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
++             soln_intm = factor
++          endif
++       endif
++#endif
++       edintm(:) = edintm(:) / norm_intm
++       if(myrank == 0) then
++          division = stnum / (maxcnf / skpcnf / engdiv)
++          if(engdiv == 1) then
++             suffeng = '.tt'
++          else
++             j = division / 10
++             k = mod(division, 10)
++             suffeng = '.' // numbers(j+1:j+1) // numbers(k+1:k+1)
++          endif
++
++          engfile = 'engint' // suffeng
++          open(unit = eng_io, file = engfile, form = "FORMATTED", action = 'write')
++          do iduv = 1, ermax
++             call repval('intn', iduv, factor, pti)
++             write(eng_io, '(g15.7,i5,g25.15)') factor, pti, edintm(iduv)
++          enddo
++          endfile(eng_io)
++          close(eng_io)
++          avintm(division, :) = uvintm(:) / norm_intm
++
++          if(stnum == maxcnf) then
++             factor = soln_intm / soln_total
++             open(unit = prb_io, file = 'Prob_Result', action = 'write')
++             write(prb_io, '(a,f12.6)') ' Probability to find the system in the intermediate state = ', factor
++             write(prb_io, '(a)') ' Free-energy change from the intermediate state to the simulated state'
++             write(prb_io, '(a,f12.6,a)') '                                                = ', temp * log(factor), ' kcal/mol'
++             endfile(prb_io)
++             close(prb_io)
++
++             open(unit = ave_io, file = 'avint.tt', action = 'write')
++             do k = 1, engdiv
++                write(ave_io, 751) k, avintm(k, 1:numslv)
++             enddo
++             endfile(ave_io)
++             close(ave_io)
++          endif
++       endif
++    endif
++    ! end of the extension for the method with the intermediate state
++
+     if(myrank /= 0) return                                            ! MPI
+     !
+     division = stnum / (maxcnf / skpcnf / engdiv)
+@@ -846,6 +987,22 @@
+        enddo
+     endif
+ 
++    ! start of the extension for the method with the intermediate state
++    if(do_intermediate == YES) then
++       soln_total = soln_total + engnmfc
++       if(any( (insdst(:) > 0) .and. (zerodns_crd(:)) )) then
++       else
++          soln_intm = soln_intm + engnmfc
++          norm_intm = norm_intm + engnmfc
++          do iduv = 1, ermax
++             k = insdst(iduv)
++             if(k > 0) edintm(iduv) = edintm(iduv) + engnmfc * real(k)
++          enddo
++          uvintm(:) = uvintm(:) + flceng(:, cntdst) * engnmfc
++       endif
++    endif
++    ! end of the extension for the method with the intermediate state
++
+     deallocate( insdst, engdst )
+   end subroutine update_histogram
+ 
