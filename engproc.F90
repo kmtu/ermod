@@ -321,7 +321,7 @@ contains
     logical :: skipcond
     logical, save :: pme_initialized = .false.
     ! FIXME: this call to mpi_info is sprious
-    call mpi_info                                                    ! MPI
+    call mpi_rank_size_info                                          ! MPI
     call mpi_init_active_group(nactiveproc)
 
     call sanity_check_sluvid()
@@ -453,7 +453,7 @@ contains
     real, parameter :: tiny=1.0e-30
     real, dimension(:), allocatable :: sve1,sve2
     character(len=11) :: formtype="UNFORMATTED"
-    call mpi_info                                                    ! MPI
+    call mpi_rank_size_info                                          ! MPI
     !
 
     ! synchronize voffset

@@ -195,7 +195,7 @@ contains
     real, parameter :: tiny=1.0e-20
     real :: real_seed
     character*3 scrtype
-    call mpi_info                                                    ! MPI
+    call mpi_rank_size_info                                          ! MPI
 
     intprm=1                    ! trajectory reading
     if(intprm.eq.1) then        ! default settings for trajectory reading

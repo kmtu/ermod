@@ -59,7 +59,7 @@ contains
 #ifdef PERF
        walltime = MPI_WTIME()
 #endif
-       call mpi_info
+       call mpi_rank_size_info
        times(:) = 0.0
     endif
     if(type.eq.'stop') then                                          ! MPI
