@@ -66,7 +66,7 @@ contains
 #ifdef PERF
        walltime = MPI_WTIME()
 #endif
-       call mpi_info
+       call mpi_rank_size_info
        times(:) = 0.0
     endif
     if(type == 'stop') then
@@ -86,7 +86,7 @@ contains
 #endif
   end subroutine mpi_setup
 
-  subroutine mpi_info
+  subroutine mpi_rank_size_info
     nprocs=1
     myrank=0
 #ifdef MPI
@@ -94,7 +94,7 @@ contains
     call mpi_comm_rank(mpi_comm_world,myrank,ierror)
 #endif
     return
-  end subroutine mpi_info
+  end subroutine mpi_rank_size_info
 
   subroutine mpi_abend()
     integer :: ierror

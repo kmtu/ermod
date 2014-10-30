@@ -178,13 +178,13 @@ contains
          OUTcmb, OUTclt, OUTscr, OUTspo, &       ! from outside
          OUTew1, OUTew2, OUTew3, &               ! from outside
          OUTms1, OUTms2, OUTms3                  ! from outside
-    use mpiproc, only: mpi_info, halt_with_error                     ! MPI
+    use mpiproc, only: mpi_rank_size_info, halt_with_error           ! MPI
     implicit none
     real, parameter :: tiny = 1.0e-20
     real :: real_seed
     logical :: check_refins
     character(len=3) :: scrtype
-    call mpi_info                                                    ! MPI
+    call mpi_rank_size_info                                          ! MPI
 
     intprm=1                                     ! trajectory reading
     select case(intprm)

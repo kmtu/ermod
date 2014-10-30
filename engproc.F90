@@ -459,7 +459,7 @@ contains
     real :: factor
     real, dimension(:), allocatable :: sve1, sve2
     real, dimension(:, :), allocatable :: sve3
-    call mpi_info                                                    ! MPI
+    call mpi_rank_size_info                                          ! MPI
     !
 
     ! synchronize voffset
