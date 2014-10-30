@@ -79,7 +79,7 @@ contains
 #endif
   end subroutine mpi_setup                                                   ! MPI
 
-  subroutine mpi_info                                              ! MPI
+  subroutine mpi_rank_size_info                                      ! MPI
     nprocs=1
     myrank=0
 #ifndef noMPI
@@ -87,7 +87,7 @@ contains
     call mpi_comm_rank(mpi_comm_world,myrank,ierror)                 ! MPI
 #endif
     return
-  end subroutine mpi_info                                                   ! MPI
+  end subroutine mpi_rank_size_info                                  ! MPI
 
   subroutine mpi_abend()
     integer :: ierror
