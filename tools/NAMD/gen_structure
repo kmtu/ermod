@@ -294,8 +294,9 @@ def get_topology_info():
         a = atoms[ia]
         if a[1] in solutes:
             if end_solute:
-                warn("""Solute is not contiguous, or does not contain the first atom.
-You should manually edit parameters or even program to make it work.""")
+                # If you DO know what you are doing, comment the next line and manually modify the resulting file.
+                error("""Solute is not contiguous, or the first atom in the system is not solute.
+If you believe that the solute is contiguous, remodel the system moving the solute to the beginning of the system, then rerun gen_structure.""")
                 end_solute = False
             if soluteatom == None:
                 soluteatom = ia
