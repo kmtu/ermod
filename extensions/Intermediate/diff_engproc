@@ -1,5 +1,5 @@
---- engproc.F90	2014-05-29 15:45:41.252876616 +0900
-+++ extensions/Intermediate/engproc.F90	2014-05-29 19:30:51.127503008 +0900
+--- engproc.F90	2014-12-12 13:57:38.151984788 +0900
++++ extensions/Intermediate/engproc.F90	2014-12-12 14:29:08.918737330 +0900
 @@ -30,6 +30,15 @@
    logical, allocatable :: flceng_stored(:)
    real, allocatable :: flceng(:, :)
@@ -107,7 +107,7 @@
      real, dimension(:), allocatable :: sve1, sve2
      real, dimension(:, :), allocatable :: sve3
 +    integer, parameter :: prb_io = 81  ! extension with the intermediate state
-     call mpi_info                                                    ! MPI
+     call mpi_rank_size_info                                          ! MPI
      !
  
 @@ -543,6 +611,79 @@
