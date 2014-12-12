@@ -4,7 +4,7 @@ implements the method using the intermediate state introduced in Refs 1 and 2.
 Ref 1: T. Kawakami, I. Shigemoto, and N. Matubayasi,
        J. Chem. Phys., 137, 234903 (9 pages) (2012) (see Appendix A).
 Ref 2: S. Sakuraba and N. Matubayasi
-       J Comp. Chem., 35, 1592–1608 (2014) (see Appendix C).
+       J Comp. Chem., 35, 1592-1608 (2014) (see Appendix C).
 
 This method is a cure for treating a problematic low-energy tail if present.
 

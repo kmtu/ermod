@@ -527,7 +527,7 @@ contains
     real, dimension(:), allocatable :: sve1, sve2
     real, dimension(:, :), allocatable :: sve3
     integer, parameter :: prb_io = 81  ! extension with the intermediate state
-    call mpi_info                                                    ! MPI
+    call mpi_rank_size_info                                          ! MPI
     !
 
     ! synchronize voffset
