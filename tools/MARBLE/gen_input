@@ -1,0 +1,298 @@
+#!/usr/bin/env python
+
+import os
+import os.path
+import shutil
+import sys
+import re
+import pickle
+from optparse import OptionParser
+
+parser = OptionParser()
+
+# only have to specify one of three:
+parser.add_option("-l", "--log", dest = "log",
+                  help = "MARBLE log file")
+
+parser.add_option("-t", "--trj", dest = "trj",
+                  help = "Solution or reference trajectory file (MARBLE foramt)")
+
+parser.add_option("-x", "--dcd", dest = "dcd",
+                  help = "Solution or reference trajectory file (DCD format)")
+
+parser.add_option("-p", "--pdb", dest = "pdb",
+                  help = "(deprecated) same as --rigid")
+parser.add_option("-r", "--rigid", dest = "pdb",
+                  help = "Solute structure PDB file (for rigid insertion)")
+
+parser.add_option("-s", "--flexible", dest = "solute",
+                  help = "Solute trajectory file (for flexible insertion)")
+
+parser.add_option("-d", "--div", dest = "div", type = "int",
+                  help = "Number of sections divided into",
+                  default = None)
+
+parser.add_option("--minenergy", dest = "minenergy", type = "float",
+                  help = "Minimum energy",
+                  default = -20.0)
+
+parser.add_option("--maxins", dest = "maxins", type = "int",
+                  help = "Number of insertions for refs (default:1000)",
+                  default = 1000)
+
+parser.add_option("--inscfg", dest = "inscfg", type = "choice",
+                  choices = ['tr&rot', 'tr', 'fix'],
+                  help = "Type of insertions (tr&rot,tr,fix) for refs (default:tr&rot)",
+                  default = "tr&rot")
+
+(options, args) = parser.parse_args()
+
+if options.log == None:
+    print >> sys.stderr, "Error: log file is not specified (try --help)"
+    sys.exit(1)
+
+if options.trj == None and options.dcd == None :
+    print >> sys.stderr, "Error: trj or dcd file is not specified (try --help)"
+    sys.exit(1)
+
+if options.trj != None and options.dcd != None :
+    print >> sys.stderr, "Error: one of trj and dcd files must be specified (try --help)"
+    sys.exit(1)
+
+if options.inscfg == "tr&rot" :
+    inscfg = 0
+elif options.inscfg == "tr" :
+    inscfg = 1
+elif options.inscfg == "fix" :
+    inscfg = 2
+
+def check_exists(f):
+    if not os.path.exists(f):
+        print >> sys.stderr, "Error:", f, "file does not exist"
+        sys.exit(1)
+
+check_exists("MDinfo")
+check_exists("SltInfo")
+if options.trj:
+    check_exists(options.trj)
+if options.dcd:
+    check_exists(options.dcd)
+check_exists(options.log)
+if options.pdb:
+    check_exists(options.pdb)
+if options.solute:
+    check_exists(options.solute)
+
+carryover = {}
+if os.path.exists(".extraparam"):
+    ifh = file(".extraparam", "rt")
+    carryover = pickle.load(ifh)
+    ifh.close()
+
+def parse_log():
+    logfh = open(options.log, "rt")
+    temp = 300.0
+    simtype = 1 # nvt
+    is_periodic = 0
+    cut = 0.
+    switchlj = 0.
+    coulombtype = 0
+    if options.pdb:
+        mode = 2 # fixed
+    elif options.solute:
+        mode = 3 # flexible
+    else:
+        mode = 1 # solution
+    total = 0
+    freq = 0
+    step2 = 0
+    for l in logfh:
+        if re.search(r"\*\*  STEP 2\.  Setup", l):
+            step2 = 1
+            continue
+        
+        if step2 == 0:
+            continue
+
+        # EXTENDED SYSTEM P-CONSTANT SIMULATION: P=1.00 [atm]
+        if re.search(r"P-CONSTANT SIMULATION", l):
+            simtype = 2 # npt
+
+        # EXTENDED SYSTEM T-CONSTANT SIMULATION: T=298.15 [K]
+        m = re.search(r"T-CONSTANT SIMULATION: T=([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
+        if m:
+            temp = float(m.group(1))
+
+        # Cutoff Length            =  12.0
+        # Smoothing Start Length   =  10.0 (Margin 2.0)
+        m = re.search(r"Cutoff Length\s+=\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
+        if m:
+            cut = float(m.group(1))
+        m = re.search(r"Smoothing Start Length\s+=\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
+        if m:
+            switchlj = float(m.group(1))
+
+        # Periodic Boundary Condition:
+        if re.search(r"Periodic Boundary Condition:", l):
+            is_periodic = 1
+
+        # Particle Mesh Ewald:
+        # Ewald Tolerance  : 1.00e-06
+        # Ewald Coefficient: 0.312341
+        # PME Grid         : 144 144 144
+        # Spline Order     : 4
+        # Number of PEs    : 72
+        # Resolution of erfc : 10000
+        # Table for erfc   : 34357 points for 11.00 Angstrom
+        if re.search(r"Particle Mesh Ewald:", l):
+            coulombtype = 2 # PME
+        m = re.search(r"Ewald Coefficient:\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
+        if m:
+            alpha = float(m.group(1))
+        m = re.search(r"Spline Order\s+:\s+(\d+)", l)
+        if m:
+            pme_order = int(m.group(1))
+        m = re.search(r"PME Grid\s+:\s+(\d+) (\d+) (\d+)", l)
+        if m:
+            box1 = int(m.group(1))
+            box2 = int(m.group(2))
+            box3 = int(m.group(3))
+
+        # Max  Step  = 50000 (100.00 ps)
+        # Trajectory Output = solution-run.trj
+        #   interval = 5 steps
+        m = re.search(r"Max  Step  =\s+(\d+)", l)
+        if m:
+            total = int(m.group(1))
+        if re.search(r"Trajectory Output", l):
+            l = logfh.next();
+            m = re.search(r"interval =\s+(\d+)", l)
+            freq = int(m.group(1))
+            
+    logfh.close()
+
+    params = {
+        "temp": temp,
+        "simtype": simtype,
+        "switchlj": switchlj,
+        "boxshape": is_periodic,
+        "calctype": mode,
+        "cut": cut,
+        "lowlj": switchlj,
+        "cltype": coulombtype
+    }
+
+    
+    ofh = open("parameters_er", "wt")
+    print >> ofh, """&ene_param
+  slttype = %(calctype)d,
+  estype = %(simtype)d,
+  boxshp = %(boxshape)d,
+  inptemp = %(temp)f,
+  elecut = %(cut)f,
+  ljformat = 1,
+  upljcut = %(cut)f,
+  lwljcut = %(lowlj)f,
+  cltype = %(cltype)d,""" % params
+
+    if mode == 1 and "sltspec" in carryover:
+        print >> ofh, """\
+  sltspec = %d,""" % (carryover["sltspec"])
+
+    if coulombtype == 1:
+        # TODO: print alpha
+        pass        
+    elif coulombtype == 2: # PME
+        print >> ofh, """\
+  screen = %f,
+  splodr = %d,
+  ms1max = %d,
+  ms2max = %d,
+  ms3max = %d,""" % (alpha, pme_order, box1, box2, box3)
+        pass
+    if options.solute != None or options.pdb != None:
+        print >> ofh, """\
+  maxins = %d,
+  inscfg = %d,""" % (options.maxins, inscfg)
+        pass
+    if options.div == None:
+        if options.solute != None or options.pdb != None:
+            divs = 5
+        else:
+            divs = 10
+    else:
+        divs = options.div
+    print >> ofh, "  engdiv = %d" % divs
+    print >> ofh, """/
+&hist
+      eclbin=5.0e-2, ecfbin=2.0e-3, ec0bin=2.0e-4, finfac=10.0e0,
+      ecdmin=%f, ecfmns=-0.20e0, ecdcen=0.0e0, eccore=20.0e0,
+      ecdmax=1.0e11, pecore=200
+/
+""" % options.minenergy
+
+    if total != 0 and freq != 0:
+        frames = total / freq
+    else:
+        frames = None
+    return (frames, is_periodic)
+    
+(frames, is_periodic) = parse_log()
+
+# update MDinfo
+if frames:
+    ifh = open("MDinfo", "rt")
+    ofh = open("MDinfo.new", "wt")
+    l = ifh.next().split()
+    print >> ofh, frames, l[1]
+    print >> ofh, ifh.next().strip()
+    print >> ofh, ifh.next().strip()
+    ifh.close()
+    ofh.close()
+    shutil.move("MDinfo", "MDinfo.bak")
+    shutil.move("MDinfo.new", "MDinfo")
+
+def symlink(src, dest):
+    if os.path.exists(dest):
+        if os.path.islink(dest):
+            # renew link
+            os.remove(dest)
+        else:
+            return
+    os.symlink(src, dest)
+
+# link dcd
+if options.trj:
+    symlink(options.trj, "HISTORY")
+
+if options.dcd:
+    symlink(options.dcd, "HISTORY")
+#    if is_periodic == 1:
+#        (xst, _) = os.path.splitext(options.dcd)
+#        xst += ".xst"
+#        if not os.path.exists(xst):
+#            print >> sys.stderr, "Warning: could not find xst file, did you forget copying?"
+#        symlink(xst, "HISTCELL")
+
+if options.solute:
+    # flexible
+    symlink(options.solute, "SltConf")
+elif options.pdb:
+    # fixed
+    fh = open(options.pdb, "rt")
+    coords = []
+    # overwrite SltInfo with coordinate information
+    for l in fh:
+        if l[0:4] == "ATOM" or l[0:6] == "HETATM":
+            coords.append((float(l[30:38]), float(l[38:46]), float(l[46:54])))
+    fh.close()
+    ifh = open("SltInfo", "rt")
+    ofh = open("SltInfo.new", "wt")
+    pos = 0
+    for l in ifh:
+        print >> ofh, ' '.join((l.split())[0:5]), coords[pos][0], coords[pos][1], coords[pos][2]
+        pos += 1
+    ifh.close()
+    ofh.close()
+    shutil.move("SltInfo", "SltInfo.bak")
+    shutil.move("SltInfo.new", "SltInfo")
