@@ -1,3 +1,15 @@
+version 0.3.beta2 (01/22/2015)
+* Energy Histogram Computation:
+    * The extension of energy representation with intermediate states is implemented (experimental). 
+* Error reporting:
+    * NBFIX keyword in PSF files, which was not correctly handled, is now reported as an error.
+    * When input atoms are not contiguous, gen_structure generates error instead of warning. Users
+    can fall back to the old behaviour by reverting changes manually.
+* Bug fixes:
+    * mpi_info conflicting with MPI-3.0 is now removed
+    * Blacklisted ifort 12.1.x which emits broken codes.
+    * Misc. configure bug for compiling option
+
 version 0.3.beta1 (02/08/2014)
 * Energy Histogram Computation:
     * Non-orthogonal periodic box is now correctly handled.
