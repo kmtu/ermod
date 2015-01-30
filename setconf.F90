@@ -178,13 +178,12 @@ contains
          OUTcmb, OUTclt, OUTscr, OUTspo, &       ! from outside
          OUTew1, OUTew2, OUTew3, &               ! from outside
          OUTms1, OUTms2, OUTms3                  ! from outside
-    use mpiproc, only: mpi_rank_size_info, halt_with_error           ! MPI
+    use mpiproc, only: halt_with_error                               ! MPI
     implicit none
     real, parameter :: tiny = 1.0e-20
     real :: real_seed
     logical :: check_refins
     character(len=3) :: scrtype
-    call mpi_rank_size_info                                          ! MPI
 
     intprm=1                                     ! trajectory reading
     select case(intprm)
@@ -987,6 +986,7 @@ contains
     real, parameter :: massS = 32.066           ! atomic weight (sulfur)
     real, parameter :: massP = 30.973761        ! atomic weight (phosphorus)
     real, parameter :: massHe = 4.0026          ! atomic weight (helium)
+    real, parameter :: massB = 10.811           ! atomic weight (boron)
     real, parameter :: massLi = 6.941           ! atomic weight (lithium)
     real, parameter :: massNa = 22.989770       ! atomic weight (sodium)
     real, parameter :: massK = 39.0983          ! atomic weight (potassium)
@@ -1011,6 +1011,7 @@ contains
     if(eltp1 == 'N') stmass = massN
     if(eltp1 == 'S') stmass = massS
     if(eltp1 == 'P') stmass = massP
+    if(eltp1 == 'B') stmass = massB
     if(eltp1 == 'K') stmass = massK
     if(eltp1 == 'F') stmass = massF
     eltp2 = atmtype(1:2)

@@ -67,7 +67,7 @@ The default number of insertions is 1000.
 The default format for output trajectory from MARBLE is DCD.
 The ermod program can handle a DCD file without any special setting,
 and when user has a trajectory file in DCD format,
-he can simply use the gen_input script just as described above.
+he can run the ermod program without any modification.
 MARBLE also has an option of writing the trajectory in text format.
 When user adopts this option, he should visit
 the trajectory-formats directory within the ERmod package distributed.
