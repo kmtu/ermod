@@ -61,6 +61,10 @@ if not os.path.exists(options.topology):
 mass_table = {
   1: 'H',
   2: 'D',
+  4: 'He',
+  6: 'Li',
+  7: 'Li',
+  11: 'B',
   12: 'C',
   14: 'N',
   16: 'O',
@@ -70,6 +74,7 @@ mass_table = {
   32: 'S',
   35: 'Cl',
   36: 'Cl',
+  39: 'K',
   40: 'Ca',
   56: 'Fe',
   63: 'Cu',
