@@ -1,5 +1,5 @@
---- slvfe.F90	2014-05-29 19:12:54.744503567 +0900
-+++ extensions/LJLRC/slvfe.F90	2014-05-29 19:59:47.674503565 +0900
+--- slvfe.F90	2015-04-16 17:55:46.891736879 +0900
++++ extensions/LJLRC/slvfe.F90	2015-04-16 18:03:21.145736714 +0900
 @@ -27,7 +27,7 @@
    integer :: numprm = 0, numdiv = 0
  
@@ -9,15 +9,15 @@
    character(len=4) :: zerosft = 'orig',  wgtfnform = 'harm'
    character(len=3) :: refmerge = 'yes',  extsln = 'lin'
    character(len=3) :: wgtf2smpl = 'yes', slncor = 'not'
-@@ -72,6 +72,7 @@
+@@ -73,6 +73,7 @@
    
    namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
         peread, uvread, slfslt, infchk, zerosft, wgtfnform, &
 +       ljlrc, &
         refmerge, extsln, extthres_soln, extthres_refs, &
+        minthres_soln, minthres_refs, &
         wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
-        inptemp, pickgr, msemin, msemax, mesherr, &
-@@ -513,6 +514,371 @@
+@@ -515,6 +516,371 @@
    end subroutine datread
  end module
  
@@ -69,8 +69,8 @@
 +    integer :: pti
 +    if(first_time) then
 +       call set_keyparam
-+       write(6, 550) lwljcut, upljcut
-+550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f7.1,' or ',f7.1,' Angstrom in any direction from any atom within the solute molecule')
++       write(6, 550) lwljcut
++550    format('  Be sure that the solvent distribution is homogeneous (radial distribution function is essentially unity) when the solvent molecule is separated beyond distance of',f7.1,' Angstrom in any direction from any atom within the solute molecule')
 +       write(6,*)
 +       call get_ljtable
 +       allocate( ljcorr(numslv) )
@@ -389,18 +389,20 @@
  module sfecalc
    use sysvars, only: zerosft, wgtfnform, slncor, &
                       numslv, ermax, nummol, kT, itrmax, zero, error, &
-@@ -577,8 +943,10 @@
+@@ -579,10 +945,12 @@
    subroutine chmpot(prmcnt, cntrun)
      !
      use sysvars, only: uvread, slfslt, normalize, showdst, wrtzrsft, &
 +                       ljlrc, &
                         slfeng, chmpt, aveuv, svgrp, svinf, &
-                        pickgr, cumuint, cumuintfl
+                        pickgr, &
+                        minthres_soln, minthres_refs, &
+                        cumuint, cumuintfl
 +    use uvcorrect, only: ljcorrect
      !
      implicit none
      integer, intent(in) :: prmcnt, cntrun
-@@ -694,6 +1062,7 @@
+@@ -699,6 +1067,7 @@
               aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
            end do
         endif

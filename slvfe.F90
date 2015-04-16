@@ -41,6 +41,7 @@ module sysvars
   real :: mesherr = 0.10                                      ! kcal/mol
   integer :: maxmesh = 30000, large = 500000, itrmax = 100
   integer :: extthres_soln = 1, extthres_refs = 1
+  integer :: minthres_soln = 0, minthres_refs = 0
   
   character(len=1024) :: solndirec = 'soln'
   character(len=1024) :: refsdirec = 'refs'
@@ -73,6 +74,7 @@ module sysvars
   namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
        peread, uvread, slfslt, infchk, zerosft, wgtfnform, &
        refmerge, extsln, extthres_soln, extthres_refs, &
+       minthres_soln, minthres_refs, &
        wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
        inptemp, pickgr, msemin, msemax, mesherr, &
        maxmesh, large, itrmax, error, tiny, &
@@ -578,13 +580,16 @@ contains
     !
     use sysvars, only: uvread, slfslt, normalize, showdst, wrtzrsft, &
                        slfeng, chmpt, aveuv, svgrp, svinf, &
-                       pickgr, cumuint, cumuintfl
+                       pickgr, &
+                       minthres_soln, minthres_refs, &
+                       cumuint, cumuintfl
     !
     implicit none
     integer, intent(in) :: prmcnt, cntrun
     integer :: group, inft
     integer :: iduv, iduvp, pti, cnt, j, k, m, ge_perslv
     real :: factor, ampl, slvfe, uvpot, lcent, lcsln, lcref
+    real :: soln_zero, refs_zero
     integer, dimension(:), allocatable :: gpnum
     real, dimension(:,:), allocatable :: cumsfe
     integer, parameter :: cumu_io = 51
@@ -702,19 +707,24 @@ contains
        allocate( cumsfe(numslv, ge_perslv) )
     endif
     !
+    soln_zero = minthres_soln * minval( rddst, mask = (rddst > zero) )
+    refs_zero = minthres_refs * minval( rddns, mask = (rddns > zero) )
+    !
     do pti = 1, numslv
        uvpot = 0.0
        slvfe = 0.0
        do iduv = 1, gemax
           if(uvspec(iduv) == pti) then
-             if((edist(iduv) <= zero) .and. (edens(iduv) <= zero)) goto 5009
+             if((edist(iduv) <= soln_zero) .and. &
+                (edens(iduv) <= refs_zero)) goto 5009
              uvpot = uvpot + uvcrd(iduv) * edist(iduv)
              slvfe = slvfe - kT * (edist(iduv) - edens(iduv))
 
              ! kT*log(edist/edens)
              lcent = - (slncv(iduv) + zrsln(pti) + uvcrd(iduv))
-             if((slncor == 'yes') .and. &
-                     (edist(iduv) > zero) .and. (edens(iduv) <= zero)) then
+             if((slncor == 'yes') .and. (edist(iduv) > soln_zero) &
+                                  .and. (edens(iduv) <= refs_zero)) then
+                ! special case to be examined and fixed later
                 ampl = lcent * edens(iduv) / edist(iduv)
                 lcent = ampl - (zrsln(pti) + uvcrd(iduv)) &
                              * (1.0 - edens(iduv) / edist(iduv))
@@ -723,9 +733,9 @@ contains
 
              lcsln = pyhnc(slncv(iduv), 1)    ! solution
              lcref = pyhnc(inscv(iduv), 2)    ! reference solvent
-             if((slncor == 'yes') .and. &
-                     (edist(iduv) > zero) .and. (edens(iduv) <= zero)) then
-                ! special case to be examined carefully
+             if((slncor == 'yes') .and. (edist(iduv) > soln_zero) &
+                                  .and. (edens(iduv) <= refs_zero)) then
+                ! special case to be examined and fixed later
                 lcsln = pyhnc(sdrcv(iduv) + zrsdr(pti), 3)
              endif
              ampl = sfewgt(edist(iduv), edens(iduv))
@@ -858,18 +868,10 @@ contains
              do iduvp = 1, gemax
                 work(iduvp) = work(iduvp) / factor
              end do
-             factor = 0.0
-             ampl = 0.0
-             lcsln = 0.0
-             lcref = 0.0
-             do iduvp = 1, gemax
-                if(work(iduvp) > zero) then
-                   factor = factor + work(iduvp) * uvcrd(iduvp)
-                   ampl = ampl + work(iduvp)* uvcrd(iduvp) * uvcrd(iduvp)
-                   lcsln = lcsln + work(iduvp) * slncv(iduvp)
-                   lcref = lcref + work(iduvp) * uvcrd(iduvp) * slncv(iduvp)
-                endif
-             end do
+             factor = sum( work * uvcrd, mask = (work > zero) )
+             ampl = sum( work * uvcrd * uvcrd, mask = (work > zero) )
+             lcsln = sum( work * slncv, mask = (work > zero) )
+             lcref = sum( work * uvcrd * slncv, mask = (work > zero) )
              work(1) = (ampl * lcsln - factor * lcref) / (ampl - factor ** 2)
              work(2) = (lcref - factor * lcsln) / (ampl - factor ** 2)
              factor = work(1) + work(2) * uvcrd(iduv)
@@ -934,9 +936,9 @@ contains
              lcref = edmcr(iduvp, iduv) - factor * ampl
              if((factor <= zero) .or. (ampl <= zero)) then
                 if(iduv == iduvp) then
-                   lcref=1.0
+                   lcref = 1.0
                 else
-                   lcref=0.0
+                   lcref = 0.0
                 endif
              endif
              edmcr(iduvp, iduv) = lcref
@@ -1650,6 +1652,9 @@ contains
     runer(:) = 0.0
 
     if(numslv == 2) write(6, "(A)") "              total             1st component         2nd component"
+    if(numslv == 3) write(6, "(A)") "              total             1st component         2nd component         3rd component"
+    if(numslv == 4) write(6, "(A)") "              total             1st component         2nd component         3rd component         4th component"
+    if(numslv == 5) write(6, "(A)") "              total             1st component         2nd component         3rd component         4th component         5th component"
 
     do cntrun = 1, numrun
        recnt = real(cntrun)
