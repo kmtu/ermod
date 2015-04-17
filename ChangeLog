@@ -1,6 +1,9 @@
 version 0.3.beta2 (01/22/2015)
 * Energy Histogram Computation:
     * The extension of energy representation with intermediate states is implemented (experimental). 
+* Solvation Free Energy:
+    * The numbers of soln/engsln.XX and refs/engref.XX files are counted
+    internally within the slvfe program.
 * Error reporting:
     * NBFIX keyword in PSF files, which was not correctly handled, is now reported as an error.
     * When input atoms are not contiguous, gen_structure generates error instead of warning. Users
