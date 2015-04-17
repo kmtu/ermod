@@ -23,8 +23,6 @@ module sysvars
   character(len=5) :: clcond = 'merge'
 
   integer :: pecore = 200
-  integer :: numsln = 10, numref = 5
-  integer :: numprm = 0, numdiv = 0
 
   character(len=3) :: peread = 'not',    uvread = 'yes'
   character(len=3) :: slfslt = 'yes',    infchk = 'not',   ljlrc = 'not'
@@ -56,7 +54,8 @@ module sysvars
   character(len=1024) :: cumuintfl = 'cumsfe'
   character(len=10), parameter :: numbers='0123456789'
   
-  integer :: prmmax, maxsln, maxref, numrun
+  integer :: numsln, numref, numdiv, numprm
+  integer :: maxsln, maxref, numrun, prmmax
   integer :: numslv, ermax
   real :: temp, kT, slfeng
 
@@ -88,15 +87,55 @@ contains
   subroutine init_sysvars
     implicit none
     character(len=*), parameter :: parmfname = 'parameters_fe'
-    integer, parameter :: iounit = 191
-    integer :: ioerr
+    character(len=10), parameter :: numbers='0123456789'
+    character(len=3) :: file_suf
+    character(len=1024) :: opnfile
+    integer, parameter :: iounit = 191, sufmax = 99
+    integer :: ioerr, count_suf, i, j, srcnt, count_soln, count_refs
+    logical :: file_exist
     
     open(unit = iounit, file = parmfname, action = 'read', status = 'old', iostat = ioerr)
     if(ioerr /= 0) goto 99
     read(iounit, nml = fevars)
     close(iounit)
-    
-99  if(numdiv <= 0) numdiv = numsln          ! default setting
+99  continue
+
+    if(clcond == 'merge') then
+       do srcnt = 1, 2
+          do count_suf = 1, sufmax
+             i = count_suf / 10
+             j = mod(count_suf, 10)
+             file_suf = '.' // numbers(i+1:i+1) // numbers(j+1:j+1)
+             select case(srcnt)
+             case(1)
+                opnfile = trim(solndirec) // '/' // trim(slndnspf) // file_suf
+             case(2)
+                opnfile = trim(refsdirec) // '/' // trim(refdnspf) // file_suf
+             end select
+             inquire(file = opnfile, exist = file_exist)
+             if( file_exist ) then
+                if(srcnt == 1) count_soln = count_suf
+                if(srcnt == 2) count_refs = count_suf
+             else
+                exit
+             endif
+          enddo
+       enddo
+
+       open(unit = iounit, file = parmfname, action = 'read', status = 'old', iostat = ioerr)
+       if(ioerr /= 0) goto 91
+       read(iounit, nml = fevars)
+       close(iounit)
+91     continue
+
+       if((numsln <= 0) .or. (numsln > count_soln)) numsln = count_soln
+       if((numref <= 0) .or. (numref > count_refs)) numref = count_refs
+
+       if((numdiv <= 0) .or. (numdiv > numsln)) numdiv = numsln
+       if(mod(numsln, numdiv) /= 0) numdiv = numsln / (numsln / numdiv)
+
+       if(cumuint == 'yes') numdiv = 1
+    endif
 
     if(numprm <= 0) then                     ! default setting
        if(infchk == 'yes') then
@@ -106,8 +145,6 @@ contains
        endif
     endif
 
-    if(cumuint == 'yes') numdiv = 1
-    
   end subroutine init_sysvars
 end module sysvars
 

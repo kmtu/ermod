@@ -1,7 +1,7 @@
---- slvfe.F90	2015-04-16 17:55:46.891736879 +0900
-+++ extensions/LJLRC/slvfe.F90	2015-04-16 18:03:21.145736714 +0900
-@@ -27,7 +27,7 @@
-   integer :: numprm = 0, numdiv = 0
+--- slvfe.F90	2015-04-17 16:06:29.999749969 +0900
++++ extensions/LJLRC/slvfe.F90	2015-04-17 16:06:37.357986446 +0900
+@@ -25,7 +25,7 @@
+   integer :: pecore = 200
  
    character(len=3) :: peread = 'not',    uvread = 'yes'
 -  character(len=3) :: slfslt = 'yes',    infchk = 'not'
@@ -9,7 +9,7 @@
    character(len=4) :: zerosft = 'orig',  wgtfnform = 'harm'
    character(len=3) :: refmerge = 'yes',  extsln = 'lin'
    character(len=3) :: wgtf2smpl = 'yes', slncor = 'not'
-@@ -73,6 +73,7 @@
+@@ -72,6 +72,7 @@
    
    namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
         peread, uvread, slfslt, infchk, zerosft, wgtfnform, &
@@ -17,7 +17,7 @@
         refmerge, extsln, extthres_soln, extthres_refs, &
         minthres_soln, minthres_refs, &
         wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
-@@ -515,6 +516,371 @@
+@@ -552,6 +553,371 @@
    end subroutine datread
  end module
  
@@ -389,7 +389,7 @@
  module sfecalc
    use sysvars, only: zerosft, wgtfnform, slncor, &
                       numslv, ermax, nummol, kT, itrmax, zero, error, &
-@@ -579,10 +945,12 @@
+@@ -616,10 +982,12 @@
    subroutine chmpot(prmcnt, cntrun)
      !
      use sysvars, only: uvread, slfslt, normalize, showdst, wrtzrsft, &
@@ -402,7 +402,7 @@
      !
      implicit none
      integer, intent(in) :: prmcnt, cntrun
-@@ -699,6 +1067,7 @@
+@@ -736,6 +1104,7 @@
               aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
            end do
         endif
