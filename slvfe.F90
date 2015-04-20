@@ -130,13 +130,25 @@ contains
        if((numsln <= 0) .or. (numsln > count_soln)) numsln = count_soln
        if((numref <= 0) .or. (numref > count_refs)) numref = count_refs
 
-       if((numdiv <= 0) .or. (numdiv > numsln)) numdiv = numsln
-       if(mod(numsln, numdiv) /= 0) numdiv = numsln / (numsln / numdiv)
+       if((numdiv <= 0) .or. (numdiv >= numsln)) numdiv = numsln
+       if(mod(numsln, numdiv) /= 0) then
+          do i = numdiv + 1, numsln      ! find the larger and closest divisor
+             if(mod(numsln, i) == 0) exit
+          enddo
+          numdiv = i
+       endif
+       if(refmerge == 'not') then        ! see subroutine datread for refmerge
+          if(numdiv > numref) stop " With refmerge = 'not', numdiv needs to be larger than numref"
+          if(mod(numref, numdiv) /= 0) then
+             write(6, "(A,i2,A,i2,A)") " Note: only ", numdiv * (numref / numdiv), " files out of ", numref, " engref and corref files prepared"
+             numref = numdiv * (numref / numdiv)
+          endif
+       endif
 
        if(cumuint == 'yes') numdiv = 1
     endif
 
-    if(numprm <= 0) then                     ! default setting
+    if(numprm <= 0) then                 ! default setting
        if(infchk == 'yes') then
           numprm = 11
        else

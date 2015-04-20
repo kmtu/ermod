@@ -1,5 +1,5 @@
---- slvfe.F90	2015-04-17 16:06:29.999749969 +0900
-+++ extensions/LJLRC/slvfe.F90	2015-04-17 16:06:37.357986446 +0900
+--- slvfe.F90	2015-04-20 11:15:00.480736218 +0900
++++ extensions/LJLRC/slvfe.F90	2015-04-20 11:15:12.832736450 +0900
 @@ -25,7 +25,7 @@
    integer :: pecore = 200
  
@@ -17,7 +17,7 @@
         refmerge, extsln, extthres_soln, extthres_refs, &
         minthres_soln, minthres_refs, &
         wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
-@@ -552,6 +553,371 @@
+@@ -564,6 +565,371 @@
    end subroutine datread
  end module
  
@@ -389,7 +389,7 @@
  module sfecalc
    use sysvars, only: zerosft, wgtfnform, slncor, &
                       numslv, ermax, nummol, kT, itrmax, zero, error, &
-@@ -616,10 +982,12 @@
+@@ -628,10 +994,12 @@
    subroutine chmpot(prmcnt, cntrun)
      !
      use sysvars, only: uvread, slfslt, normalize, showdst, wrtzrsft, &
@@ -402,7 +402,7 @@
      !
      implicit none
      integer, intent(in) :: prmcnt, cntrun
-@@ -736,6 +1104,7 @@
+@@ -748,6 +1116,7 @@
               aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
            end do
         endif
