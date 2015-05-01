@@ -138,7 +138,7 @@ contains
           numdiv = i
        endif
        if(refmerge == 'not') then        ! see subroutine datread for refmerge
-          if(numdiv > numref) stop " With refmerge = 'not', numdiv needs to be larger than numref"
+          if(numdiv > numref) stop " With refmerge = 'not', numdiv needs to be not larger than numref"
           if(mod(numref, numdiv) /= 0) then
              write(6, "(A,i2,A,i2,A)") " Note: only ", numdiv * (numref / numdiv), " files out of ", numref, " engref and corref files prepared"
              numref = numdiv * (numref / numdiv)
