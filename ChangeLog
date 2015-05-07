@@ -1,4 +1,4 @@
-version 0.3.beta2 (01/22/2015)
+version 0.3.rc1 (05/07/2015)
 * Energy Histogram Computation:
     * The extension of energy representation with intermediate states is implemented (experimental). 
 * Solvation Free Energy:
