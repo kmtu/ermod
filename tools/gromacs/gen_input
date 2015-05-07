@@ -159,7 +159,7 @@ def parse_mdp():
     for l in logfh:
         pairs = pats.match(l)
         if pairs:
-            # Normalize to underscores, to handle both GROMACS 4.5 and 4.6
+            # Replace by underscores, to handle both GROMACS pre-4.5 and post-4.6 series
             key = pairs.group(1).replace('-', '_')
             dic[key] = pairs.group(2)
 
@@ -172,6 +172,18 @@ def parse_mdp():
             betawidth = float(betaf.group(1))
 
     logfh.close()
+
+    # From gromacs 5.0 following terms were renamed
+    conversion = { 'vdw_type': 'vdwtype',
+                   'pbc': 'ePBC',
+                   'fourier_nx': 'nkx',
+                   'fourier_ny': 'nky',
+                   'fourier_nz': 'nkz',
+                   'pcoupl': 'epc',
+                   'nstxout_compressed': 'nstxtcout' }
+    for k in dic.keys():
+        if k in conversion:
+            dic[conversion[k]] = dic[k]
 
     if temp == 0.0:
         warn("Warning: failed to obtain correct input temperature. This may happen if you use more than one heat baths in the system. Please manually correct parameters_er.")
@@ -186,19 +198,23 @@ def parse_mdp():
     else:
         params['slttype'] = 1 # solution
 
-    if dic["vdwtype"] == "Cut-off":
+    modifier = dic.get("vdw_modifier", None)
+    if dic["vdwtype"] == "Cut-off" and modifier in [None, "None", "Potential-shift", "Potential-shift-Verlet"]:
         cutoff = float(dic["rvdw"]) * 10.0 # nm -> angstrom
         params['upljcut'] = cutoff
         params['lwljcut'] = cutoff
-    elif dic["vdwtype"] == "Switch":
+    elif dic["vdwtype"] == "Switch" or modifier in ["Potential-switch", "Force-switch"]:
         params['upljcut'] = float(dic["rvdw"]) * 10.0
         params['lwljcut'] = float(dic["rvdw_switch"]) * 10.0
+        params['ljswitch'] = 1 # GROMACS special potential-switch
+        if modifier == "Force-switch":
+            warn("force-switching in GROMACS is unsupported, using potential-switch (may produce inconsistent result)")
     elif dic["vdwtype"] in ["Shift", "Encad-Shift"]:
-        warn("Warning: shifted L-J potential is not supported; using switched L-J (may cause inconsistent result)")
+        warn("shifted L-J potential is not supported; using switched L-J (may produce inconsistent result)")
         params['upljcut'] = float(dic["rvdw"]) * 10.0
         params['lwljcut'] = float(dic["rvdw_switch"]) * 10.0
     else:
-        warn("Warning: unknown vdwtype; please specify vdw parameters manually")
+        warn("unknown or unsupported vdwtype; you need to specify vdw parameters manually")
 
     if dic["ePBC"] == "xyz":
         params['boxshp'] = 1
@@ -227,7 +243,7 @@ def parse_mdp():
         
     if dic["epc"] == "No":
         params['estype'] = 1
-    elif dic["epc"] in ["Berendsen", "Parrinello-Rahman"]:
+    elif dic["epc"] in ["Berendsen", "Parrinello-Rahman", "MTTK"]:
         params['estype'] = 2
     else:
         warn("Warning: Unknown pressure coupling type, check log / output")
