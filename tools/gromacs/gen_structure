@@ -181,7 +181,7 @@ class topology:
         if have_bonded_type == None or have_atomic_number == None:
             error("Invalid format of atomtypes")
 
-        aname = ls[0].upper()
+        aname = ls[0]
 
         offset = 0
         if have_bonded_type:
@@ -222,7 +222,7 @@ class topology:
 
     def process_atoms(self, mtype, ls):
         _anum = ls[0]
-        atype = ls[1].upper()
+        atype = ls[1]
         _resnum = ls[2]
         _resname = ls[3]
         atom = ls[4]
@@ -246,7 +246,6 @@ class topology:
         state = None
 
         for l in fh:
-            l = l.upper()
             l = l.split(';')[0] # remove comments
             l = l.strip()
             if l == "":
@@ -262,13 +261,13 @@ class topology:
                 continue
             
             ls = l.split()
-            if state == "ATOMS":
+            if state == "atoms":
                 self.process_atoms(mtype, ls)
-            elif state == "MOLECULETYPE":
+            elif state == "moleculetype":
                 return self.molecule(ls[0], fh)
-            elif state == "SYSTEM":
+            elif state == "system":
                 pass
-            elif state == "MOLECULES":
+            elif state == "molecules":
                 groupname = ls[0]
                 nmol = int(ls[1])
                 if nmol != 0:
@@ -282,7 +281,6 @@ class topology:
     def parse_top(self, fh):
         state = None
         for l in fh:
-            l = l.upper()
             l = l.split(';')[0] # remove comments
             l = l.strip()
             if l == "":
@@ -299,13 +297,13 @@ class topology:
             ls = l.split()
             if ls == []:
                 continue
-            if state == "DEFAULTS":
+            if state == "defaults":
                 self.process_defaults(ls)
-            if state == "ATOMTYPES":
+            if state == "atomtypes":
                 self.process_atomtypes(ls)
-            elif state == "NONBOND_PARAMS":
+            elif state == "nonbond_params":
                 self.process_pairwise_mod(ls)
-            elif state == "MOLECULETYPE":
+            elif state == "moleculetype":
                 self.molecule(ls[0], fh)
                 # for multiple solutes with the same name
                 # get duplicated molecule
