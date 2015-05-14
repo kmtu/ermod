@@ -140,7 +140,8 @@ contains
        if(refmerge == 'not') then        ! see subroutine datread for refmerge
           if(numdiv > numref) stop " With refmerge = 'not', numdiv needs to be not larger than numref"
           if(mod(numref, numdiv) /= 0) then
-             write(6, "(A,i2,A,i2,A)") " Note: only ", numdiv * (numref / numdiv), " files out of ", numref, " engref and corref files prepared"
+             write(6, "(A,i2,A,i2,A)") " Note: only ", numdiv * (numref / numdiv), &
+   &" files out of ", numref, " engref and corref files prepared"
              numref = numdiv * (numref / numdiv)
           endif
        endif
@@ -1700,10 +1701,16 @@ contains
     runcp(:) = 0.0
     runer(:) = 0.0
 
-    if(numslv == 2) write(6, "(A)") "              total             1st component         2nd component"
-    if(numslv == 3) write(6, "(A)") "              total             1st component         2nd component         3rd component"
-    if(numslv == 4) write(6, "(A)") "              total             1st component         2nd component         3rd component         4th component"
-    if(numslv == 5) write(6, "(A)") "              total             1st component         2nd component         3rd component         4th component         5th component"
+    if(numslv >= 2) then               ! mixed-solvent system
+       write(6, "(A)", advance='no') "              total             1st component         2nd component"
+       if(numslv >= 3) write(6, "(A)", advance='no') "         3rd component"
+       if(numslv >= 4) then
+          do pti = 4, numslv
+             write(6, "(A,i1,A)", advance='no') "         ", pti, "th component"
+          enddo
+       endif
+       write(6, '(A)') ""
+    endif
 
     do cntrun = 1, numrun
        recnt = real(cntrun)
