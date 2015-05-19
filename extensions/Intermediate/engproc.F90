@@ -307,7 +307,7 @@ contains
              if( edens_exist ) then
                 open(unit = refs_io, file = opnfile, action = "read")
                 do iduv = 1, ermax
-                   read(refs_io, *) i, i, factor
+                   read(refs_io, *) factor, i, factor
                    if(factor > tiny) zerodns_crd(iduv) = .false.
                 enddo
                 close(refs_io)
@@ -613,6 +613,7 @@ contains
 
     ! start of the extension for the method with the intermediate state
     if(do_intermediate == YES) then
+       division = stnum / (maxcnf / skpcnf / engdiv)
 #ifdef MPI
        if(wgtslf == YES) then
           soln_total = soln_total * voffset_scale
@@ -633,7 +634,7 @@ contains
                mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
           deallocate( sve1 )
 
-          if(stnum == maxcnf) then
+          if(division == engdiv) then
              call mpi_reduce(soln_total, factor, 1, &
                   mpi_double_precision, mpi_sum, 0, mpi_comm_world, ierror)
              soln_total = factor
@@ -645,7 +646,6 @@ contains
 #endif
        edintm(:) = edintm(:) / norm_intm
        if(myrank == 0) then
-          division = stnum / (maxcnf / skpcnf / engdiv)
           if(engdiv == 1) then
              suffeng = '.tt'
           else
@@ -664,7 +664,7 @@ contains
           close(eng_io)
           avintm(division, :) = uvintm(:) / norm_intm
 
-          if(stnum == maxcnf) then
+          if(division == engdiv) then
              factor = soln_intm / soln_total
              open(unit = prb_io, file = 'Prob_Result', action = 'write')
              write(prb_io, '(a,f12.6)') ' Probability to find the system in the intermediate state = ', factor
