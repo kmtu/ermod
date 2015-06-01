@@ -16,6 +16,7 @@ EXTRA_DIST += trajectory-formats/*
 EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
 EXTRA_DIST += tools/AMBER/*
+EXTRA_DIST += tools/MARBLE/*
 EXTRA_DIST += tools/mol_dissection
 EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE
 CLEANFILES = *.mod
