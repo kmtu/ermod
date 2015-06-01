@@ -1,3 +1,8 @@
+version 0.3.0 (06/01/2015)
+* Bug fixes:
+    GROMACS topology file parsing is now case sensitive
+    (it was case insensitive to match pre-4.0 behaviour, which is now outdated)
+
 version 0.3.rc1 (05/07/2015)
 * Energy Histogram Computation:
     * The extension of energy representation with intermediate states is implemented (experimental). 
