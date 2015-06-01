@@ -1,6 +1,6 @@
 /* ERmod - Eneregy Representation Module
-   Copyright (C) 2000-2012 Nobuyuki Matubayasi
-   Copyright (C) 2010-2012 Shun Sakuraba
+   Copyright (C) 2000-2015 Nobuyuki Matubayasi
+   Copyright (C) 2010-2015 Shun Sakuraba
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
