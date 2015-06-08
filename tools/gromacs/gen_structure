@@ -390,7 +390,7 @@ def get_topology_info():
 
     # python 2.3 does not have set()
     if options.solute:
-        solutes = options.solute.upper().split(',')
+        solutes = options.solute.split(',')
     else:
         # interactive input
         print "Molecule types in topology file:",
@@ -398,7 +398,7 @@ def get_topology_info():
             print s,
         print
         l = raw_input("Which molecules are solutes? (For multiple choice please specify as comma-separated list) ").split(',')
-        solutes = [x.upper().strip() for x in l]
+        solutes = [x.strip() for x in l]
 
     for s in solutes:
         if s not in mollist:
