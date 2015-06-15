@@ -127,7 +127,7 @@ if options.solute != None:
     check_exists(options.solute)
 
 if options.rigid != None and options.solute != None:
-    error("Rigid insertion structure (--rigid) and flexible insertion structure (--solute) cannot be specified simultaneously")
+    error("Rigid insertion structure (--rigid) and flexible insertion structure (--flexible) cannot be specified simultaneously")
 
 if mode == "reference":
     if os.path.basename(os.getcwd()) != "refs":
