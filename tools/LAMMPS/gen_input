@@ -185,14 +185,22 @@ def parse_log():
             log(dic["cutoff_coul"])
 
         if len(words) > 1 and words[0] == "kspace_style":
+            log("kspace_style")
             dic["kspace_style"] = words[1]
             if( dic["kspace_style"] != "ewald" and dic["kspace_style"] != "pppm"):
                 error("Unsupported kspace_style")
+            if dic.has_key("kspace_style"):
+                log("(updated)")
+            log(dic["kspace_style"])
 
         if len(words) > 4 and words[0] == "dump":
+            log("dumpN")
+            if dic.has_key("dumpN"):
+                log("(updated)")
             if words[3] not in ["xtc", "dcd", "atom", "atom/mpiio"] :
                 error("Unsupported dump style")
             dic["dumpN"] = int(words[4])
+            log(dic["dumpN"])
 
         if len(words) > 1 and words[0] == "run":
             log("Number of steps:")
