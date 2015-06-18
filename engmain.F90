@@ -306,7 +306,7 @@ module engmain
                         LJFMT_C12_C6 = 4, LJFMT_TABLE = 5
   integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, LJSWT_FORCE = 2
   integer, parameter :: LJCMB_ARITH = 0, LJCMB_GEOM = 1
-  integer, parameter :: EL_COULOMB = 0, EL_EWALD = 1, EL_PME = 2
+  integer, parameter :: EL_COULOMB = 0, EL_EWALD = 1, EL_PME = 2, EL_PPPM = 3
   integer, parameter :: SLT_SOLN = 1, SLT_REFS_RIGID = 2, SLT_REFS_FLEX = 3
   integer, parameter :: PT_SOLVENT = 0, &
                         PT_SOLUTE = SLT_SOLN, PT_TEST_RIGID = SLT_REFS_RIGID, &
