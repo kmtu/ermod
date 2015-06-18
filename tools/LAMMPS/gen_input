@@ -213,17 +213,31 @@ def parse_log():
 
         re_gewald=re.compile(r"^  G vector .1.distance. = (.*)$").match(l)
         if re_gewald:
+            log("Ewald coefficient:")
+            if dic.has_key("gewald"):
+                log("(updated)")
             dic["gewald"] = float(re_gewald.group(1))
+            log(dic["gewald"])
 
         re_order=re.compile(r"^  stencil order = (.*)$").match(l)
         if re_order:
+            log("PPPM order:")
+            if dic.has_key("pppm_order"):
+                log("(updated)")
             dic["pppm_order"] = float(re_order.group(1))
+            log(dic["pppm_order"])
 
         re_mesh=re.compile(r"^  grid = ([0-9]+) ([0-9]+) ([0-9]+)$").match(l)
         if re_mesh:
+            log("PPPM mesh size:")
+            if dic.has_key("meshx"):
+                log("(updated)")
             dic["meshx"] = int(re_mesh.group(1))
             dic["meshy"] = int(re_mesh.group(2))
             dic["meshz"] = int(re_mesh.group(3))
+            log(dic["meshx"])
+            log(dic["meshy"])
+            log(dic["meshz"])
 
         if options.input == "log":
             interpret_param()
