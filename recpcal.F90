@@ -2,6 +2,7 @@
 ! ERmod - Eneregy Representation Module
 ! Copyright (C) 2000-2015 Nobuyuki Matubayasi
 ! Copyright (C) 2010-2015 Shun Sakuraba
+! Copyright (C) 2015-2015 X-Ability Co., Ltd.
 ! 
 ! This program is free software; you can redistribute it and/or
 ! modify it under the terms of the GNU General Public License
@@ -151,7 +152,6 @@ contains
   end subroutine recpcal_spline_greenfunc
 
   ! implemented only for PPPM
-  ! 2015/6/18, Ryuji Sakamaki
   function factorial(n) result(fact)
     implicit none
     integer, intent(in) :: n
@@ -166,7 +166,6 @@ contains
   end function factorial
 
   ! calc gf_b needed by denominator in Green's func for PPPM
-  ! 2015/6/18, Ryuji Sakamaki
   subroutine calc_gfb_pppm()
     use engmain, only: splodr
     implicit none
@@ -188,7 +187,6 @@ contains
   end subroutine calc_gfb_pppm
 
   ! calc denominator in Green's func for PPPM
-  ! 2015/6/18, Ryuji Sakamaki
   function gf_denom(x,y,z) result(denom)
     use engmain, only: splodr
     implicit none
@@ -205,7 +203,6 @@ contains
   end function gf_denom
     
   ! calc green's function (optimal influence function) for PPPM
-  ! 2015/6/18, Ryuji Sakamaki
   subroutine recpcal_pppm_greenfunc()
     use engmain, only: &
          invcl, ms1max, ms2max, ms3max, splodr, volume, screen, PI, cell
