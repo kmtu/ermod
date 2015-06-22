@@ -4,7 +4,8 @@ bin_PROGRAMS = ermod slvfe
 nobase_pkgdata_SCRIPTS = \
 	tools/NAMD/gen_structure tools/NAMD/gen_input \
 	tools/gromacs/gen_structure tools/gromacs/gen_input \
-	tools/AMBER/gen_structure tools/AMBER/gen_input
+	tools/AMBER/gen_structure tools/AMBER/gen_input \
+	tools/CHARMM/gen_structure tools/CHARMM/gen_input
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
@@ -17,6 +18,7 @@ EXTRA_DIST += tools/NAMD/*
 EXTRA_DIST += tools/gromacs/*
 EXTRA_DIST += tools/AMBER/*
 EXTRA_DIST += tools/MARBLE/*
+EXTRA_DIST += tools/CHARMM/*
 EXTRA_DIST += tools/mol_dissection
 EXTRA_DIST += vmdplugins/*.C vmdplugins/*.c vmdplugins/*.h vmdplugins/*.cxx vmdplugins/*.hxx vmdplugins/Makefile vmdplugins/LICENSE
 CLEANFILES = *.mod

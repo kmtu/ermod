@@ -12,13 +12,11 @@ parser = OptionParser()
 
 # only have to specify one of three:
 parser.add_option("-l", "--log", dest = "log",
-                  help = "NAMD log file")
+                  help = "CHARMM log file")
 
 parser.add_option("-x", "--dcd", dest = "dcd",
                   help = "Solution or reference trajectory file")
 
-parser.add_option("-p", "--pdb", dest = "pdb",
-                  help = "(deprecated) same as --rigid")
 parser.add_option("-r", "--rigid", dest = "pdb",
                   help = "Solute structure PDB file (for rigid insertion)")
 
@@ -33,7 +31,30 @@ parser.add_option("--minenergy", dest = "minenergy", type = "float",
                   help = "Minimum energy",
                   default = -20.0)
 
+parser.add_option("-v", "--verbose", dest = "verbose", action = "store_true",
+                                    help = "Increase verbosity (for debug)",
+                                    default = False)
+
 (options, args) = parser.parse_args()
+
+def log(x):
+    if options.verbose:
+        print >> sys.stderr, x
+                
+def warn_or_error(x, col):
+    prefix = ""
+    suffix = ""
+    if os.isatty(sys.stderr.fileno()):
+        prefix = "\x1b[" + str(col) + ";1m"
+        suffix = "\x1b[0m"
+    print >> sys.stderr, prefix + x + suffix
+        
+def warn(x):
+    warn_or_error("Warning: " + x, 33)
+
+def error(x):
+    warn_or_error("Error: " + x, 31)
+    sys.exit(1)
 
 def safe_close(fh):
     # asynchronous NFS may miss file creation
@@ -43,17 +64,14 @@ def safe_close(fh):
     fh.close()
 
 if options.log == None:
-    print >> sys.stderr, "Error: log file is not specified (try --help)"
-    sys.exit(1)
+    error("log file is not specified (try --help)")
 
 if options.dcd == None:
-    print >> sys.stderr, "Error: dcd file is not specified (try --help)"
-    sys.exit(1)
+    error("dcd file is not specified (try --help)")
 
 def check_exists(f):
     if not os.path.exists(f):
-        print >> sys.stderr, "Error:", f, "file does not exist"
-        sys.exit(1)
+        error(""+f+"file does not exist")
 
 check_exists("MDinfo")
 check_exists("SltInfo")
@@ -79,76 +97,118 @@ def parse_log():
         mode = 3 # flexible
     else:
         mode = 1 # solution
-    total = 0
+        total = 0
     freq = 0
-    infopat = re.compile(r"Info: ")
-    runpat = re.compile(r"Running for\s+(\d+)")
+
+    runpat = re.compile(r"^ *NSTEP = *(\d+) *NSAVC = *(\d+) *NSAVV = ")
+    searching_nbopt = False
+    nbopt = []
+    end_header = False
+    type_temp = "default"
+    ewald = False
     for l in logfh:
-        # TCL: Running for 500000 steps
+        
+        if re.search(r"^DYNA DYN: Step ", l):
+            end_header = True
+        if end_header:
+            continue
+        
+        if searching_nbopt:
+            if re.search(r"^ *CUTNB *=", l):
+                searching_nbopt = False
+                if "VSWItch" in nbopt:
+                    ljfrcswt = 0 # potential switching
+                elif "VFSWItch" in nbopt:
+                    ljfrcswt = 2 # force switching
+                elif "EWALd" in nbopt:
+                    ewald = True
+                else:
+                    error("unsupported truncation scheme for vdw")
+                log("truncation scheme:")
+                if ljfrcswt == 0:
+                    log("potential switching")
+                elif ljfrcswt == 2:
+                    log("force switching")
+            else:
+                nbopt.extend(l.split())
+        if re.search(r"^ *NONBOND OPTION FLAGS:", l):
+            searching_nbopt = True
+            continue
+        
         m = runpat.search(l)
         if m:
             total = int(m.group(1))
+            freq = int(m.group(2))
+            log("total number of steps:")
+            log(total)
+            log("step freq for writing coordinate:")
+            log(freq)
 
-        if infopat.match(l) == None:
-            continue
-        # Info: BERENDSEN PRESSURE COUPLING ACTIVE
-        # Info: LANGEVIN PISTON PRESSURE CONTROL ACTIVE
-        if re.search(r"PRESSURE (COUPLING|CONTROL) ACTIVE", l):
-            simtype = 2 # npt
-
-        # Info: LANGEVIN DYNAMICS ACTIVE
-        # Info: LANGEVIN TEMPERATURE   300
-        m = re.search(r"LANGEVIN TEMPERATURE\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
+        if re.search(r"^ *CHARMM> +", l):
+            search_comment = re.compile(r"^([^!]+)!.*$")
+            m = search_comment.search(l)
+            if m:
+                l2 = m.group(1)
+            else:
+                l2 = l
+            if re.search(r"^ *charmm> +.* pcons", l2.lower()):
+                simtype = 2
+                log("NPT ensemble")
+            search_temp = re.compile(r"^ *charmm> +.*reft *([\d\.]+)")
+            m = search_temp.search(l2.lower())
+            if m:
+                temp=float(m.group(1))
+                type_temp = "hoover"
+                log("temperature (hoover reft):")
+                log(temp)
+            
+        m = re.search(r"^ LNGFIL: TBATH = *(\d+\.\d+) *DELTA", l)
         if m:
             temp = float(m.group(1))
-        m = re.search(r"BERENDSEN TEMPERATURE\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
-        if m:
-            temp = float(m.group(1))
+            type_temp = "langevin"
+            log("temperature (langevin tbath):")
+            log(temp)
         
-        # Info: SWITCHING ACTIVE
-        # Info: VDW FORCE SWITCHING ACTIVE
-        # Info: SWITCHING ON           9
-        # Info: SWITCHING OFF          10
-        m = re.search(r"VDW FORCE SWITCHING ACTIVE", l)
-        if m:
-            ljfrcswt = 2 # force switching
-        m = re.search(r"SWITCHING OFF\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
-        if m:
-            cut = float(m.group(1))
-        m = re.search(r"SWITCHING ON\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
+        m = re.search(r"CTONNB *= *(\d+\.\d+) *CTOFNB *= *(\d+\.\d+) *$", l)
         if m:
             switchlj = float(m.group(1))
+            cut = float(m.group(2))
+            log("Inner cutoff:")
+            log(switchlj)
+            log("Outer cutoff:")
+            log(cut)
 
-        # Info: PERIODIC CELL BASIS 1  64 0 0
-        if re.search(r"PERIODIC CELL BASIS", l):
+        if re.search(r" Crystal Parameters : Crystal Type", l):
             is_periodic = 1
-            coulombtype = 1 # Ewald
+            log("PBC is used.")
             
-        # Info: PARTICLE MESH EWALD (PME) ACTIVE
-        # Info: PME TOLERANCE               1e-06"
-        # Info: PME EWALD COEFFICIENT       0.3"
-        # Info: PME INTERPOLATION ORDER     4"
-        # Info: PME GRID DIMENSIONS         64 64 128"
-        if re.search(r"\(PME\) ACTIVE", l):
-            coulombtype = 2 # PME
-        m = re.search(r"PME EWALD COEFFICIENT\s+([-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)", l)
+        if re.search(r"^ <PME> Total heap storage needed", l):
+            coulombtype = 2
+            log("pme is detedced")
+
+        m = re.search(r"^ PME EWALD OPTIONS: KAPPA *= *(\d*\.\d*) *QCOR *= *\d*\.\d* *Bspline order = (\d*) *$", l)
         if m:
             alpha = float(m.group(1))
-        m = re.search(r"PME INTERPOLATION ORDER\s+(\d+)", l)
-        if m:
-            pme_order = int(m.group(1))
-        m = re.search(r"PME GRID DIMENSIONS\s+(\d+) (\d+) (\d+)", l)
+            pme_order = int(m.group(2))
+            log("Ewald coeff:")
+            log(alpha)
+            log("PME order:")
+            log(pme_order)
+
+        m = re.search(r"^ FFTX= *(\d+) *FFTY= *(\d+) *FFTZ= *(\d+) *$", l)
         if m:
             box1 = int(m.group(1))
             box2 = int(m.group(2))
             box3 = int(m.group(3))
-
-        # Info: DCD FREQUENCY          100
-        m = re.search(r"DCD FREQUENCY\s+(\d+)", l)
-        if m:
-            freq = int(m.group(1))
+            log("PME grid:")
+            log(box1)
+            log(box2)
+            log(box3)
             
     logfh.close()
+
+    if coulombtype != 2 and ewald:
+        error("This script does not support conventional Ewald method.")
 
     params = {
         "temp": temp,
@@ -161,7 +221,7 @@ def parse_log():
         "lowlj": switchlj,
         "cltype": coulombtype
     }
-    
+
     ofh = open("parameters_er", "wt")
     print >> ofh, """&ene_param
   slttype = %(calctype)d,
@@ -176,16 +236,17 @@ def parse_log():
   cltype = %(cltype)d,""" % params
 
     if mode == 1: # for solution system
+        log("reading .extraparam...")
         ifh = file(".extraparam", "rt")
         carryover = pickle.load(ifh)
         ifh.close()
+        log("done.")
+        log("Solute:")
+        log(carryover["sltspec"])
         print >> ofh, """\
   sltspec = %d,""" % carryover["sltspec"]
-        
-    if coulombtype == 1:
-        # TODO: print alpha
-        pass        
-    elif coulombtype == 2: # PME
+    
+    if coulombtype == 2: # PME
         print >> ofh, """\
   screen = %f,
   splodr = %d,

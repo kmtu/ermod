@@ -3,6 +3,7 @@
 import os.path
 import sys
 import re
+import pickle
 from optparse import OptionParser
 
 parser = OptionParser()
@@ -417,6 +418,15 @@ def gen(mode):
             print >> ofh, ("%d %s %.5f %.5f %.5f" % 
                            (j + 1, atom, float(charge), eps, rmin))
         safe_close(ofh)
+
+    carryover = {}
+    if mode == "soln":
+        carryover["sltspec"] = slupos + 1
+
+    # write carryover
+    ofh = file(mode + "/.extraparam", "wt")
+    pickle.dump(carryover, ofh)
+    safe_close(ofh)
 
 gen("soln")
 gen("refs")
