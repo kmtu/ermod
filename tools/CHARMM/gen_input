@@ -236,15 +236,26 @@ def parse_log():
   cltype = %(cltype)d,""" % params
 
     if mode == 1: # for solution system
-        log("reading .extraparam...")
-        ifh = file(".extraparam", "rt")
-        carryover = pickle.load(ifh)
-        ifh.close()
-        log("done.")
+
+        try: 
+            log("reading .extraparam...")
+            ifh = file(".extraparam", "rt")
+            carryover = pickle.load(ifh)
+            ifh.close()
+            if "sltspec" in carryover:
+                params["sltspec"] = carryover["sltspec"]
+            log("done.")
+
+        except OSError:
+            pass
+
         log("Solute:")
-        log(carryover["sltspec"])
-        print >> ofh, """\
+        if "sltspec" in params:
+            log(params["sltspec"])
+            print >> ofh, """\
   sltspec = %d,""" % carryover["sltspec"]
+        else:
+            log("1 (cannot find in .extraparam. use default value.)")
     
     if coulombtype == 2: # PME
         print >> ofh, """\
