@@ -304,7 +304,8 @@ module engmain
   integer, parameter :: LJFMT_EPS_cal_SGM_nm = 0, LJFMT_EPS_Rminh = 1, &
                         LJFMT_EPS_J_SGM_A = 2, LJFMT_A_C = 3, &
                         LJFMT_C12_C6 = 4, LJFMT_TABLE = 5
-  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, LJSWT_FORCE = 2
+  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, &
+                        LJSWT_FRC_CHM = 2, LJSWT_FRC_GMX = 3
   integer, parameter :: LJCMB_ARITH = 0, LJCMB_GEOM = 1
   integer, parameter :: EL_COULOMB = 0, EL_EWALD = 1, EL_PME = 2
   integer, parameter :: SLT_SOLN = 1, SLT_REFS_RIGID = 2, SLT_REFS_FLEX = 3

@@ -577,7 +577,8 @@ module uvcorrect
   integer, parameter :: LJFMT_EPS_cal_SGM_nm = 0, LJFMT_EPS_Rminh = 1, &
                         LJFMT_EPS_J_SGM_A = 2, LJFMT_A_C = 3, &
                         LJFMT_C12_C6 = 4, LJFMT_TABLE = 5
-  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, LJSWT_FORCE = 2
+  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, &
+                        LJSWT_FRC_CHM = 2, LJSWT_FRC_GMX = 3
   integer, parameter :: LJCMB_ARITH = 0, LJCMB_GEOM = 1
 
   character(len=*), parameter :: sltfile = 'SltInfo'
@@ -882,7 +883,7 @@ contains
     select case(ljswitch)
     case(LJSWT_POT_CHM, LJSWT_POT_GMX)    ! potential switch
        ! do nothing
-    case(LJSWT_FORCE)                     ! force switch
+    case(LJSWT_FRC_CHM)                   ! force switch (CHARMM type)
        vdwa = ljsgm6 * ljsgm6 / (lwljcut6 * upljcut6)
        vdwb = ljsgm6 / (lwljcut3 * upljcut3)
        edev = 4.0 * ljeps * (vdwa - vdwb)
@@ -899,16 +900,16 @@ contains
           invr2 = ljsgm2 / dist
           invr6 = invr2 * invr2 * invr2
           select case(ljswitch)
-          case(LJSWT_POT_CHM)             ! potential switch (CHRAMM form)
+          case(LJSWT_POT_CHM)             ! potential switch (CHRAMM type)
              swth = (2.0 * dist + upljcut2 - 3.0 * lwljcut2)        &
                   * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
              edev = 4.0 * ljeps * invr6 * (invr6 - 1.0) * (1.0 - swth)
-          case(LJSWT_POT_GMX)             ! potential switch (GROMACS form)
+          case(LJSWT_POT_GMX)             ! potential switch (GROMACS type)
              swfac = (r - lwljcut) / (upljcut - lwljcut)
              swth = 1.0 - 10.0 * (swfac ** 3)                      &
                         + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) 
              edev = 4.0 * ljeps * invr6 * (invr6 - 1.0) * (1.0 - swth)
-          case(LJSWT_FORCE)               ! force switch
+          case(LJSWT_FRC_CHM)             ! force switch (CHARMM type)
              invr3 = sqrt(invr6)
              vdwa = upljcut6 / (upljcut6 - lwljcut6)          &
                   * ( (invr6 - ljsgm6 / upljcut6) ** 2 )

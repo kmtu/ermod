@@ -162,7 +162,7 @@ contains
          ES_NVT, ES_NPT, &
          LJFMT_EPS_cal_SGM_nm, LJFMT_EPS_Rminh, LJFMT_EPS_J_SGM_A, &
          LJFMT_A_C, LJFMT_C12_C6, LJFMT_TABLE, &
-         LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE, &
+         LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FRC_CHM, LJSWT_FRC_GMX, &
          LJCMB_ARITH, LJCMB_GEOM, &
          EL_COULOMB, EL_EWALD, EL_PME, &
          SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
@@ -343,7 +343,7 @@ contains
 
     ! check ljswitch parameter
     select case(ljswitch)
-    case(LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE)
+    case(LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FRC_CHM, LJSWT_FRC_GMX)
     case default
        stop "Unknown ljswitch"
     end select
