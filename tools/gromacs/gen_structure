@@ -336,7 +336,7 @@ defines = ["-D" + d for d in options.defines]
 cmd = [options.cpp] + includes + defines + [options.topology]
 # Work around AMBER topology mess
 if cpp_accepts_traditional():
-    cmd += ["--traditional-cpp"]
+    cmd.insert(1,"--traditional-cpp")
 log("Invoking command: " + repr(cmd))
 
 ppw = popen2.Popen3(cmd)
