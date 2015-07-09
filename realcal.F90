@@ -161,8 +161,9 @@ contains
     integer :: i, j, is, js, ismax, jsmax, ati, atj
     real :: reelcut, pairep, rst, dis2, invr2, invr3, invr6
     real :: eplj, epcl, xst(3), half_cell(3)
-    real :: upljcut2, lwljcut2, upljcut3, lwljcut3, upljcut6, lwljcut6
+    real :: lwljcut2, upljcut2, lwljcut3, upljcut3, lwljcut6, upljcut6
     real :: ljeps, ljsgm2, ljsgm3, ljsgm6, vdwa, vdwb, swth, swfac
+    real :: repA, repB, repC, attA, attB, attC
     integer :: ljtype_i, ljtype_j
     real, parameter :: infty = 1.0e50      ! essentially equal to infinity
     !
@@ -179,6 +180,17 @@ contains
     ismax = numsite(i)
     jsmax = numsite(j)
 
+    if(ljswitch == LJSWT_FRC_CHM) then       ! force switch (CHARMM type)
+       lwljcut3 = lwljcut ** 3
+       upljcut3 = upljcut ** 3
+       lwljcut6 = lwljcut3 * lwljcut3
+       upljcut6 = upljcut3 * upljcut3
+    endif
+    if(ljswitch == LJSWT_FRC_GMX) then       ! force switch (GROMACS type)
+       call calc_gmx_switching_force_params(12, lwljcut, upljcut, repA, repB, repC)
+       call calc_gmx_switching_force_params(6,  lwljcut, upljcut, attA, attB, attC)
+    endif
+
     do is = 1, ismax
        do js = 1, jsmax
           ati = specatm(is,i)
@@ -186,7 +198,7 @@ contains
           ljtype_i = ljtype(ati)
           ljtype_j = ljtype(atj)
           xst(:) = sitepos_normal(:,ati) - sitepos_normal(:,atj)
-          if(boxshp == SYS_PERIODIC) then   ! when the system is periodic
+          if(boxshp == SYS_PERIODIC) then    ! when the system is periodic
              if(is_cuboid) then
                 xst(:) = half_cell(:) - abs(half_cell(:) - abs(xst(:)))
              else
@@ -225,10 +237,6 @@ contains
                    eplj = swth * eplj
                 endif
              case(LJSWT_FRC_CHM)                   ! force switch (CHARMM type)
-                lwljcut3 = lwljcut ** 3
-                upljcut3 = upljcut ** 3
-                lwljcut6 = lwljcut3 * lwljcut3
-                upljcut6 = upljcut3 * upljcut3
                 ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
                 if(rst <= lwljcut) then
                    vdwa = invr6 * invr6 - ljsgm6 *ljsgm6 / (lwljcut6 * upljcut6)
@@ -236,10 +244,23 @@ contains
                 else
                    invr3 = sqrt(invr6)
                    ljsgm3 = sqrt(ljsgm6)
-                   vdwa = upljcut6 / (upljcut6 - lwljcut6)          &
+                   vdwa = upljcut6 / (upljcut6 - lwljcut6)                 &
                         * ( (invr6 - ljsgm6 / upljcut6) ** 2 )
-                   vdwb = upljcut3 / (upljcut3 - lwljcut3)          &
+                   vdwb = upljcut3 / (upljcut3 - lwljcut3)                 &
                         * ( (invr3 - ljsgm3 / upljcut3) ** 2 )
+                endif
+                eplj = 4.0 * ljeps * (vdwa - vdwb)
+             case(LJSWT_FRC_GMX)                   ! force switch (GROMACS type)
+                ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
+                if(rst <= lwljcut) then
+                   vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 * repC
+                   vdwb = invr6 - ljsgm6 * attC
+                else
+                   swfac = rst - lwljcut
+                   vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 *                &
+                          (repA * (swfac ** 3) + repB * (swfac ** 4) + repC)
+                   vdwb = invr6 - ljsgm6 *                                 &
+                          (attA * (swfac ** 3) + attB * (swfac ** 4) + attC)
                 endif
                 eplj = 4.0 * ljeps * (vdwa - vdwb)
              case default
@@ -570,14 +591,14 @@ contains
     implicit none
     integer, intent(in) :: upos, vpos_b, vpos_e
     real, intent(inout) :: energy_vec(:, :)
-    integer :: ui, vi, ua, va
+    integer :: ui, vi, ua, va, i, curp
+    integer :: n_lowlj, n_switch, n_el
     integer :: belong_u, belong_v, ljtype_u, ljtype_v
     real :: crdu(3), crdv(3), d(3), dist, r, dist_next, invr2, invr3, invr6
-    real :: upljcut2, lwljcut2, upljcut3, lwljcut3, upljcut6, lwljcut6
+    real :: lwljcut2, upljcut2, lwljcut3, upljcut3, lwljcut6, upljcut6
     real :: ljeps, ljsgm2, ljsgm3, ljsgm6, vdwa, vdwb, swfac
+    real :: repA, repB, repC, attA, attB, attC
     real :: elecut2, half_cell(3)
-    integer :: n_lowlj, n_switch, n_el
-    integer :: i, curp
     
     if(cltype == EL_COULOMB) stop "realcal%get_pair_energy_block: cltype assertion failure"
     if(boxshp == SYS_NONPERIODIC) stop "realcal%get_pair_energy_block: boxshp assertion failure"
@@ -594,11 +615,16 @@ contains
     lwljcut2 = lwljcut ** 2
     upljcut2 = upljcut ** 2
     if(ljswitch == LJSWT_FRC_CHM) then       ! force switch (CHARMM type)
-       lwljcut3 = lwljcut2 * lwljcut
+       lwljcut3 = lwljcut ** 3
+       upljcut3 = upljcut ** 3
        lwljcut6 = lwljcut3 * lwljcut3
-       upljcut3 = upljcut2 * upljcut
        upljcut6 = upljcut3 * upljcut3
     endif
+    if(ljswitch == LJSWT_FRC_GMX) then       ! force switch (GROMACS type)
+       call calc_gmx_switching_force_params(12, lwljcut, upljcut, repA, repB, repC)
+       call calc_gmx_switching_force_params(6,  lwljcut, upljcut, attA, attB, attC)
+    endif
+
     elecut2 = elecut ** 2
 
     ! TODO optimize:
@@ -680,7 +706,8 @@ contains
     do i = 1, n_lowlj
        ljeps = ljeps_lowlj(i, curp)
        ljsgm2 = ljsgm2_lowlj(i, curp)
-       invr2 = ljsgm2 / dist_lowlj(i, curp)
+       dist = dist_lowlj(i, curp)
+       invr2 = ljsgm2 / dist
        invr6 = invr2 * invr2 * invr2
        select case(ljswitch)
        case(LJSWT_POT_CHM, LJSWT_POT_GMX)    ! potential switch
@@ -689,6 +716,11 @@ contains
           ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
           vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 / (lwljcut6 * upljcut6)
           vdwb = invr6 - ljsgm6 / (lwljcut3 * upljcut3)
+          e_t(i, curp) = 4.0 * ljeps * (vdwa - vdwb)
+       case(LJSWT_FRC_GMX)                   ! force switch (GROMACS type)
+          ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
+          vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 * repC
+          vdwb = invr6 - ljsgm6 * attC
           e_t(i, curp) = 4.0 * ljeps * (vdwa - vdwb)
        case default
           stop "Unknown ljswitch"
@@ -711,8 +743,7 @@ contains
                        * (2.0 * dist + upljcut2 - 3.0 * lwljcut2)        &
                        * ((dist - upljcut2) ** 2) / ((upljcut2 - lwljcut2) ** 3)
        case(LJSWT_POT_GMX)                   ! potential switch (GROMACS type)
-          r = sqrt(dist)
-          swfac = (r - lwljcut) / (upljcut - lwljcut)
+          swfac = (sqrt(dist) - lwljcut) / (upljcut - lwljcut)
           e_t(i, curp) = 4.0 * ljeps * invr6 * (invr6 - 1.0)             &
                        * (1.0 - 10.0 * (swfac ** 3)                      &
                               + 15.0 * (swfac ** 4) - 6.0 * (swfac ** 5) )
@@ -724,6 +755,14 @@ contains
                * ( (invr6 - ljsgm6 / upljcut6) ** 2 )
           vdwb = upljcut3 / (upljcut3 - lwljcut3)          &
                * ( (invr3 - ljsgm3 / upljcut3) ** 2 )
+          e_t(i, curp) = 4.0 * ljeps * (vdwa - vdwb)
+       case(LJSWT_FRC_GMX)                   ! force switch (GROMACS type)
+          ljsgm6 = ljsgm2 * ljsgm2 * ljsgm2
+          swfac = sqrt(dist) - lwljcut
+          vdwa = invr6 * invr6 - ljsgm6 * ljsgm6 * &
+                         (repA * (swfac ** 3) + repB * (swfac ** 4) + repC)
+          vdwb = invr6 - ljsgm6 * &
+                         (attA * (swfac ** 3) + attB * (swfac ** 4) + attC)
           e_t(i, curp) = 4.0 * ljeps * (vdwa - vdwb)
        case default
           stop "Unknown ljswitch"
@@ -831,5 +870,24 @@ contains
        is_cuboid = .true.
     end if
   end subroutine normalize_periodic
+
+  ! get the coefficients for gromacs force switching
+  subroutine calc_gmx_switching_force_params(pow, lwljcut, upljcut, coeffA, coeffB, coeffC)
+    implicit none
+    integer, intent(in) :: pow
+    real, intent(in) :: lwljcut, upljcut
+    real, intent(out) :: coeffA, coeffB, coeffC
+    real :: dfljcut
+
+    dfljcut = upljcut - lwljcut
+    coeffA = - real(pow) * (real(pow + 4) * upljcut                   &
+                          - real(pow + 1) * lwljcut)                  &
+           / ((upljcut ** (pow + 2)) * (dfljcut ** 2)) / 3.0
+    coeffB =   real(pow) * (real(pow + 3) * upljcut                   &
+                          - real(pow + 1) * lwljcut)                  &
+           / ((upljcut ** (pow + 2)) * (dfljcut ** 3)) / 4.0
+    coeffC = 1.0 / (upljcut ** pow) - coeffA * (dfljcut ** 3)         &
+                                    - coeffB * (dfljcut ** 4)
+  end subroutine calc_gmx_switching_force_params
 
 end module realcal
