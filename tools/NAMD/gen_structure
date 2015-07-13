@@ -163,7 +163,8 @@ mass_table = {
   63: 'Cu',
   64: 'Cu',
   65: 'Zn',
-  80: 'Br' }
+  80: 'Br',
+  127: 'I' }
 def atomtype_of_mass(mass):
     imass = int(round(mass))
     if imass not in mass_table:

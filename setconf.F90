@@ -993,6 +993,7 @@ contains
     real, parameter :: massF = 18.9984032       ! atomic weight (fluorine)
     real, parameter :: massCl = 35.4527         ! atomic weight (chlorine)
     real, parameter :: massBr = 79.904          ! atomic weight (bromine)
+    real, parameter :: massI =  126.90447       ! atomic weight (iodine)
     real, parameter :: massCa = 40.078          ! atomic weight (calcium)
     real, parameter :: massZn = 65.409          ! atomic weight (zinc)
     real, parameter :: massFe = 55.845          ! atomic weight (iron)
@@ -1014,6 +1015,7 @@ contains
     if(eltp1 == 'B') stmass = massB
     if(eltp1 == 'K') stmass = massK
     if(eltp1 == 'F') stmass = massF
+    if(eltp1 == 'I') stmass = massI
     eltp2 = atmtype(1:2)
     if(eltp2 == 'He') stmass = massHe
     if(eltp2 == 'Li') stmass = massLi

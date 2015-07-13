@@ -375,6 +375,7 @@ mass_table = {
   64: 'Cu',
   65: 'Zn',
   80: 'Br',
+  127: 'I',
   0: 'M' } # dummy atom
 
 def atomtype_of_mass(mass):
