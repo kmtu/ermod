@@ -9,7 +9,7 @@ nobase_pkgdata_SCRIPTS = \
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so
 
-ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 bestfit.F90
+ersources = enganal.F90 engmain.F90 realcal.F90 spline.F90 fft_iface.F90 mpiproc.F90 engproc.F90 recpcal.F90 insertion.F90 setconf.F90 trajectory.F90 utility.F90 bestfit.F90 engtraj.F90
 
 EXTRA_DIST = parameters_er.example parameters_fe.example
 EXTRA_DIST += extensions/*
@@ -50,7 +50,7 @@ extra_flags =
 
 # module dependencies
 ermod-enganal.$(OBJEXT): enganal.F90 ermod-engproc.$(OBJEXT) ermod-setconf.$(OBJEXT) ermod-insertion.$(OBJEXT) ermod-trajectory.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
-ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-bestfit.$(OBJEXT) ermod-utility.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
+ermod-engproc.$(OBJEXT): engproc.F90 ermod-insertion.$(OBJEXT) ermod-realcal.$(OBJEXT) ermod-recpcal.$(OBJEXT) ermod-bestfit.$(OBJEXT) ermod-utility.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT) ermod-engtraj.$(OBJEXT)
 ermod-realcal.$(OBJEXT): realcal.F90 ermod-engmain.$(OBJEXT)
 ermod-recpcal.$(OBJEXT): recpcal.F90 ermod-spline.$(OBJEXT) ermod-fft_iface.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
 ermod-insertion.$(OBJEXT): insertion.F90 ermod-setconf.$(OBJEXT) ermod-bestfit.$(OBJEXT) ermod-trajectory.$(OBJEXT) ermod-mpiproc.$(OBJEXT) ermod-engmain.$(OBJEXT)
@@ -59,6 +59,7 @@ ermod-bestfit.$(OBJEXT): bestfit.F90 ermod-mpiproc.$(OBJEXT)
 ermod-trajectory.$(OBJEXT): trajectory.F90 ermod-utility.$(OBJEXT)
 ermod-utility.$(OBJEXT): utility.F90 ermod-engmain.$(OBJEXT)
 ermod-mpiproc.$(OBJEXT): mpiproc.F90 ermod-engmain.$(OBJEXT)
+ermod-engtraj.$(OBJEXT): engtraj.F90 ermod-mpiproc.$(OBJEXT)
 
 slvfe_SOURCES = slvfe.F90
 slvfe_LDADD = $(LAPACK_LIBS) $(BLAS_LIBS)

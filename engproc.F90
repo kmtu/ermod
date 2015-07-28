@@ -302,16 +302,18 @@ contains
     use engmain, only: nummol, skpcnf, slttype, sluvid, &
                        maxins, numslv, numslt, cltype, cell, &
                        io_flcuv, &
+                       maxcnf, sltlist, sltspec, &
                        SYS_NONPERIODIC, SYS_PERIODIC, &
                        EL_COULOMB, EL_PME, ES_NVT, ES_NPT, &
                        SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
                        PT_SOLVENT, PT_SOLUTE
     use reciprocal, only: recpcal_init, recpcal_spline_greenfunc, &
                           recpcal_prepare_solvent
+    use engtraj, only: engtraj_init, engtraj_write, engtraj_finish
     use mpiproc                                                      ! MPI
     implicit none
     integer, intent(in) :: stnum
-    integer :: i, k, irank
+    integer :: i, k, irank, slttag
     real :: engnmfc, pairep, stat_weight_solute, factor
     integer, dimension(:), allocatable :: insdst, engdst, tplst
     real, dimension(:),    allocatable :: uvengy, svfl
@@ -377,6 +379,7 @@ contains
           call perf_time()
        endif
 
+       if (slttype == SLT_SOLN) call engtraj_init(sltspec, sltlist(1), numslt, nummol, maxcnf, skpcnf)
        ! cntdst is the pick-up no. of solute MOLECULE from plural solutes (soln)
        ! cntdst is the iteration no. of insertion (refs)
        do cntdst = 1, maxdst
@@ -384,7 +387,13 @@ contains
           if(skipcond) cycle
           
           call update_histogram(stnum, stat_weight_solute, uvengy(0:slvmax))
+
+          if(slttype == SLT_SOLN) then
+             slttag = sltlist(cntdst)
+             call engtraj_write(stnum, slttag, uvengy(slttag+1:slvmax))
+          end if
        enddo
+       if (slttype == SLT_SOLN) call engtraj_finish()
 
        select case(slttype)
        case(SLT_SOLN)                           ! for soln: output flceng
