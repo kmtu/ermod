@@ -25,22 +25,32 @@ module engtraj
   integer :: sltfirsttag, num_relevant_mol
 
 contains
-  subroutine engtraj_init(sltspec, slttag1, numslt, nummol, maxcnf, skpcnf)
+  subroutine engtraj_init(sltspec, slttag1, numslt, nummol, maxcnf, skpcnf, engdiv)
     use H5LT
     implicit none
     integer(hid_t) :: plist_id      ! Property list identifier 
-    integer, intent(in) :: sltspec, slttag1, numslt, nummol, maxcnf, skpcnf
-    integer :: err, numframe, num_record_per_frame
+    integer, intent(in) :: sltspec, slttag1, numslt, nummol, maxcnf, skpcnf, engdiv
+    integer :: err, numframe, num_record_per_frame, frame_remainder
     logical, save :: is_first_init = .true.
 
     sltfirsttag = slttag1
     numframe = maxcnf / skpcnf
+    frame_remainder = mod(numframe, engdiv)
+    if (is_first_init) then
+      if (myrank == 0) then
+        if (frame_remainder /= 0) then
+          write(*, *) "Warning: ", frame_remainder, " frames at the end are not processed due to numframe not divisible by engdiv"
+          write(*, *) "Set engdiv to 1 or a number dividing ", numframe, " if you want all the frames to be processed"
+        end if
+      end if
+    end if
+    numframe = numframe - frame_remainder
 
     num_relevant_mol = nummol - sltfirsttag + 1
     num_record_per_frame = numslt * (numslt - 1) / 2 + numslt * (num_relevant_mol - numslt)
 
     ! Initialize FORTRAN predefined datatypes
-    call h5open_f(err)
+    call H5open_f(err)
 
     ! Setup file access property list with parallel I/O access.
     call H5Pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
@@ -136,5 +146,9 @@ contains
     call H5Sclose_f(filespace, err)
     call H5Dclose_f(dset_id, err)
     call H5Fclose_f(file_id, err)
+
+    ! this call should be put at the end of the program when HDF5 is no longer needed
+    ! putting it here results in a significant performance impact
+    !call H5close_f(err)
   end subroutine engtraj_finish
 end module engtraj

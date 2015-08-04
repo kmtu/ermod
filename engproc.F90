@@ -302,7 +302,7 @@ contains
     use engmain, only: nummol, skpcnf, slttype, sluvid, &
                        maxins, numslv, numslt, cltype, cell, &
                        io_flcuv, &
-                       maxcnf, sltlist, sltspec, &
+                       maxcnf, sltlist, sltspec, engdiv, &
                        SYS_NONPERIODIC, SYS_PERIODIC, &
                        EL_COULOMB, EL_PME, ES_NVT, ES_NPT, &
                        SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
@@ -379,7 +379,7 @@ contains
           call perf_time()
        endif
 
-       if (slttype == SLT_SOLN) call engtraj_init(sltspec, sltlist(1), numslt, nummol, maxcnf, skpcnf)
+       if (slttype == SLT_SOLN) call engtraj_init(sltspec, sltlist(1), numslt, nummol, maxcnf, skpcnf, engdiv)
        ! cntdst is the pick-up no. of solute MOLECULE from plural solutes (soln)
        ! cntdst is the iteration no. of insertion (refs)
        do cntdst = 1, maxdst
