@@ -430,7 +430,7 @@ contains
                                              irank = 1, nactiveproc)
        end select
 #ifdef HAVE_FLUSH
-       if (myrank == 0) call flush(io_flcuv)
+       if (myrank == 0) flush(io_flcuv)
 #endif
     endif
 
