@@ -545,11 +545,14 @@ contains
     real, dimension(:), allocatable   :: agg_mass
     real, dimension(:,:), allocatable :: agg_site
     integer :: num_aggsite, molb, mole, nsite, cnt, i
-    num_aggsite = sum( numsite, mask = (moltype == hostspec) )
+    num_aggsite = 0
+    do i = 1, nummol
+       if(any(moltype(i) == hostspec(:))) num_aggsite = num_aggsite + numsite(i)
+    enddo
     allocate( agg_mass(num_aggsite), agg_site(3,num_aggsite) )
     cnt = 0
     do i = 1, nummol
-       if(moltype(i) == hostspec) then
+       if(any(moltype(i) == hostspec(:))) then
           nsite = numsite(i)
           molb = mol_begin_index(i)
           mole = mol_end_index(i)
@@ -630,13 +633,16 @@ contains
     real :: crd(3), wgt
     character(len=6) :: header
 
-    refhost_natom = sum( numsite, mask = (moltype == refspec) )
+    refhost_natom = 0
+    do i = 1, nummol
+       if(any(moltype(i) == refspec(:))) refhost_natom = refhost_natom + numsite(i)
+    enddo
     if(refhost_natom > 0) then
        allocate( refhost_crd(3, refhost_natom), refhost_weight(refhost_natom) )
        allocate( refhost_specatm(refhost_natom) )
        atom_count = 0
        do i = 1, nummol
-          if(moltype(i) == refspec) then
+          if(any(moltype(i) == refspec(:))) then
              do sid = 1, numsite(i)
                 refhost_specatm(atom_count + sid) = mol_begin_index(i) + sid - 1
              end do
