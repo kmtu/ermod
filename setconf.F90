@@ -245,8 +245,8 @@ contains
     end select
 
     sltspec = 1
-    hostspec = 0
-    refspec = 0
+    hostspec(:) = 0
+    refspec(:) = 0
 
     ljformat = LJFMT_EPS_Rminh
     ljswitch = LJSWT_POT_CHM
@@ -270,7 +270,7 @@ contains
     endif
 
     if(sltpick > 0) sltspec = sltpick                      ! deprecated
-    if(refpick > 0) refspec = refpick                      ! deprecated
+    if(refpick > 0) refspec(1) = refpick                   ! deprecated
 
     select case(inscnd)                                    ! deprecated
     case(0)    ! random
@@ -459,34 +459,49 @@ contains
          INSPOS_RMSD, INSPOS_GAUSS
     use mpiproc, only: halt_with_error
     implicit none
+    integer :: phys_numtype
+
+    ! number of physical species in the system
+    select case(slttype)
+    case(SLT_SOLN)
+       phys_numtype = numtype
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+       phys_numtype = numtype - 1
+    end select
 
     ! when restrained relative to aggregate
+    ! hostspec is either 0 (undefined)
+    !             or between 1 and (numtype for soln, numtype - 1 for refs)
+    ! with the insorigin and insposition specified here,
+    !      at least one of hostspec needs to be non-zero
+    ! Number of non-zero entries of hostspec <= number of species in the system
     if((insorigin == INSORG_AGGCEN) .or. &
        (insposition == INSPOS_SPHERE) .or. &
        (insposition == INSPOS_SLAB_GENERIC) .or. &
        (insposition == INSPOS_SLAB_SYMMETRIC)) then
-       select case(slttype)
-       case(SLT_SOLN)
-          if((hostspec < 1) .or. (hostspec > numtype)) call halt_with_error('set_ins')
-       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
-          if((hostspec < 1) .or. (hostspec > numtype - 1)) call halt_with_error('set_ins')
-       end select
+       if(count( mask = (hostspec(:) < 0) ) > 0) call halt_with_error('set_ins')
+       if(count( mask = (hostspec(:) >= 1) ) == 0) call halt_with_error('set_ins')
+       if(any(hostspec(:) > phys_numtype)) call halt_with_error('set_ins')
+       if(count( mask = (hostspec(:) >= 1) ) > phys_numtype) call halt_with_error('set_ins')
     else
-       hostspec = 0
+       hostspec(:) = 0
     endif
 
     ! when restrained against reference
+    ! refspec is either 0 (undefined)
+    !            or between 1 and (numtype for soln, numtype - 1 for refs)
+    ! with the insorigin and insposition specified here,
+    !      at least one of refspec needs to be non-zero
+    ! Number of non-zero entries of refspec <= number of species in the system
     if((insorigin == INSORG_REFSTR) .or. &
        (insposition == INSPOS_RMSD) .or. &
        (insposition == INSPOS_GAUSS)) then
-       select case(slttype)
-       case(SLT_SOLN)
-          if((refspec < 1) .or. (refspec > numtype)) call halt_with_error('set_ins')
-       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
-          if((refspec < 1) .or. (refspec > numtype - 1)) call halt_with_error('set_ins')
-       end select
+       if(count( mask = (refspec(:) < 0) ) > 0) call halt_with_error('set_ins')
+       if(count( mask = (refspec(:) >= 1) ) == 0) call halt_with_error('set_ins')
+       if(any(refspec(:) > phys_numtype)) call halt_with_error('set_ins')
+       if(count( mask = (refspec(:) >= 1) ) > phys_numtype) call halt_with_error('set_ins')
     else
-       refspec = 0
+       refspec(:) = 0
     endif
 
     return

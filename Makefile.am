@@ -46,6 +46,10 @@ else
 ermod_SOURCES += hash_real.c
 endif
 
+if USE_FLUSH
+ermod_FCFLAGS += -DHAVE_FLUSH
+endif
+
 extra_flags = 
 
 # module dependencies

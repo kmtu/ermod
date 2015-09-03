@@ -438,6 +438,9 @@ contains
                                         (stnum + irank - 1) * skpcnf, &
                                              irank = 1, nactiveproc)
        end select
+#ifdef HAVE_FLUSH
+       if (myrank == 0) flush(io_flcuv)
+#endif
     endif
 
     deallocate( tagpt, uvengy )

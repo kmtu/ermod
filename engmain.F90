@@ -48,6 +48,7 @@
 !   estype : type of system
 !               1 : constant volume  2 : constant pressure
 !
+!   max_for_spec : maxinum number of species in the system
 !   sltspec : specifying the solute species
 !               1 <= sltspec <= numtype (default = 1) when slttype = 1
 !               sltspec = numtype when slttype >= 2
@@ -248,7 +249,8 @@ module engmain
 !
   integer :: numtype, nummol, numatm, maxcnf, engdiv, skpcnf, corrcal, selfcal
   integer :: slttype, wgtslf, wgtins, wgtsys, boxshp, estype
-  integer :: sltspec, hostspec, refspec
+  integer, parameter :: max_for_spec = 100    ! maximum number of species
+  integer :: sltspec, hostspec(max_for_spec), refspec(max_for_spec)
   integer :: insorigin, insposition, insorient, insstructure
   integer :: sltpick, refpick, inscnd, inscfg           ! deprecated
   real :: lwreg, upreg, lwstr, upstr
