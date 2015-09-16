@@ -1,5 +1,6 @@
 version 0.3.2 (XX/XX/2015)
 * Energy Histogram Computation:
+    * PPPM computation is implemented (undocumented)
     * Gromacs-type force switching is implemented
     * Micelle, lipid membrane, and protein can consist of more than a single
     species
