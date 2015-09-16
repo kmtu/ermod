@@ -208,7 +208,7 @@ def parse_mdp():
         params['lwljcut'] = float(dic["rvdw_switch"]) * 10.0
         params['ljswitch'] = 1 # GROMACS special potential-switch
         if modifier == "Force-switch":
-            warn("force-switching in GROMACS is unsupported, and potential-switch is used instead (leading possibly to inconsistent result)")
+            params['ljswitch'] = 3  # GROMACS special force-switch
     elif dic["vdwtype"] in ["Shift", "Encad-Shift"]:
         warn("shifted L-J potential is unsupported, and the abrupt cutoff is used instead (leading possibly to inconsistent result)")
         params['upljcut'] = float(dic["rvdw"]) * 10.0

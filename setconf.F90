@@ -162,7 +162,7 @@ contains
          ES_NVT, ES_NPT, &
          LJFMT_EPS_cal_SGM_nm, LJFMT_EPS_Rminh, LJFMT_EPS_J_SGM_A, &
          LJFMT_A_C, LJFMT_C12_C6, LJFMT_TABLE, &
-         LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE, &
+         LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FRC_CHM, LJSWT_FRC_GMX, &
          LJCMB_ARITH, LJCMB_GEOM, &
          EL_COULOMB, EL_EWALD, EL_PME, EL_PPPM, &
          SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
@@ -246,8 +246,8 @@ contains
     end select
 
     sltspec = 1
-    hostspec = 0
-    refspec = 0
+    hostspec(:) = 0
+    refspec(:) = 0
 
     ljformat = LJFMT_EPS_Rminh
     ljswitch = LJSWT_POT_CHM
@@ -271,7 +271,7 @@ contains
     endif
 
     if(sltpick > 0) sltspec = sltpick                      ! deprecated
-    if(refpick > 0) refspec = refpick                      ! deprecated
+    if(refpick > 0) refspec(1) = refpick                   ! deprecated
 
     select case(inscnd)                                    ! deprecated
     case(0)    ! random
@@ -347,7 +347,7 @@ contains
 
     ! check ljswitch parameter
     select case(ljswitch)
-    case(LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FORCE)
+    case(LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FRC_CHM, LJSWT_FRC_GMX)
     case default
        stop "Unknown ljswitch"
     end select
@@ -463,34 +463,49 @@ contains
          INSPOS_RMSD, INSPOS_GAUSS
     use mpiproc, only: halt_with_error
     implicit none
+    integer :: phys_numtype
+
+    ! number of physical species in the system
+    select case(slttype)
+    case(SLT_SOLN)
+       phys_numtype = numtype
+    case(SLT_REFS_RIGID, SLT_REFS_FLEX)
+       phys_numtype = numtype - 1
+    end select
 
     ! when restrained relative to aggregate
+    ! hostspec is either 0 (undefined)
+    !             or between 1 and (numtype for soln, numtype - 1 for refs)
+    ! with the insorigin and insposition specified here,
+    !      at least one of hostspec needs to be non-zero
+    ! Number of non-zero entries of hostspec <= number of species in the system
     if((insorigin == INSORG_AGGCEN) .or. &
        (insposition == INSPOS_SPHERE) .or. &
        (insposition == INSPOS_SLAB_GENERIC) .or. &
        (insposition == INSPOS_SLAB_SYMMETRIC)) then
-       select case(slttype)
-       case(SLT_SOLN)
-          if((hostspec < 1) .or. (hostspec > numtype)) call halt_with_error('set_ins')
-       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
-          if((hostspec < 1) .or. (hostspec > numtype - 1)) call halt_with_error('set_ins')
-       end select
+       if(count( mask = (hostspec(:) < 0) ) > 0) call halt_with_error('set_ins')
+       if(count( mask = (hostspec(:) >= 1) ) == 0) call halt_with_error('set_ins')
+       if(any(hostspec(:) > phys_numtype)) call halt_with_error('set_ins')
+       if(count( mask = (hostspec(:) >= 1) ) > phys_numtype) call halt_with_error('set_ins')
     else
-       hostspec = 0
+       hostspec(:) = 0
     endif
 
     ! when restrained against reference
+    ! refspec is either 0 (undefined)
+    !            or between 1 and (numtype for soln, numtype - 1 for refs)
+    ! with the insorigin and insposition specified here,
+    !      at least one of refspec needs to be non-zero
+    ! Number of non-zero entries of refspec <= number of species in the system
     if((insorigin == INSORG_REFSTR) .or. &
        (insposition == INSPOS_RMSD) .or. &
        (insposition == INSPOS_GAUSS)) then
-       select case(slttype)
-       case(SLT_SOLN)
-          if((refspec < 1) .or. (refspec > numtype)) call halt_with_error('set_ins')
-       case(SLT_REFS_RIGID, SLT_REFS_FLEX)
-          if((refspec < 1) .or. (refspec > numtype - 1)) call halt_with_error('set_ins')
-       end select
+       if(count( mask = (refspec(:) < 0) ) > 0) call halt_with_error('set_ins')
+       if(count( mask = (refspec(:) >= 1) ) == 0) call halt_with_error('set_ins')
+       if(any(refspec(:) > phys_numtype)) call halt_with_error('set_ins')
+       if(count( mask = (refspec(:) >= 1) ) > phys_numtype) call halt_with_error('set_ins')
     else
-       refspec = 0
+       refspec(:) = 0
     endif
 
     return
@@ -997,6 +1012,7 @@ contains
     real, parameter :: massF = 18.9984032       ! atomic weight (fluorine)
     real, parameter :: massCl = 35.4527         ! atomic weight (chlorine)
     real, parameter :: massBr = 79.904          ! atomic weight (bromine)
+    real, parameter :: massI =  126.90447       ! atomic weight (iodine)
     real, parameter :: massCa = 40.078          ! atomic weight (calcium)
     real, parameter :: massZn = 65.409          ! atomic weight (zinc)
     real, parameter :: massFe = 55.845          ! atomic weight (iron)
@@ -1018,6 +1034,7 @@ contains
     if(eltp1 == 'B') stmass = massB
     if(eltp1 == 'K') stmass = massK
     if(eltp1 == 'F') stmass = massF
+    if(eltp1 == 'I') stmass = massI
     eltp2 = atmtype(1:2)
     if(eltp2 == 'He') stmass = massHe
     if(eltp2 == 'Li') stmass = massLi

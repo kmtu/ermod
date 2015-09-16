@@ -5,6 +5,7 @@ nobase_pkgdata_SCRIPTS = \
 	tools/NAMD/gen_structure tools/NAMD/gen_input \
 	tools/gromacs/gen_structure tools/gromacs/gen_input \
 	tools/AMBER/gen_structure tools/AMBER/gen_input \
+	tools/MARBLE/gen_structure tools/MARBLE/gen_input \
 	tools/LAMMPS/gen_structure tools/LAMMPS/gen_input
 
 dist_pkglibexec_SCRIPTS = vmdplugins/libexec/*.so

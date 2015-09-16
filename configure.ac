@@ -195,6 +195,24 @@ AM_CONDITIONAL([USE_TRANSFER], [test "x$my_check_have_transfer" = "xyes"])
 
 ################################
 
+AC_LANG_PUSH(Fortran)
+AC_LINK_IFELSE(
+  [AC_LANG_PROGRAM([], [dnl
+      implicit none
+
+      open(10,file='/tmp/configure.ermod.flush.test')
+      write(10,*) 342
+      flush(10)
+      close(10)
+])], [my_check_have_flush=yes], [my_check_have_flush=no])
+
+echo -n $my_check_have_flush
+AC_LANG_POP(Fortran)
+
+AM_CONDITIONAL([USE_FLUSH], [test "x$my_check_have_flush" = "xyes"])
+
+################################
+
 # set to f90 as default
 AC_FC_SRCEXT(f90)
 

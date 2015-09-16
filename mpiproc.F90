@@ -83,6 +83,8 @@ contains
 #endif
        call mpi_finalize(ierror)
     endif
+#else
+    if(type == 'init') call mpi_rank_size_info
 #endif
   end subroutine mpi_setup
 

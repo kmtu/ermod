@@ -413,7 +413,7 @@ contains
           if(myrank == 0) then
              do irank = 1, nactiveproc
                 do cntdst = 1, maxdst
-                   if(flceng_stored_g(maxdst, irank)) then
+                   if(flceng_stored_g(cntdst, irank)) then
                       if(maxdst == 1) then
                          write(io_flcuv, 911) &
                                         (stnum + irank - 1) * skpcnf, &
@@ -435,6 +435,9 @@ contains
                                         (stnum + irank - 1) * skpcnf, &
                                              irank = 1, nactiveproc)
        end select
+#ifdef HAVE_FLUSH
+       if (myrank == 0) flush(io_flcuv)
+#endif
     endif
 
     deallocate( tagpt, uvengy )

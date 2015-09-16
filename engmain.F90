@@ -48,6 +48,7 @@
 !   estype : type of system
 !               1 : constant volume  2 : constant pressure
 !
+!   max_for_spec : maxinum number of species in the system
 !   sltspec : specifying the solute species
 !               1 <= sltspec <= numtype (default = 1) when slttype = 1
 !               sltspec = numtype when slttype >= 2
@@ -248,7 +249,8 @@ module engmain
 !
   integer :: numtype, nummol, numatm, maxcnf, engdiv, skpcnf, corrcal, selfcal
   integer :: slttype, wgtslf, wgtins, wgtsys, boxshp, estype
-  integer :: sltspec, hostspec, refspec
+  integer, parameter :: max_for_spec = 100    ! maximum number of species
+  integer :: sltspec, hostspec(max_for_spec), refspec(max_for_spec)
   integer :: insorigin, insposition, insorient, insstructure
   integer :: sltpick, refpick, inscnd, inscfg           ! deprecated
   real :: lwreg, upreg, lwstr, upstr
@@ -304,7 +306,8 @@ module engmain
   integer, parameter :: LJFMT_EPS_cal_SGM_nm = 0, LJFMT_EPS_Rminh = 1, &
                         LJFMT_EPS_J_SGM_A = 2, LJFMT_A_C = 3, &
                         LJFMT_C12_C6 = 4, LJFMT_TABLE = 5
-  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, LJSWT_FORCE = 2
+  integer, parameter :: LJSWT_POT_CHM = 0, LJSWT_POT_GMX = 1, &
+                        LJSWT_FRC_CHM = 2, LJSWT_FRC_GMX = 3
   integer, parameter :: LJCMB_ARITH = 0, LJCMB_GEOM = 1
   integer, parameter :: EL_COULOMB = 0, EL_EWALD = 1, EL_PME = 2, EL_PPPM = 3
   integer, parameter :: SLT_SOLN = 1, SLT_REFS_RIGID = 2, SLT_REFS_FLEX = 3
