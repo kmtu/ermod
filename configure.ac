@@ -42,7 +42,7 @@ ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 : ${enable_openmp=no}
 AC_ARG_ENABLE([openmp],
               AS_HELP_STRING([--enable-openmp],
-                             [use OpenMP]))
+                             [use OpenMP (default = no)]))
 AC_OPENMP
 
 AS_IF([test "x$FC" = "x"],
