@@ -430,6 +430,7 @@ contains
              enddo
           endif
           deallocate( flceng_g, flceng_stored_g )
+
        case(SLT_REFS_RIGID, SLT_REFS_FLEX)      ! for refs: output progress
           if(myrank == 0) write(io_flcuv, *) ( &
                                         (stnum + irank - 1) * skpcnf, &
