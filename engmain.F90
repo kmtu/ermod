@@ -140,9 +140,10 @@
 !               5 : Read from table, LJTable file
 !                   (epsilon in kcal/mol and sigma in A)
 !   ljswitch : switching function for smooth LJ truncation
-!               0 (default) : energy switch in CHARMM form
-!               1 : energy switch in GROMACS form
-!               2 : force switch
+!               0 (default) : potential switch in CHARMM form
+!               1 : potential switch in GROMACS form
+!               2 : force switch in CHARMM form
+!               3 : force switch in GROMACS form
 !               tapering function is defined by lwljcut and upljcut variables
 !   iseed : seed parameter for uniform random number
 !   inptemp : temperature of the system in Kelvin
@@ -181,13 +182,14 @@
 !        1 : geometric mean is used for LJ sigma as for OPLS
 !      default = 0
 !      geometric mean is always used for LJ epsilon
-!   cltype : treatment of Coulomb interaction   0 : bare  1 : Ewald  2 : PME
+!   cltype : treatment of Coulomb interaction
+!        0 : bare  1 : Ewald  2 : PME  3 : PPPM
 !   screen : screening constant in Ewald summation
 !   ewtoler : Ewald and PME tolerance to calculate the screen parameter
 !      when screen is given, screen has the priority
 !   splodr : order of spline function used in PME
 !   ew1max,ew2max,ew3max : number of reciprocal vectors along one direction
-!   ms1max,ms2max,ms3max : number of meshes in PME along one direction
+!   ms1max,ms2max,ms3max : number of meshes in PME or PPPM along one direction
 !   plmode : parallelization mode for calculation of solute-solvent interaction
 !        1 : parallel over solvent molecules in each trajectory snapshot
 !        2 : each trajectory snapshot is assigned to
