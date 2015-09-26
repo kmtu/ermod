@@ -1,4 +1,4 @@
-version 0.3.2 (XX/XX/2015)
+version 0.3.2 (09/26/2015)
 * Energy Histogram Computation:
     * CHARMM input is now supported in gen_structure
     * PPPM computation is implemented (undocumented atm)
