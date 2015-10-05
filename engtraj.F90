@@ -16,7 +16,7 @@ module engtraj
   use HDF5
   use mpiproc, only: mpi_comm_activeprocs, MPI_INFO_NULL, myrank
   implicit none
-  character(len=*), parameter :: ENGTRAJ_VER = "0.1.0"
+  character(len=*), parameter :: ENGTRAJ_VER = "0.4.0"
   character(len=*), parameter :: ENGTRAJ_FILENAME = "engtraj.h5"
   character(len=*), parameter :: ENGDSET_NAME = "energy"
   integer(hid_t) :: file_id       ! File identifier 
