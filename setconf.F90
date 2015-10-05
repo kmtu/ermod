@@ -164,7 +164,7 @@ contains
          LJFMT_A_C, LJFMT_C12_C6, LJFMT_TABLE, &
          LJSWT_POT_CHM, LJSWT_POT_GMX, LJSWT_FRC_CHM, LJSWT_FRC_GMX, &
          LJCMB_ARITH, LJCMB_GEOM, &
-         EL_COULOMB, EL_EWALD, EL_PME, &
+         EL_COULOMB, EL_EWALD, EL_PME, EL_PPPM, &
          SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
          INSORG_ORIGIN, INSORG_NOCHANGE, INSORG_AGGCEN, INSORG_REFSTR, &
          INSPOS_RANDOM, INSPOS_NOCHANGE, &
@@ -237,7 +237,8 @@ contains
        corrcal = NO                ! no calculation of correlation matrix
     case(SLT_REFS_RIGID, SLT_REFS_FLEX)
        corrcal = YES               ! calculation of correlation matrix
-       if((cltype == EL_EWALD) .or. (cltype == EL_PME)) then  ! Ewald and PME
+       if((cltype == EL_EWALD) .or. (cltype == EL_PME) &
+            .or. (cltype == EL_PPPM)) then  ! Ewald, PME and PPPM
           wgtslf = YES
        endif
     case default
@@ -312,7 +313,8 @@ contains
     temp = inptemp * 8.314510e-3 / 4.184
 
     ! get the screening parameter in Ewald and PME
-    if((cltype == EL_EWALD) .or. (cltype == EL_PME)) then  ! Ewald and PME
+    if((cltype == EL_EWALD) .or. (cltype == EL_PME) &
+         .or. (cltype == EL_PPPM)) then  ! Ewald, PME and PPPM
        if(screen <= tiny) then
           if(ewtoler <= tiny) call halt_with_error('set_ewa')
           screen = getscrn(ewtoler, elecut, scrtype)
@@ -328,6 +330,8 @@ contains
        call halt_with_error('set_prs')
        if(ew1max * ew2max * ew3max == 0) call halt_with_error('set_ewa')
     case(EL_PME)     ! PME parameters
+       if(ms1max * ms2max * ms3max == 0) call halt_with_error('set_ewa')
+    case(EL_PPPM)     ! PPPM parameters
        if(ms1max * ms2max * ms3max == 0) call halt_with_error('set_ewa')
     case default
        stop "Unknown cltype"

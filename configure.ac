@@ -3,7 +3,7 @@
 # autoconf <= 2.64 has a bug in AC_OPENMP
 AC_PREREQ([2.65])
 #AC_INIT(ermod, 0.3.%rev%, Matubayasi Laboratory)
-AC_INIT(ermod, 0.3.1, Matubayasi Laboratory)
+AC_INIT(ermod, 0.3.2, Matubayasi Laboratory)
 AC_CONFIG_MACRO_DIR(m4)
 AC_CONFIG_SRCDIR([vmdfio.c])
 AM_INIT_AUTOMAKE
@@ -42,7 +42,7 @@ ACX_MPI_MY([use_mpi=yes], [use_mpi=no])
 : ${enable_openmp=no}
 AC_ARG_ENABLE([openmp],
               AS_HELP_STRING([--enable-openmp],
-                             [use OpenMP]))
+                             [use OpenMP (default = no)]))
 AC_OPENMP
 
 AS_IF([test "x$FC" = "x"],
