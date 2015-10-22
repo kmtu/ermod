@@ -846,13 +846,6 @@ contains
     end do
     invcell_normal(:) = 1 / cell_len_normal(:)
 
-    ! normalize coordinate within single periodicity
-    ! move all particles inside the cuboid spanned by (0 .. cell(1, 1)), (0 .. cell(2,2)), (0 .. cell(3,3))
-    do i = 1, 3
-       sitepos_normal(i, :) = sitepos_normal(i, :) - &
-            floor(sitepos_normal(i, :) * invcell_normal(i)) * cell_len_normal(i)
-    end do
-
     info = 0
     invcell(:, :) = cell_normal(:, :)
     if(kind(dummy) == 8) then
@@ -869,6 +862,24 @@ contains
     else
        is_cuboid = .true.
     end if
+
+    ! normalize coordinates into a periodic parallelpiped cell
+    do i = 1, n
+       sitepos_normal(:, i) = sitepos_normal(:, i) - &
+            matmul(cell_normal, floor(matmul(invcell, sitepos_normal(:, i))))
+    end do
+
+    ! move all particles inside the cuboid spanned by (0 .. cell(1, 1)), (0 .. cell(2,2)), (0 .. cell(3,3)).
+    ! Z values are already within the range (only 1 axis exists within parallelpiped cell)
+    ! Y values are bit tricky, shifted by the second vector
+    ! X values are simply shifted along the first vector
+    do i = 1, n
+       sitepos_normal(1:3, i) = sitepos_normal(1:3, i) - &
+            cell_normal(:, 2) * floor(dot_product(invcell(:, 2), sitepos_normal(:, i)))
+       sitepos_normal(1, i) = sitepos_normal(1, i) - &
+            cell_normal(1, 1) * floor(invcell(1, 1) * sitepos_normal(1, 1))
+    end do
+
   end subroutine normalize_periodic
 
   ! get the coefficients for gromacs force switching
