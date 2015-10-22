@@ -4,8 +4,8 @@ version 0.3.3 (10/22/2015)
 
 version 0.3.2 (09/26/2015)
 * Energy Histogram Computation:
-    * CHARMM input is now supported in gen_structure
-    * PPPM computation is implemented (undocumented at the moment)
+    * CHARMM and LAMMPS inputs are now supported in gen_structure and gen_input (undocumented at the moment)
+    * PPPM computation is implemented
     * Gromacs-type force switching is implemented
     * Micelle, lipid membrane, and protein can consist of more than a single
     species
