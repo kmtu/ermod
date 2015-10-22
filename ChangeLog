@@ -1,3 +1,7 @@
+version 0.3.3 (10/22/2015)
+* Bug fixes:
+    * Fixed a bug in non-cuboidal box.
+
 version 0.3.2 (09/26/2015)
 * Energy Histogram Computation:
     * CHARMM input is now supported in gen_structure

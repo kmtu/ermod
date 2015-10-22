@@ -865,8 +865,8 @@ contains
 
     ! normalize coordinates into a periodic parallelpiped cell
     do i = 1, n
-       sitepos_normal(:, i) = sitepos_normal(:, i) - &
-            matmul(cell_normal, floor(matmul(invcell, sitepos_normal(:, i))))
+       sitepos_normal(1:3, i) = sitepos_normal(1:3, i) - &
+            matmul(cell_normal, floor(matmul(invcell, sitepos_normal(1:3, i))))
     end do
 
     ! move all particles inside the cuboid spanned by (0 .. cell(1, 1)), (0 .. cell(2,2)), (0 .. cell(3,3)).
@@ -875,7 +875,7 @@ contains
     ! X values are simply shifted along the first vector
     do i = 1, n
        sitepos_normal(1:3, i) = sitepos_normal(1:3, i) - &
-            cell_normal(:, 2) * floor(dot_product(invcell(:, 2), sitepos_normal(:, i)))
+            cell_normal(1:3, 2) * floor(dot_product(invcell(1:3, 2), sitepos_normal(1:3, i)))
        sitepos_normal(1, i) = sitepos_normal(1, i) - &
             cell_normal(1, 1) * floor(invcell(1, 1) * sitepos_normal(1, 1))
     end do
