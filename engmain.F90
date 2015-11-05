@@ -184,10 +184,10 @@
 !      geometric mean is always used for LJ epsilon
 !   cltype : treatment of Coulomb interaction
 !        0 : bare  1 : Ewald  2 : PME  3 : PPPM
-!   screen : screening constant in Ewald summation
-!   ewtoler : Ewald and PME tolerance to calculate the screen parameter
+!   screen : screening parameter in Ewald, PME or PPPM
+!   ewtoler : tolerance in Ewald, PME or PPPM to set the screening parameter
 !      when screen is given, screen has the priority
-!   splodr : order of spline function used in PME
+!   splodr : order of spline function used in PME or PPPM
 !   ew1max,ew2max,ew3max : number of reciprocal vectors along one direction
 !   ms1max,ms2max,ms3max : number of meshes in PME or PPPM along one direction
 !   plmode : parallelization mode for calculation of solute-solvent interaction
