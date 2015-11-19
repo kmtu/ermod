@@ -7,7 +7,7 @@ numdiv = 10,      ! Number of division for statistics, usually set equal to nums
 peread = "not",   ! "yes" if solvent-specific mesh is prepared in EcdInfo file
 uvread = "yes",   ! "not" if average solute-solvent energy is calculated from engsln, instead of aveuv.tt
 slfslt = "yes",   ! "not" if the solute self energy is not read
-infchk = "yes",   ! Enable error analysis for exponential meshing
+infchk = "yes",   ! Enable error analysis for the logarithmic-mesh part
 inptemp = 300,    ! Input Temperature in Kelvin
 mesherr = 0.1,    ! Maximum mesh error tolerance without producing a warning
 /
