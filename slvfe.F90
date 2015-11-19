@@ -21,15 +21,12 @@ module sysvars
   implicit none
 
   character(len=5) :: clcond = 'merge'
-
-  integer :: pecore = 200
-
-  character(len=3) :: peread = 'not',    uvread = 'yes'
-  character(len=3) :: slfslt = 'yes',    infchk = 'not'
+  character(len=3) :: uvread = 'yes',    slfslt = 'yes'
+  character(len=3) :: infchk = 'not',    cumuint = 'not'
   character(len=4) :: zerosft = 'orig',  wgtfnform = 'harm'
   character(len=3) :: refmerge = 'yes',  extsln = 'lin'
   character(len=3) :: wgtf2smpl = 'yes', slncor = 'not'
-  character(len=3) :: normalize = 'yes', showdst= 'not',   cumuint = 'not'
+  character(len=3) :: normalize = 'yes', showdst= 'not'
   character(len=3) :: wrtzrsft = 'not',  readwgtfl = 'yes'
 
   real :: inptemp = 300.0                                     ! Kelvin
@@ -50,7 +47,6 @@ module sysvars
   character(len=1024) :: refdnspf  = 'engref'
   character(len=1024) :: refcorpf  = 'corref'
   character(len=1024) :: aveuvfile = 'aveuv.tt'
-  character(len=1024) :: ecdinfofl = 'EcdInfo'
   character(len=1024) :: cumuintfl = 'cumsfe'
   character(len=10), parameter :: numbers='0123456789'
   
@@ -70,8 +66,8 @@ module sysvars
   integer, dimension(:),  allocatable :: svgrp, svinf
   real, dimension(:),     allocatable :: wgtsln, wgtref
   
-  namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
-       peread, uvread, slfslt, infchk, zerosft, wgtfnform, &
+  namelist /fevars/ clcond, numprm, numsln, numref, numdiv, &
+       uvread, slfslt, infchk, zerosft, wgtfnform, &
        refmerge, extsln, extthres_soln, extthres_refs, &
        minthres_soln, minthres_refs, &
        wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
@@ -79,7 +75,7 @@ module sysvars
        maxmesh, large, itrmax, error, tiny, &
        solndirec, refsdirec, wgtslnfl, wgtreffl, &
        slndnspf, slncorpf, refdnspf, refcorpf, &
-       aveuvfile, ecdinfofl, cumuint, cumuintfl
+       aveuvfile, cumuint, cumuintfl
 
 contains
 
@@ -167,21 +163,21 @@ module sysread
        rdcrd, rddst, rddns, rdslc, rdcor, rdspec, &
        aveuv, uvene, blkuv, wgtsln, wgtref
   implicit none
-  character(len=1024) :: engfile(5)
+  character(len=1024) :: engfile(4)
 contains
 
   subroutine defcond
-    use sysvars, only: peread, infchk, readwgtfl, &
+    use sysvars, only: infchk, readwgtfl, &
          solndirec, refsdirec, wgtslnfl, wgtreffl, &
-         slndnspf, aveuvfile, ecdinfofl, &
+         slndnspf, aveuvfile, &
          numprm, prmmax, numsln, numref, numdiv, &
          inptemp, temp, kT, &
-         pecore, maxmesh, large, &
+         maxmesh, tiny, large, &
          rduvmax, rduvcore, &
          chmpt, svgrp, svinf
     implicit none
-    integer :: group, inft, prmcnt, iduv, i, j, k, m, pti, cnt
-    real :: factor
+    integer :: group, inft, prmcnt, iduv, i, k, pti
+    real :: factor, crdnow, crdprev, crddif_now, crddif_prev
     character(len=1024) :: opnfile
 
     select case(clcond)
@@ -202,10 +198,6 @@ contains
        read(5, *) engfile(3)
        write(6, "(A)") " What is the energy correlation for insertion?"
        read(5, *) engfile(4)
-       if(peread == 'yes') then
-          write(6, "(A)") " Which file describes energy-coordinate parameters?"
-          read(5, *) engfile(5)
-       endif
        maxsln=1
        maxref=1
        numrun=1
@@ -251,65 +243,33 @@ contains
     allocate( svgrp(prmmax), svinf(prmmax) )
     allocate( wgtsln(maxsln), wgtref(maxref) )
     !
-    if(peread /= 'yes') then
-       cnt = ermax / numslv
-       rduvmax(:) = cnt
-       rduvcore(:) = pecore
-
-       ! check consistency
-       if(clcond == 'merge') then
-          opnfile = trim(solndirec) // '/' // trim(ecdinfofl)
+    ! opnfile is still engfile(1) or soln/engsln.01
+    open(unit = 71, file = opnfile, status = 'old')
+    k = 0
+    do iduv = 1, ermax
+       read(71, *) crdnow, pti, factor
+       if(pti /= k) then
+          rduvmax(pti) = 1
+          rduvcore(pti) = 0
+          k = pti
        else
-          opnfile = engfile(5)
-       endif
-       open(unit = 71, file = opnfile, status = 'old', err = 7899)
-       ! Something is wrong ... 
-       close(71)
-       print *, 'Warning: EcdInfo file exists, but peread is not "yes"'
-       print *, "Perhaps you forgot to set peread?"
-7899   continue
-    else
-       ! opnfile is still engfile(1) or soln/engsln.01
-       open(unit = 71, file = opnfile, status = 'old')
-       k = 0
-       do iduv = 1, ermax
-          read(71, *) factor, pti, factor
-          if(pti /= k) then
-             rduvmax(pti) = 1
-             k = pti
-          else
-             rduvmax(pti) = rduvmax(pti) + 1
-          endif
-       end do
-       close(71)
-       do pti = 1, numslv
-          rduvcore(pti) = pecore
-          if(clcond == 'merge') then
-             opnfile = trim(solndirec) // '/' // trim(ecdinfofl)
-          else
-             opnfile = engfile(5)
-          endif
-          open(unit = 71, file = opnfile, status = 'old')
-          read(71, *)        ! comment line
-          read(71, *)        ! line for solute-self energy
-          do i = 1, large
-             read(71, *, end = 7829) k
-             if(k == pti) then
-                backspace(71)
-                read(71, *) m, (factor,j = 1, 9), rduvcore(pti)
-                exit
+          if(rduvmax(pti) < 1) stop "Bug in counting rduvmax"
+          rduvmax(pti) = rduvmax(pti) + 1
+          crddif_now = crdnow - crdprev
+          if(rduvmax(pti) > 2) then
+             if(abs(crddif_now - crddif_prev) .lt. tiny) then
+                rduvcore(pti) = 0                      ! linear mesh
+             else
+                rduvcore(pti) = rduvcore(pti) + 1      ! logarithmic mesh
              endif
-          end do
-7829      continue
-          close(71)
-       end do
-       k = 0
-       do pti = 1, numslv
-          k = k + rduvmax(pti)
-       end do
-       if(k /= ermax) stop ' The file format is incorrect'
-    endif
+          endif
+          crddif_prev = crddif_now
+       endif
+       crdprev = crdnow
+    end do
+    close(71)
     !
+    if(sum( rduvmax(1:numslv) ) /= ermax) stop ' The file format is incorrect'
     if(ermax > maxmesh) stop ' The number of meshes is too large'
     !
     select case(clcond)
@@ -365,8 +325,8 @@ contains
        case('merge')
           opnfile = trim(solndirec) // '/' // trim(aveuvfile)
           open(unit = 82, file = opnfile, status = 'old')
-          do k = 1, maxsln
-             read(82, *) m, uvene(1:numslv, k)
+          do i = 1, maxsln
+             read(82, *) k, uvene(1:numslv, i)
           end do
           close(82)
        end select

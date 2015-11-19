@@ -1,23 +1,24 @@
---- slvfe.F90	2015-07-09 10:27:57.659759892 +0900
-+++ extensions/LJLRC/slvfe.F90	2015-07-09 11:31:37.311736514 +0900
-@@ -25,7 +25,7 @@
-   integer :: pecore = 200
+--- slvfe.F90	2015-11-19 15:19:42.723872870 +0900
++++ extensions/LJLRC/slvfe.F90	2015-11-19 15:19:40.472747151 +0900
+@@ -21,7 +21,7 @@
+   implicit none
  
-   character(len=3) :: peread = 'not',    uvread = 'yes'
--  character(len=3) :: slfslt = 'yes',    infchk = 'not'
-+  character(len=3) :: slfslt = 'yes',    infchk = 'not',   ljlrc = 'not'
+   character(len=5) :: clcond = 'merge'
+-  character(len=3) :: uvread = 'yes',    slfslt = 'yes'
++  character(len=3) :: uvread = 'yes',    slfslt = 'yes',   ljlrc = 'not'
+   character(len=3) :: infchk = 'not',    cumuint = 'not'
    character(len=4) :: zerosft = 'orig',  wgtfnform = 'harm'
    character(len=3) :: refmerge = 'yes',  extsln = 'lin'
-   character(len=3) :: wgtf2smpl = 'yes', slncor = 'not'
-@@ -72,6 +72,7 @@
+@@ -67,7 +67,7 @@
+   real, dimension(:),     allocatable :: wgtsln, wgtref
    
-   namelist /fevars/ clcond, pecore, numprm, numsln, numref, numdiv, &
-        peread, uvread, slfslt, infchk, zerosft, wgtfnform, &
-+       ljlrc, &
+   namelist /fevars/ clcond, numprm, numsln, numref, numdiv, &
+-       uvread, slfslt, infchk, zerosft, wgtfnform, &
++       uvread, slfslt, ljlrc, infchk, zerosft, wgtfnform, &
         refmerge, extsln, extthres_soln, extthres_refs, &
         minthres_soln, minthres_refs, &
         wgtf2smpl, slncor, normalize, showdst, wrtzrsft, readwgtfl, &
-@@ -565,6 +566,410 @@
+@@ -525,6 +525,410 @@
    end subroutine datread
  end module
  
@@ -428,7 +429,7 @@
  module sfecalc
    use sysvars, only: zerosft, wgtfnform, slncor, &
                       numslv, ermax, nummol, kT, itrmax, zero, error, &
-@@ -629,10 +1034,12 @@
+@@ -589,10 +993,12 @@
    subroutine chmpot(prmcnt, cntrun)
      !
      use sysvars, only: uvread, slfslt, normalize, showdst, wrtzrsft, &
@@ -441,7 +442,7 @@
      !
      implicit none
      integer, intent(in) :: prmcnt, cntrun
-@@ -749,6 +1156,7 @@
+@@ -709,6 +1115,7 @@
               aveuv(pti) = sum( uvcrd * edist, mask = (uvspec == pti) )
            end do
         endif

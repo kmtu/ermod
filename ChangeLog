@@ -1,6 +1,8 @@
 version 0.3.4 (XX/XX/2015)
 * Energy Histogram Computation:
     * The ermod program terminates when the cell is not cuboidal
+* Solvation Free Energy:
+    * The number of logarithmic meshes is internally counted in slvfe
 
 version 0.3.3 (10/22/2015)
 * Bug fixes:
