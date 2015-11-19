@@ -1,6 +1,10 @@
+version 0.3.4 (XX/XX/2015)
+* Energy Histogram Computation:
+    * The ermod program terminates when the cell is not cuboidal
+
 version 0.3.3 (10/22/2015)
 * Bug fixes:
-    * Fixed a bug in non-cuboidal box.
+    * Fixed a bug in non-cuboidal box ---- actually not fixed
 
 version 0.3.2 (09/26/2015)
 * Energy Histogram Computation:

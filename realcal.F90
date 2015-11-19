@@ -52,6 +52,7 @@ module realcal
   real :: cell_normal(3, 3), invcell_normal(3), cell_len_normal(3)
   real :: invcell(3, 3)
   logical :: is_cuboid
+  real, parameter :: check_rotate = 1e-8, cuboid_thres = 1e-8
 
 contains
   subroutine realcal_proc(target_solu, tagpt, slvmax, uvengy)
@@ -823,9 +824,9 @@ contains
     if(info /= 0) stop "engproc.f90, normalize_periodic: failed to rotate cell"
 
     cell_normal(:, :) = newcell(:, :)
-    if(abs(newcell(2, 1)) > 1e-8 .or. &
-       abs(newcell(3, 1)) > 1e-8 .or. &
-       abs(newcell(3, 2)) > 1e-8) then
+    if(abs(newcell(2, 1)) > check_rotate .or. &
+       abs(newcell(3, 1)) > check_rotate .or. &
+       abs(newcell(3, 2)) > check_rotate ) then
        print *, newcell
        stop "engproc.f90, normalize_periodic: assertion failed, box rotation is bugged"
     endif
@@ -855,10 +856,11 @@ contains
     endif
     if(info /= 0) stop "engproc.f90, normalize_periodic: failed to invert box vector"
 
-    if(  abs(cell(1, 2)) > 1e-8 .or. &
-         abs(cell(1, 3)) > 1e-8 .or. &
-         abs(cell(2, 3)) > 1e-8 ) then
+    if(  abs(cell(1, 2)) > cuboid_thres .or. &
+         abs(cell(1, 3)) > cuboid_thres .or. &
+         abs(cell(2, 3)) > cuboid_thres ) then
        is_cuboid = .false.
+       stop "A non-cuboidal cell is not supported. Wait for ver 0.4"
     else
        is_cuboid = .true.
     end if

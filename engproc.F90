@@ -312,9 +312,9 @@ contains
     implicit none
     integer, intent(in) :: stnum
     integer :: i, k, irank
-    real :: engnmfc, pairep, stat_weight_solute, factor
-    integer, dimension(:), allocatable :: insdst, engdst, tplst
-    real, dimension(:),    allocatable :: uvengy, svfl
+    real :: stat_weight_solute
+    integer, dimension(:), allocatable :: tplst
+    real, dimension(:),    allocatable :: uvengy
     logical, allocatable :: flceng_stored_g(:,:)
     real, allocatable :: flceng_g(:,:,:)
     real, save :: prevcl(3,3)
@@ -388,8 +388,7 @@ contains
        do cntdst = 1, maxdst
           call get_uv_energy(stnum, stat_weight_solute, uvengy(0:slvmax), skipcond)
           if(skipcond) cycle
-          
-          call update_histogram(stnum, stat_weight_solute, uvengy(0:slvmax))
+          call update_histogram(stat_weight_solute, uvengy(0:slvmax))
        enddo
 
        select case(slttype)
@@ -423,8 +422,8 @@ contains
                                         (stnum + irank - 1) * skpcnf, &
                                         flceng_g(1:numslv, cntdst, irank)
                       endif
-911                   format(i9, 999f15.5)
-912                   format(2i9, 999f15.5)
+911                   format(i9, 9999f15.5)
+912                   format(2i9, 9999f15.5)
                    endif
                 enddo
              enddo
@@ -571,7 +570,7 @@ contains
           open(unit = ave_io, file = 'aveuv.tt', action = 'write')
           do k = 1, engdiv
              write(ave_io, 751) k, aveuv(k, 1:numslv)
-751          format(i5, 999f15.5)
+751          format(i5, 9999f15.5)
           enddo
           endfile(ave_io)
           close(ave_io)
@@ -756,7 +755,7 @@ contains
     call realcal_cleanup
   end subroutine get_uv_energy
 
-  subroutine update_histogram(stnum, stat_weight_solute, uvengy)
+  subroutine update_histogram(stat_weight_solute, uvengy)
     use engmain, only: wgtslf, estype, slttype, corrcal, selfcal, ermax, &
                        volume, temp, uvspec, &
                        slnuv, avslf, minuv, maxuv, &
@@ -767,12 +766,8 @@ contains
                        ES_NVT, ES_NPT, NO, YES
     use mpiproc
     implicit none
-    integer, intent(in) :: stnum
     real, intent(in) :: uvengy(0:slvmax), stat_weight_solute
-
     integer, allocatable :: insdst(:), engdst(:)
-    real, allocatable :: svfl(:)
-
     integer :: i, k, q, iduv, iduvp, pti
     real :: factor, engnmfc, pairep, total_weight
 
