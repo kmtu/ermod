@@ -1,5 +1,5 @@
---- engproc.F90	2015-08-13 11:03:09.998109727 +0900
-+++ extensions/Intermediate/engproc.F90	2015-08-13 11:09:11.894736756 +0900
+--- engproc.F90	2015-11-19 16:16:31.627120697 +0900
++++ extensions/Intermediate/engproc.F90	2015-11-20 09:08:54.356747204 +0900
 @@ -30,6 +30,15 @@
    logical, allocatable :: flceng_stored(:)
    real, allocatable :: flceng(:, :)
@@ -102,7 +102,7 @@
      return
    end subroutine engclear
  
-@@ -462,6 +529,7 @@
+@@ -468,6 +535,7 @@
      real :: factor
      real, dimension(:), allocatable :: sve1, sve2
      real, dimension(:, :), allocatable :: sve3
@@ -110,7 +110,7 @@
      call mpi_rank_size_info                                          ! MPI
      !
  
-@@ -546,6 +614,79 @@
+@@ -552,6 +620,79 @@
      if(selfcal == YES) eself(1:esmax) = eself(1:esmax) / engnorm
      avslf = avslf / engnorm
  
@@ -190,7 +190,7 @@
      if(myrank /= 0) return                                            ! MPI
      !
      division = stnum / (maxcnf / skpcnf / engdiv)
-@@ -849,6 +990,22 @@
+@@ -852,6 +993,22 @@
         enddo
      endif
  

@@ -370,23 +370,23 @@ contains
                        maxins, numslv, numslt, cltype, cell, &
                        io_flcuv, &
                        SYS_NONPERIODIC, SYS_PERIODIC, &
-                       EL_COULOMB, EL_PME, ES_NVT, ES_NPT, &
+                       EL_COULOMB, EL_PME, EL_PPPM, ES_NVT, ES_NPT, &
                        SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX, &
                        PT_SOLVENT, PT_SOLUTE
     use reciprocal, only: recpcal_init, recpcal_spline_greenfunc, &
-                          recpcal_prepare_solvent
+                          recpcal_prepare_solvent, recpcal_pppm_greenfunc
     use mpiproc                                                      ! MPI
     implicit none
     integer, intent(in) :: stnum
     integer :: i, k, irank
-    real :: engnmfc, pairep, stat_weight_solute, factor
-    integer, dimension(:), allocatable :: insdst, engdst, tplst
-    real, dimension(:),    allocatable :: uvengy, svfl
+    real :: stat_weight_solute
+    integer, dimension(:), allocatable :: tplst
+    real, dimension(:),    allocatable :: uvengy
     logical, allocatable :: flceng_stored_g(:,:)
     real, allocatable :: flceng_g(:,:,:)
     real, save :: prevcl(3,3)
     logical :: skipcond
-    logical, save :: pme_initialized = .false.
+    logical, save :: pme_initialized = .false. ! NOTE: this variable is also used when PPPM is selected.
 
     call mpi_init_active_group(nactiveproc)
     call sanity_check_sluvid()
@@ -422,14 +422,20 @@ contains
     if(myrank < nactiveproc) then
        ! Initialize reciprocal space - grid and charges
        call get_inverted_cell
-       if(cltype == EL_PME) then
+       if(cltype == EL_PME .or. cltype == EL_PPPM) then
           if(.not. pme_initialized) call recpcal_init(slvmax, tagpt)
           
           ! check whether cell size changes
           ! recpcal is called only when cell size differ
           call perf_time("kgrn")
           if((.not. pme_initialized) .or. &
-             (any(prevcl(:,:) /= cell(:,:)))) call recpcal_spline_greenfunc()
+             (any(prevcl(:,:) /= cell(:,:)))) then
+             if (cltype == EL_PME) then
+                call recpcal_spline_greenfunc()
+             elseif (cltype == EL_PPPM) then
+                call recpcal_pppm_greenfunc()
+             endif
+          end if
           call perf_time()
           prevcl(:,:) = cell(:,:)
           
@@ -449,8 +455,7 @@ contains
        do cntdst = 1, maxdst
           call get_uv_energy(stnum, stat_weight_solute, uvengy(0:slvmax), skipcond)
           if(skipcond) cycle
-          
-          call update_histogram(stnum, stat_weight_solute, uvengy(0:slvmax))
+          call update_histogram(stat_weight_solute, uvengy(0:slvmax))
        enddo
 
        select case(slttype)
@@ -484,13 +489,14 @@ contains
                                         (stnum + irank - 1) * skpcnf, &
                                         flceng_g(1:numslv, cntdst, irank)
                       endif
-911                   format(i9, 999f15.5)
-912                   format(2i9, 999f15.5)
+911                   format(i9, 9999f15.5)
+912                   format(2i9, 9999f15.5)
                    endif
                 enddo
              enddo
           endif
           deallocate( flceng_g, flceng_stored_g )
+
        case(SLT_REFS_RIGID, SLT_REFS_FLEX)      ! for refs: output progress
           if(myrank == 0) write(io_flcuv, *) ( &
                                         (stnum + irank - 1) * skpcnf, &
@@ -705,7 +711,7 @@ contains
           open(unit = ave_io, file = 'aveuv.tt', action = 'write')
           do k = 1, engdiv
              write(ave_io, 751) k, aveuv(k, 1:numslv)
-751          format(i5, 999f15.5)
+751          format(i5, 9999f15.5)
           enddo
           endfile(ave_io)
           close(ave_io)
@@ -796,7 +802,7 @@ contains
   ! Calculate interaction energy between solute and solvent
   subroutine get_uv_energy(stnum, stat_weight_solute, uvengy, out_of_range)
     use engmain, only: maxcnf, skpcnf, slttype, sltlist, cltype, &
-                       EL_COULOMB, EL_PME, &
+                       EL_COULOMB, EL_PME, EL_PPPM, &
                        SLT_SOLN, SLT_REFS_RIGID, SLT_REFS_FLEX
     use ptinsrt, only: instslt
     use realcal, only: realcal_prepare, realcal_proc, realcal_self, &
@@ -837,7 +843,7 @@ contains
 
     uvengy(:) = 0
     ! Calculate system-wide values
-    if(cltype == EL_PME) then
+    if(cltype == EL_PME .or. cltype == EL_PPPM) then
        call recpcal_prepare_solute(tagslt)
        call perf_time("rblk")
        call realcal_proc(tagslt, tagpt, slvmax, uvengy)
@@ -875,7 +881,8 @@ contains
 
        pairep = 0
        factor = 0
-       if(cltype == EL_PME) then ! called only when PME, non-self interaction
+       if(cltype == EL_PME .or. cltype == EL_PPPM) then
+          ! called only when PME or PPPM, non-self interaction
           call residual_ene(tagslt, i, pairep)
           call recpcal_energy(tagslt, i, factor)
           pairep = pairep + factor
@@ -889,7 +896,7 @@ contains
     call realcal_cleanup
   end subroutine get_uv_energy
 
-  subroutine update_histogram(stnum, stat_weight_solute, uvengy)
+  subroutine update_histogram(stat_weight_solute, uvengy)
     use engmain, only: wgtslf, estype, slttype, corrcal, selfcal, ermax, &
                        volume, temp, uvspec, &
                        slnuv, avslf, minuv, maxuv, &
@@ -900,12 +907,8 @@ contains
                        ES_NVT, ES_NPT, NO, YES
     use mpiproc
     implicit none
-    integer, intent(in) :: stnum
     real, intent(in) :: uvengy(0:slvmax), stat_weight_solute
-
     integer, allocatable :: insdst(:), engdst(:)
-    real, allocatable :: svfl(:)
-
     integer :: i, k, q, iduv, iduvp, pti
     real :: factor, engnmfc, pairep, total_weight
 
@@ -1024,12 +1027,13 @@ contains
   !
   subroutine volcorrect(weight)
     use engmain, only:  sluvid, cltype, screen, mol_charge, volume, temp, &
-                        EL_EWALD, EL_PME, PT_SOLVENT, PT_SOLUTE, PI
+                        EL_EWALD, EL_PME, EL_PPPM, PT_SOLVENT, PT_SOLUTE, PI
     implicit none
     real, intent(inout) :: weight
     real :: total_charge, factor
     weight = weight * volume
-    if((cltype == EL_EWALD) .or. (cltype == EL_PME)) then  ! Ewald and PME
+    if((cltype == EL_EWALD) .or. (cltype == EL_PME) &
+         .or. (cltype == EL_PPPM)) then  ! Ewald, PME and PPPM
        ! sum of charges over physical particles
        total_charge = sum( mol_charge, mask = ((sluvid == PT_SOLVENT) &
                                           .or. (sluvid == PT_SOLUTE)) )
